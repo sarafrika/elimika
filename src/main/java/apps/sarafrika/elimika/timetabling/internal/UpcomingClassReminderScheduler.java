@@ -15,6 +15,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -35,6 +36,7 @@ class UpcomingClassReminderScheduler {
     private final ApplicationEventPublisher eventPublisher;
 
     @Scheduled(cron = "0 * * * * *")
+    @Transactional
     void sendUpcomingClassReminders() {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         List<ScheduledInstance> upcomingInstances = scheduledInstanceRepository
@@ -56,6 +58,10 @@ class UpcomingClassReminderScheduler {
 
         LocalDateTime reminderAt = instance.getStartTime().minusMinutes(reminderMinutes);
         if (now.isBefore(reminderAt) || !now.isBefore(instance.getStartTime())) {
+            return;
+        }
+        // The job runs every minute across the whole reminder window; only the first run may publish.
+        if (scheduledInstanceRepository.claimUpcomingReminder(instance.getUuid()) == 0) {
             return;
         }
 

@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -110,6 +111,13 @@ public interface ScheduledInstanceRepository extends JpaRepository<ScheduledInst
            "ORDER BY si.startTime ASC")
     List<ScheduledInstance> findScheduledInstancesStartingBetween(@Param("startTime") LocalDateTime startTime,
                                                                   @Param("endTime") LocalDateTime endTime);
+
+    /** Claims the upcoming-class reminder for the session's current start time; 0 when already sent for it. */
+    @Modifying
+    @Query(value = "UPDATE scheduled_instances SET reminder_sent_for = start_time " +
+                   "WHERE uuid = :uuid AND reminder_sent_for IS DISTINCT FROM start_time",
+           nativeQuery = true)
+    int claimUpcomingReminder(@Param("uuid") UUID uuid);
 
     @Query("SELECT si FROM ScheduledInstance si WHERE si.status = 'ONGOING' AND si.endTime <= :currentTime")
     List<ScheduledInstance> findOngoingInstancesPastEndTime(@Param("currentTime") LocalDateTime currentTime);

@@ -11,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -29,6 +30,7 @@ class AssignmentDeadlineReminderScheduler {
     private final ApplicationEventPublisher eventPublisher;
 
     @Scheduled(cron = "0 * * * * *")
+    @Transactional
     void sendAssignmentDeadlineReminders() {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         publishOneDayReminders(now);
@@ -44,6 +46,10 @@ class AssignmentDeadlineReminderScheduler {
             if (schedule.getDueAt() == null || now.isBefore(schedule.getDueAt().minusDays(1))) {
                 continue;
             }
+            // Runs every minute for the whole last day; only the first run may publish.
+            if (assignmentScheduleRepository.claimOneDayReminder(schedule.getUuid()) == 0) {
+                continue;
+            }
             publishStudentDeadlineReminders(schedule, "one_day", "Assignment due tomorrow");
         }
     }
@@ -54,6 +60,9 @@ class AssignmentDeadlineReminderScheduler {
                 now.plusMinutes(1)
         );
         for (ClassAssignmentSchedule schedule : schedules) {
+            if (assignmentScheduleRepository.claimDueReminder(schedule.getUuid()) == 0) {
+                continue;
+            }
             publishStudentDeadlineReminders(schedule, "due_now", "Assignment due now");
         }
     }
