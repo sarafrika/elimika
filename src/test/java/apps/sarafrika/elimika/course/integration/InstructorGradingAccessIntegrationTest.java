@@ -242,6 +242,21 @@ class InstructorGradingAccessIntegrationTest {
         }
 
         @Test
+        @DisplayName("the school's admin can list a student's course enrolments; a trainer cannot")
+        void schoolAdminListsStudentEnrolments() throws Exception {
+            UUID student = jdbc.queryForObject("SELECT student_uuid FROM course_enrollments WHERE uuid = ?", UUID.class,
+                    ownStudentEnrollment);
+            // Enrolling in a school class makes the learner a member of the school.
+            UUID school = jdbc.queryForObject("SELECT organisation_uuid FROM class_definitions WHERE organisation_uuid IS NOT NULL LIMIT 1", UUID.class);
+            membership(jdbc.queryForObject("SELECT user_uuid FROM students WHERE uuid = ?", UUID.class, student), school, "student");
+            mockMvc.perform(get("/api/v1/courses/enrollments/students/" + student).with(jwt(SCHOOL_ADMIN)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.content.length()").value(1));
+            mockMvc.perform(get("/api/v1/courses/enrollments/students/" + student).with(jwt(SCHOOL_DRUMS)))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
         @DisplayName("the school's admin cannot read an independent instructor's private student")
         void schoolAdminCannotReadPrivateStudent() throws Exception {
             mockMvc.perform(get(gradebookUrl(privateStudentEnrollment)).with(jwt(SCHOOL_ADMIN)))

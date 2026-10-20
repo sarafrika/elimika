@@ -42,6 +42,9 @@ public interface CourseEnrollmentService {
      */
     Page<CourseEnrollmentDTO> getCourseEnrollmentsForCaller(UUID courseUuid, Pageable pageable);
 
+    /** A learner's own course enrolments; callers are checked at the endpoint. */
+    Page<CourseEnrollmentDTO> getEnrollmentsForStudent(UUID studentUuid, Pageable pageable);
+
     boolean existsByStudentUuidAndCourseUuid(UUID studentUuid, UUID courseUuid);
 
     boolean existsByCourseUuidAndStatusIn(UUID uuid, List<EnrollmentStatus> enrollmentStatuses);

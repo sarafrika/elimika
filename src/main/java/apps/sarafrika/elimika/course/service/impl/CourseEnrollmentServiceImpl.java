@@ -154,6 +154,12 @@ public class CourseEnrollmentServiceImpl implements CourseEnrollmentService {
      */
     @Override
     @Transactional(readOnly = true)
+    public Page<CourseEnrollmentDTO> getEnrollmentsForStudent(UUID studentUuid, Pageable pageable) {
+        return courseEnrollmentRepository.findByStudentUuid(studentUuid, pageable).map(CourseEnrollmentFactory::toDTO);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<CourseEnrollmentDTO> getCourseEnrollmentsForCaller(UUID courseUuid, Pageable pageable) {
         Map<String, String> filters = new HashMap<>();
         filters.put("courseUuid", courseUuid.toString());

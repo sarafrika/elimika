@@ -1760,6 +1760,22 @@ public class CourseController {
 
     // ===== COURSE ENROLLMENTS =====
 
+    @GetMapping("/enrollments/students/{studentUuid}")
+    @PreAuthorize("@domainSecurityService.isStudentWithUuid(#studentUuid) "
+            + "or @domainSecurityService.managesOrganisationOfStudent(#studentUuid) "
+            + "or @domainSecurityService.isPlatformAdmin()")
+    @Operation(summary = "List a learner's course enrolments",
+            description = "For the learner, managers of an organisation they belong to, and platform admins. Opening each enrolment's grades is checked separately.")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<PagedDTO<CourseEnrollmentDTO>>> getStudentCourseEnrollments(
+            @PathVariable UUID studentUuid,
+            Pageable pageable) {
+        Page<CourseEnrollmentDTO> enrollments = courseEnrollmentService.getEnrollmentsForStudent(studentUuid, pageable);
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse
+                .success(PagedDTO.from(enrollments, ServletUriComponentsBuilder
+                                .fromCurrentRequestUri().build().toString()),
+                        "Course enrollments retrieved successfully"));
+    }
+
     @Operation(
             summary = "Get course enrollments",
             description = """
