@@ -44,6 +44,8 @@ public record SessionReportDTO(
         @JsonProperty("can_submit") boolean canSubmit
 ) {
 
+    // Named apart from the grade revision's CriterionDTO so the two OpenAPI schemas never merge.
+    @Schema(name = "SessionReportCriterion")
     public record CriterionDTO(@JsonProperty("criteria_uuid") UUID criteriaUuid, @JsonProperty("name") String name) {
     }
 
@@ -74,6 +76,7 @@ public record SessionReportDTO(
     ) {
     }
 
+    @Schema(name = "SessionReportAssignment")
     public record AssignmentDTO(
             @JsonProperty("title") String title,
             @JsonProperty("status") String status,
