@@ -87,6 +87,9 @@ public interface CommerceRevenueQueryService {
      */
     java.math.BigDecimal sumCapturedCreditsForClassDefinitions(java.util.Collection<UUID> classDefinitionUuids);
 
+    /** The creator's net earnings per course, for the given courses; courses with none are left out. */
+    List<CourseEarnings> sumCreatorEarningsByCourse(List<UUID> courseUuids);
+
     List<CommercePlatformFeeSummary> summarizePlatformFees(OffsetDateTime startDate, OffsetDateTime endDate);
 
     boolean orderBelongsToCourseUuids(String orderId, List<UUID> courseUuids);

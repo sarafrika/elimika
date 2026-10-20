@@ -77,6 +77,9 @@ public class CommercePurchaseItem extends BaseEntity {
     @Column(name = "retained_amount")
     private BigDecimal retainedAmount;
 
+    @Column(name = "creator_credited_amount")
+    private BigDecimal creatorCreditedAmount;
+
     @Column(name = "metadata_json")
     private String metadataJson;
 }

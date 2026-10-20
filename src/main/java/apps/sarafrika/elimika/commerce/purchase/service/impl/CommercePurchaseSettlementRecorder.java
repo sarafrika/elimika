@@ -49,6 +49,7 @@ public class CommercePurchaseSettlementRecorder implements PurchaseSettlementRec
         item.setPlatformFeeAmount(settlement.platformFeeAmount());
         item.setCreditedAmount(settlement.creditedAmount());
         item.setRetainedAmount(settlement.retainedAmount());
+        item.setCreatorCreditedAmount(settlement.creatorCreditedAmount());
         purchaseItemRepository.saveAndFlush(item);
         rollUpPlatformFee(item.getPurchase());
 

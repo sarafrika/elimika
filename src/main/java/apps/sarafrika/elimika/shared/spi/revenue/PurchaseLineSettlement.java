@@ -20,6 +20,7 @@ import java.math.BigDecimal;
  * @param platformFeeAmount the platform fees charged to this line's earners on their shares
  * @param creditedAmount    what was credited to an earner's wallet for this line; zero if nobody was
  * @param retainedAmount    collected, not fee, credited to no earner
+ * @param creatorCreditedAmount the course creator's part of {@code creditedAmount}
  */
 public record PurchaseLineSettlement(
         String orderId,
@@ -27,13 +28,23 @@ public record PurchaseLineSettlement(
         BigDecimal grossAmount,
         BigDecimal platformFeeAmount,
         BigDecimal creditedAmount,
-        BigDecimal retainedAmount
+        BigDecimal retainedAmount,
+        BigDecimal creatorCreditedAmount
 ) {
+
+    public PurchaseLineSettlement(String orderId, String lineItemId, BigDecimal grossAmount,
+                                  BigDecimal platformFeeAmount, BigDecimal creditedAmount, BigDecimal retainedAmount) {
+        this(orderId, lineItemId, grossAmount, platformFeeAmount, creditedAmount, retainedAmount, BigDecimal.ZERO);
+    }
 
     public PurchaseLineSettlement {
         if (grossAmount == null || platformFeeAmount == null
                 || creditedAmount == null || retainedAmount == null) {
             throw new IllegalArgumentException("All settlement amounts are required");
+        }
+        if (creatorCreditedAmount == null || creatorCreditedAmount.signum() < 0
+                || creatorCreditedAmount.compareTo(creditedAmount) > 0) {
+            throw new IllegalArgumentException("The creator's part must be between zero and the credited amount");
         }
         BigDecimal accountedFor = platformFeeAmount.add(creditedAmount).add(retainedAmount);
         if (accountedFor.compareTo(grossAmount) != 0) {

@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.revenue.dto.RevenueAnalyticsOverviewDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueDashboardDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenuePaymentDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueSaleLineItemDTO;
+import apps.sarafrika.elimika.revenue.dto.CourseEarningsDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueAmountDTO;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import java.time.LocalDate;
@@ -37,6 +38,9 @@ public interface RevenueAnalyticsService {
             String orderId,
             Pageable pageable
     );
+
+    /** The signed-in course creator's net earnings per course, highest first. */
+    List<CourseEarningsDTO> getCourseEarnings();
 
     List<RevenueAmountDTO> getPlatformFeeSummary(LocalDate startDate, LocalDate endDate);
 }

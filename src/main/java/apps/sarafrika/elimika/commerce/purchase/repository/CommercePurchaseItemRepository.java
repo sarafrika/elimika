@@ -21,6 +21,17 @@ import org.springframework.data.domain.Pageable;
 @Repository
 public interface CommercePurchaseItemRepository extends JpaRepository<CommercePurchaseItem, Long> {
 
+    @Query("""
+            select new apps.sarafrika.elimika.shared.spi.revenue.CourseEarnings(
+                i.courseUuid, count(i), coalesce(sum(i.creatorCreditedAmount), 0))
+            from CommercePurchaseItem i
+            where i.courseUuid in :courseUuids
+              and i.creatorCreditedAmount > 0
+            group by i.courseUuid
+            """)
+    List<apps.sarafrika.elimika.shared.spi.revenue.CourseEarnings> sumCreatorEarningsByCourse(
+            @Param("courseUuids") Collection<UUID> courseUuids);
+
     @Query("select coalesce(sum(i.platformFeeAmount), 0) from CommercePurchaseItem i where i.purchase.id = :purchaseId")
     BigDecimal sumPlatformFeeByPurchaseId(@Param("purchaseId") Long purchaseId);
 

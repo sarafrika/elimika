@@ -6,6 +6,7 @@ import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseInfoService.RevenueShare;
 import apps.sarafrika.elimika.coursecreator.spi.CourseCreatorLookupService;
 import apps.sarafrika.elimika.revenue.dto.RevenueAnalyticsOverviewDTO;
+import apps.sarafrika.elimika.revenue.dto.CourseEarningsDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueAmountDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueDashboardDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueDomainAnalyticsDTO;
@@ -165,6 +166,14 @@ public class RevenueAnalyticsServiceImpl implements RevenueAnalyticsService {
                 : paymentQueryService.findPaymentsByOrderUuids(range.startDateTime(), range.endDateTime(), status, orderUuids, pageable);
 
         return payments.map(this::toPaymentDto);
+    }
+
+    @Override
+    public List<CourseEarningsDTO> getCourseEarnings() {
+        return revenueQueryService.sumCreatorEarningsByCourse(resolveCourseCreatorCourseUuids()).stream()
+                .map(row -> new CourseEarningsDTO(row.courseUuid(), row.salesCount(), row.earnedAmount()))
+                .sorted(java.util.Comparator.comparing(CourseEarningsDTO::earnedAmount).reversed())
+                .toList();
     }
 
     @Override

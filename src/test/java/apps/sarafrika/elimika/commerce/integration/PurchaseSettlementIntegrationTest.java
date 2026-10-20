@@ -9,10 +9,12 @@ import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseItemR
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseRepository;
 import apps.sarafrika.elimika.commerce.purchase.service.impl.CommercePurchaseSettlementRecorder;
 import apps.sarafrika.elimika.shared.config.JpaConfig;
+import apps.sarafrika.elimika.shared.spi.revenue.CourseEarnings;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseLineSettlement;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
+import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -224,6 +226,28 @@ class PurchaseSettlementIntegrationTest {
                 "select platform_fee_amount, platform_fee_currency from commerce_purchase where order_id = ?", orderId);
         assertThat((BigDecimal) stored.get("platform_fee_amount")).isEqualByComparingTo("150.00");
         assertThat(stored.get("platform_fee_currency")).isEqualTo("KES");
+    }
+
+    @Test
+    @DisplayName("a creator's net share is recorded per line and summed per course")
+    void creatorEarningsAreSummedPerCourse() {
+        // Only the sum matters here; the course row itself is irrelevant.
+        jdbc.execute("SET session_replication_role = replica");
+        UUID course = UUID.randomUUID();
+        CommercePurchaseItem item = recordPurchase("line-1", "10000.00");
+        item.setCourseUuid(course);
+        purchaseItemRepository.saveAndFlush(item);
+
+        recorder.recordLineSettlement(new PurchaseLineSettlement(orderId, "line-1", new BigDecimal("10000.00"),
+                new BigDecimal("1000.00"), new BigDecimal("9000.00"), BigDecimal.ZERO, new BigDecimal("2700.00")));
+        purchaseItemRepository.flush();
+
+        List<CourseEarnings> earnings = purchaseItemRepository.sumCreatorEarningsByCourse(List.of(course));
+        assertThat(earnings).singleElement().satisfies(row -> {
+            assertThat(row.courseUuid()).isEqualTo(course);
+            assertThat(row.salesCount()).isEqualTo(1L);
+            assertThat(row.earnedAmount()).isEqualByComparingTo("2700.00");
+        });
     }
 
     @Test

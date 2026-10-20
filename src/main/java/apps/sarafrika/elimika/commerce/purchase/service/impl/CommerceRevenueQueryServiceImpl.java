@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.commerce.purchase.service.impl;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseItemRepository;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseRepository;
 import apps.sarafrika.elimika.shared.spi.revenue.CommercePlatformFeeSummary;
+import apps.sarafrika.elimika.shared.spi.revenue.CourseEarnings;
 import apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueLineItem;
 import apps.sarafrika.elimika.shared.spi.revenue.CommerceRevenueQueryService;
 import apps.sarafrika.elimika.shared.spi.revenue.CommerceSaleLineItemView;
@@ -155,6 +156,14 @@ public class CommerceRevenueQueryServiceImpl implements CommerceRevenueQueryServ
 
     private static BigDecimal orZero(BigDecimal amount) {
         return amount == null ? BigDecimal.ZERO : amount;
+    }
+
+    @Override
+    public List<CourseEarnings> sumCreatorEarningsByCourse(List<UUID> courseUuids) {
+        if (courseUuids == null || courseUuids.isEmpty()) {
+            return List.of();
+        }
+        return purchaseItemRepository.sumCreatorEarningsByCourse(courseUuids);
     }
 
     @Override

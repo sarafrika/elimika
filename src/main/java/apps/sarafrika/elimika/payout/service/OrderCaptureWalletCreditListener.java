@@ -105,15 +105,17 @@ public class OrderCaptureWalletCreditListener {
         String reference = reference(order, item);
         BigDecimal fee = NO_MONEY;
         BigDecimal credited = NO_MONEY;
+        BigDecimal creatorNet = NO_MONEY;
         if (pay(parties.creator(), split.creator(), order, reference + ":creator", parties.description())) {
             fee = fee.add(split.creator().platformFee());
-            credited = credited.add(split.creator().net());
+            creatorNet = split.creator().net();
+            credited = credited.add(creatorNet);
         }
         if (pay(parties.delivery(), split.delivery(), order, reference + ":delivery", parties.description())) {
             fee = fee.add(split.delivery().platformFee());
             credited = credited.add(split.delivery().net());
         }
-        record(order, item, gross, fee, credited);
+        record(order, item, gross, fee, credited, creatorNet);
     }
 
     /** Settles one leg; false when there is nobody to pay or nothing to pay, so the leg is retained. */
@@ -176,8 +178,13 @@ public class OrderCaptureWalletCreditListener {
     }
 
     private void record(OrderResponse order, CartItemResponse item, BigDecimal gross, BigDecimal fee, BigDecimal credited) {
+        record(order, item, gross, fee, credited, NO_MONEY);
+    }
+
+    private void record(OrderResponse order, CartItemResponse item, BigDecimal gross, BigDecimal fee, BigDecimal credited,
+                        BigDecimal creatorNet) {
         purchaseSettlementRecorder.recordLineSettlement(new PurchaseLineSettlement(
-                order.getId(), item.getId(), gross, fee, credited, gross.subtract(fee).subtract(credited)));
+                order.getId(), item.getId(), gross, fee, credited, gross.subtract(fee).subtract(credited), creatorNet));
     }
 
     private static String reference(OrderResponse order, CartItemResponse item) {

@@ -95,6 +95,7 @@ class OrderCaptureWalletCreditListenerTest {
         verify(walletService).settleSaleShare(eq(WalletOwner.user(instructorUserUuid)), money("35000.00"),
                 money("3500.00"), eq("KES"), eq(ORDER_ID + ":line-1:delivery"), any());
         assertSettlement(settlement(), "50000.00", "5000.00", "45000.00", "0.00");
+        assertThat(settlement().creatorCreditedAmount()).isEqualByComparingTo("13500.00");
     }
 
     @Test
@@ -160,6 +161,7 @@ class OrderCaptureWalletCreditListenerTest {
 
         verify(walletService).settleSaleShare(eq(WalletOwner.user(instructorUserUuid)), any(), any(), any(), any(), any());
         assertSettlement(settlement(), "50000.00", "3500.00", "31500.00", "15000.00");
+        assertThat(settlement().creatorCreditedAmount()).isEqualByComparingTo("0");
     }
 
     @Test

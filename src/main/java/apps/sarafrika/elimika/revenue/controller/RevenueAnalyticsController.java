@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.revenue.dto.RevenueAnalyticsOverviewDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueDashboardDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenuePaymentDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueSaleLineItemDTO;
+import apps.sarafrika.elimika.revenue.dto.CourseEarningsDTO;
 import apps.sarafrika.elimika.revenue.dto.RevenueAmountDTO;
 import apps.sarafrika.elimika.revenue.service.RevenueAnalyticsService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
@@ -147,6 +148,15 @@ public class RevenueAnalyticsController {
                 ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()
         );
         return ResponseEntity.ok(ApiResponse.success(paged, "Revenue payments retrieved successfully"));
+    }
+
+    @GetMapping("/course-earnings")
+    @PreAuthorize("@domainSecurityService.hasAnyDomain(T(apps.sarafrika.elimika.shared.utils.enums.UserDomain).course_creator)")
+    @Operation(operationId = "getMyCourseEarnings", summary = "My earnings per course",
+            description = "The signed-in course creator's net earnings from class sales, per course, highest first.")
+    public ResponseEntity<ApiResponse<List<CourseEarningsDTO>>> getCourseEarnings() {
+        return ResponseEntity.ok(ApiResponse.success(revenueAnalyticsService.getCourseEarnings(),
+                "Course earnings retrieved successfully"));
     }
 
     @GetMapping("/platform-fees/summary")
