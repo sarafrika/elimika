@@ -152,7 +152,8 @@ class CourseGradeBookServiceImplTest {
                 gradeRevisionRecorder,
                 gradeRevisionRepository,
                 gradeBandRepository,
-                enrollmentFeedbackRepository
+                enrollmentFeedbackRepository,
+                noSessionReportLocks()
         );
     }
 
@@ -1076,5 +1077,10 @@ class CourseGradeBookServiceImplTest {
 
     private String evaluationKey(UUID lineItemUuid, UUID enrollmentUuid) {
         return lineItemUuid + ":" + enrollmentUuid;
+    }
+
+    @SuppressWarnings("unchecked")
+    private static org.springframework.beans.factory.ObjectProvider<apps.sarafrika.elimika.shared.spi.SessionReportLockLookup> noSessionReportLocks() {
+        return org.mockito.Mockito.mock(org.springframework.beans.factory.ObjectProvider.class);
     }
 }

@@ -13,7 +13,7 @@ import java.util.UUID;
 public record CourseEnrollmentFeedbackDTO(
         @JsonProperty(value = "uuid", access = JsonProperty.Access.READ_ONLY) UUID uuid,
         @JsonProperty(value = "enrollment_uuid", access = JsonProperty.Access.READ_ONLY) UUID enrollmentUuid,
-        @JsonProperty("comments") @NotBlank @Size(max = 5000) String comments,
+        @JsonProperty("comments") @NotBlank @Size(max = 20000) String comments,
         @JsonProperty(value = "author_user_uuid", access = JsonProperty.Access.READ_ONLY) UUID authorUserUuid,
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY) LocalDateTime createdDate
 ) {

@@ -156,7 +156,7 @@ public record AssignmentSubmissionDTO(
                 maxLength = 5000,
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
-        @Size(max = 5000, message = "Instructor comments must not exceed 5000 characters")
+        @Size(max = 20000, message = "Instructor comments must not exceed 20000 characters")
         @JsonProperty("instructor_comments")
         String instructorComments,
 

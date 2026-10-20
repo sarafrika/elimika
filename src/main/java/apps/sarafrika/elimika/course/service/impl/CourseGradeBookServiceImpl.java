@@ -57,7 +57,9 @@ import apps.sarafrika.elimika.course.util.enums.CourseAssessmentLineItemType;
 import apps.sarafrika.elimika.course.util.enums.CourseAttendanceStatus;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
+import apps.sarafrika.elimika.shared.spi.SessionReportLockLookup;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -115,6 +117,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
     private final CourseAssessmentGradeRevisionRepository gradeRevisionRepository;
     private final CourseGradeBandRepository gradeBandRepository;
     private final CourseEnrollmentFeedbackRepository enrollmentFeedbackRepository;
+    private final ObjectProvider<SessionReportLockLookup> sessionReportLocks;
 
     @Override
     public CourseAssessmentLineItemDTO createLineItem(UUID courseUuid, UUID assessmentUuid, CourseAssessmentLineItemDTO lineItemDTO) {
@@ -189,6 +192,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         if (resolveEffectiveRubricUuid(assessment, lineItem) != null) {
             throw new IllegalArgumentException("This line item is scored with a rubric; record a rubric evaluation instead of a raw score");
         }
+        requireLessonOpen(courseUuid, lineItem, enrollment);
 
         CourseAssessmentLineItemScore savedScore = saveLineItemScore(
                 lineItem,
@@ -253,6 +257,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         CourseAssessment assessment = getAssessmentOrThrow(courseUuid, assessmentUuid);
         CourseAssessmentLineItem lineItem = getLineItemOrThrow(assessmentUuid, lineItemUuid);
         CourseEnrollment enrollment = getEnrollmentOrThrow(courseUuid, enrollmentUuid);
+        requireLessonOpen(courseUuid, lineItem, enrollment);
 
         UUID rubricUuid = resolveEffectiveRubricUuid(assessment, lineItem);
         if (rubricUuid == null) {
@@ -420,6 +425,15 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
                 configuredWeightPercentage,
                 components
         );
+    }
+
+    /** Refuses changes to a lesson whose session report has locked. */
+    private void requireLessonOpen(UUID courseUuid, CourseAssessmentLineItem lineItem, CourseEnrollment enrollment) {
+        SessionReportLockLookup locks = sessionReportLocks.getIfAvailable();
+        if (locks != null && lineItem.getLessonUuid() != null
+                && locks.isLessonLocked(enrollment.getStudentUuid(), courseUuid, lineItem.getLessonUuid())) {
+            throw new IllegalStateException("This lesson's session report is locked; its scores can no longer be changed.");
+        }
     }
 
     private static BigDecimal averageScore(List<CourseAssessmentLineItemScore> gradedScores) {

@@ -44,7 +44,7 @@ public record CourseAssessmentLineItemRubricEvaluationDTO(
         BigDecimal percentage,
 
         @JsonProperty("comments")
-        @Size(max = 5000, message = "Comments must not exceed 5000 characters")
+        @Size(max = 20000, message = "Comments must not exceed 20000 characters")
         String comments,
 
         @JsonProperty("graded_at")
