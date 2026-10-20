@@ -1,3 +1,10 @@
+# [2.179.0](https://github.com/sarafrika/elimika/compare/v2.178.0...v2.179.0) (2026-10-20)
+
+
+### Features
+
+* **revenue:** record each creator's net share per purchase line and serve their earnings per course ([5f18ada](https://github.com/sarafrika/elimika/commit/5f18ada150f545014b27087be549148cba2a0fa1))
+
 # [2.178.0](https://github.com/sarafrika/elimika/compare/v2.177.0...v2.178.0) (2026-10-20)
 
 
