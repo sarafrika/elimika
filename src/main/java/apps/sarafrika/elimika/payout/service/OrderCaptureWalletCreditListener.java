@@ -133,28 +133,39 @@ public class OrderCaptureWalletCreditListener {
     private Parties resolveParties(CartItemResponse item) {
         UUID classUuid = parseUuid(item.getMetadata(), "class_definition_uuid");
         UUID courseUuid = parseUuid(item.getMetadata(), "course_uuid");
+        UUID programUuid = null;
         String title = item.getTitle();
         WalletOwner delivery = null;
         if (classUuid != null) {
             Optional<ClassDefinitionSnapshot> snapshot = classDefinitionLookupService.findByUuid(classUuid);
             courseUuid = snapshot.map(ClassDefinitionSnapshot::courseUuid).orElse(null);
+            programUuid = snapshot.map(ClassDefinitionSnapshot::programUuid).orElse(null);
             title = snapshot.map(ClassDefinitionSnapshot::title).orElse(title);
         }
-        if (courseUuid == null) {
-            log.warn("Line {} has no course to split by; retaining it", item.getId());
+        // A class taught under a program, not a course, splits by the program's courses on average.
+        boolean program = courseUuid == null && programUuid != null;
+        if (courseUuid == null && !program) {
+            log.warn("Line {} has no course or program to split by; retaining it", item.getId());
             return null;
         }
-        BigDecimal creatorPercentage = courseInfoService.getRevenueShare(courseUuid)
+        BigDecimal creatorPercentage = (program
+                ? courseInfoService.getProgramRevenueShare(programUuid)
+                : courseInfoService.getRevenueShare(courseUuid))
                 .map(RevenueShare::creatorSharePercentage)
                 .orElse(null);
         if (creatorPercentage == null) {
-            log.warn("Course {} has no revenue split; retaining line {}", courseUuid, item.getId());
+            log.warn("No revenue split for {} {}; retaining line {}", program ? "program" : "course",
+                    program ? programUuid : courseUuid, item.getId());
             return null;
         }
         if (classUuid != null) {
             delivery = resolveDelivery(classUuid);
         }
-        WalletOwner creator = courseInfoService.getCourseCreatorUserUuid(courseUuid).map(WalletOwner::user).orElse(null);
+        WalletOwner creator = (program
+                ? courseInfoService.getTrainingProgramCreatorUserUuid(programUuid)
+                : courseInfoService.getCourseCreatorUserUuid(courseUuid))
+                .map(WalletOwner::user)
+                .orElse(null);
         return new Parties(creatorPercentage, creator, delivery, "Class sale share - " + (title == null ? "class" : title));
     }
 

@@ -86,6 +86,12 @@ public interface CourseInfoService {
     Optional<RevenueShare> getRevenueShare(UUID courseUuid);
 
     /**
+     * A program's split, which programs do not set themselves: the average creator share of its member
+     * courses, the rest to delivery. Empty when none of its courses has a split.
+     */
+    Optional<RevenueShare> getProgramRevenueShare(UUID programUuid);
+
+    /**
      * Retrieves revenue share percentages for multiple courses.
      *
      * @param courseUuids The course UUIDs to fetch

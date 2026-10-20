@@ -193,6 +193,29 @@ class OrderCaptureWalletCreditListenerTest {
     }
 
     @Test
+    @DisplayName("a class taught under a program pays the program's creator its courses' average creator share")
+    void programOnlyClassPaysTheProgramCreator() {
+        UUID programUuid = UUID.randomUUID();
+        givenFee(TEN_PERCENT);
+        when(classDefinitionLookupService.findByUuid(classUuid)).thenReturn(Optional.of(new ClassDefinitionSnapshot(
+                classUuid, null, programUuid, "Data Analytics Cohort", null, null, null, RateBasis.PER_HOUR,
+                null, null, null, null, null, null, null)));
+        when(courseInfoService.getProgramRevenueShare(programUuid))
+                .thenReturn(Optional.of(new RevenueShare(new BigDecimal("40.00"), new BigDecimal("60.00"))));
+        when(courseInfoService.getTrainingProgramCreatorUserUuid(programUuid)).thenReturn(Optional.of(creatorUserUuid));
+        givenDirectInstructor();
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any())).thenReturn(true);
+
+        capture(line("line-1", "10000.00", Map.of("class_definition_uuid", classUuid.toString())));
+
+        verify(walletService).settleSaleShare(eq(WalletOwner.user(creatorUserUuid)), money("4000.00"), money("400.00"),
+                any(), eq(ORDER_ID + ":line-1:creator"), argThat(d -> d.contains("Data Analytics Cohort")));
+        verify(walletService).settleSaleShare(eq(WalletOwner.user(instructorUserUuid)), money("6000.00"),
+                money("600.00"), any(), eq(ORDER_ID + ":line-1:delivery"), any());
+        assertSettlement(settlement(), "10000.00", "1000.00", "9000.00", "0.00");
+    }
+
+    @Test
     @DisplayName("a line without a class or course is retained whole")
     void unscopedLine() {
         givenFee(TEN_PERCENT);

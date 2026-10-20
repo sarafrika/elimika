@@ -143,6 +143,25 @@ public class CourseInfoServiceImpl implements CourseInfoService {
     }
 
     @Override
+    public Optional<RevenueShare> getProgramRevenueShare(UUID programUuid) {
+        if (programUuid == null) {
+            return Optional.empty();
+        }
+        List<java.math.BigDecimal> creatorShares = courseRepository
+                .findByUuidIn(programCourseRepository.findCourseUuidsByProgramUuidIn(List.of(programUuid))).stream()
+                .map(Course::getCreatorSharePercentage)
+                .filter(java.util.Objects::nonNull)
+                .toList();
+        if (creatorShares.isEmpty()) {
+            return Optional.empty();
+        }
+        java.math.BigDecimal creator = creatorShares.stream()
+                .reduce(java.math.BigDecimal.ZERO, java.math.BigDecimal::add)
+                .divide(java.math.BigDecimal.valueOf(creatorShares.size()), 2, java.math.RoundingMode.HALF_UP);
+        return Optional.of(new RevenueShare(creator, java.math.BigDecimal.valueOf(100).setScale(2).subtract(creator)));
+    }
+
+    @Override
     public Map<UUID, RevenueShare> getRevenueShares(List<UUID> courseUuids) {
         if (courseUuids == null || courseUuids.isEmpty()) {
             return Map.of();
