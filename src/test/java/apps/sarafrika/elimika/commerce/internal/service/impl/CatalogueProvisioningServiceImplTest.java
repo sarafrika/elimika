@@ -108,4 +108,55 @@ class CatalogueProvisioningServiceImplTest {
 
         verify(productRepository, never()).findByCourseUuid(any());
     }
+
+    @Test
+    void repricingAClassUpdatesTheVariantLearnersAreCharged() {
+        UUID classDefinitionUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        CommerceProductVariant variant = existingVariant("SKU-CLS-1", "1000.0000");
+        givenExistingClass(classDefinitionUuid, courseUuid, "1500.00", variant);
+        when(variantRepository.save(any(CommerceProductVariant.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.ensureClassIsPurchasable(classDefinitionUuid);
+
+        verify(variantRepository).save(variant);
+        assertThat(variant.getUnitAmount()).isEqualByComparingTo("1500.00");
+    }
+
+    @Test
+    void anUnchangedPriceLeavesTheVariantAlone() {
+        UUID classDefinitionUuid = UUID.randomUUID();
+        UUID courseUuid = UUID.randomUUID();
+        CommerceProductVariant variant = existingVariant("SKU-CLS-2", "1500.0000");
+        givenExistingClass(classDefinitionUuid, courseUuid, "1500.00", variant);
+
+        service.ensureClassIsPurchasable(classDefinitionUuid);
+
+        verify(variantRepository, never()).save(any());
+    }
+
+    private CommerceProductVariant existingVariant(String code, String unitAmount) {
+        CommerceProductVariant variant = new CommerceProductVariant();
+        variant.setCode(code);
+        variant.setCurrencyCode("KES");
+        variant.setUnitAmount(new BigDecimal(unitAmount));
+        return variant;
+    }
+
+    private void givenExistingClass(UUID classDefinitionUuid, UUID courseUuid, String salePrice, CommerceProductVariant variant) {
+        ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot = new ClassDefinitionLookupService.ClassDefinitionSnapshot(
+                classDefinitionUuid, courseUuid, null, "Gardening", null, new BigDecimal(salePrice), null,
+                apps.sarafrika.elimika.shared.utils.enums.RateBasis.PER_HOUR, ClassVisibility.PUBLIC,
+                null, 30, true, null, null, null);
+        CommerceCatalogueItem item = new CommerceCatalogueItem();
+        item.setActive(true);
+        item.setVariantCode(variant.getCode());
+        CommerceProduct product = new CommerceProduct();
+        product.setUuid(UUID.randomUUID());
+        when(classDefinitionLookupService.findByUuid(classDefinitionUuid)).thenReturn(Optional.of(snapshot));
+        when(catalogItemRepository.findByClassDefinitionUuid(classDefinitionUuid)).thenReturn(List.of(item));
+        when(productRepository.findByCourseUuid(courseUuid)).thenReturn(Optional.of(product));
+        when(variantRepository.findByCode(variant.getCode())).thenReturn(Optional.of(variant));
+        when(catalogItemRepository.save(any(CommerceCatalogueItem.class))).thenAnswer(invocation -> invocation.getArgument(0));
+    }
 }

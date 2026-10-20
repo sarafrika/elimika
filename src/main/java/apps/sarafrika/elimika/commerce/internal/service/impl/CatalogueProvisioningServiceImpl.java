@@ -118,16 +118,28 @@ public class CatalogueProvisioningServiceImpl implements CatalogueProvisioningSe
             Optional<CommerceProductVariant> existingVariant =
                     variantRepository.findByCode(existingCatalogItem.getVariantCode());
             if (existingVariant.isPresent()) {
-                return existingVariant.get();
+                return syncPrice(existingVariant.get(), snapshot);
             }
         }
 
         Optional<CommerceProductVariant> legacyVariant = variantRepository.findByCode(classDefinitionUuid.toString());
         if (legacyVariant.isPresent()) {
-            return legacyVariant.get();
+            return syncPrice(legacyVariant.get(), snapshot);
         }
 
         return createVariant(product, classDefinitionUuid, snapshot);
+    }
+
+    /** A re-priced class must charge its new price; the variant is what the cart reads. */
+    private CommerceProductVariant syncPrice(CommerceProductVariant variant,
+                                             ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
+        BigDecimal price = resolvePrice(snapshot);
+        if (variant.getUnitAmount() != null && variant.getUnitAmount().compareTo(price) == 0) {
+            return variant;
+        }
+        log.info("Re-pricing variant {} from {} to {}", variant.getCode(), variant.getUnitAmount(), price);
+        variant.setUnitAmount(price);
+        return variantRepository.save(variant);
     }
 
     private CommerceProductVariant createVariant(CommerceProduct product, UUID classDefinitionUuid,
