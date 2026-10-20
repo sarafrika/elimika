@@ -80,6 +80,8 @@ tasks.named('test') {
 	// now holds enough of them that Gradle's 512m default is exhausted mid-run - the symptom is an
 	// OutOfMemoryError while parsing ElimikaApplication in whichever context happens to load last.
 	maxHeapSize = '2g'
+	// Each fork starts its own shared Postgres (see testsupport.SharedPostgres).
+	maxParallelForks = 2
 }
 tasks.withType(JavaCompile).configureEach {
     options.compilerArgs += ["-Xlint:unchecked", "-Xlint:deprecation"]
