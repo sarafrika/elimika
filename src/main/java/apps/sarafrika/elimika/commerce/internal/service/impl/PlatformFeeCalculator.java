@@ -10,7 +10,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
-import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.Optional;
@@ -46,26 +45,10 @@ public class PlatformFeeCalculator {
             return new PlatformFeeBreakdown(BigDecimal.ZERO, currency, config.mode(), null, orderTotal, ruleUuid, now);
         }
 
-        BigDecimal rate = null;
-        BigDecimal fee;
-        if (config.mode() == PlatformFeeMode.PERCENTAGE) {
-            rate = config.amount() == null ? BigDecimal.ZERO : config.amount();
-            fee = orderTotal.multiply(rate).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        } else {
-            fee = config.amount() == null ? BigDecimal.ZERO : config.amount();
-        }
-
-        if (config.discountActive(now) && config.discount() != null) {
-            PlatformFeeConfig.TimeBoundModifier discount = config.discount();
-            if (discount.percentage() != null) {
-                fee = fee.subtract(fee.multiply(discount.percentage()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
-            } else if (discount.amount() != null) {
-                fee = fee.subtract(discount.amount());
-            }
-            if (fee.signum() < 0) {
-                fee = BigDecimal.ZERO;
-            }
-        }
+        BigDecimal rate = config.mode() == PlatformFeeMode.PERCENTAGE
+                ? (config.amount() == null ? BigDecimal.ZERO : config.amount())
+                : null;
+        BigDecimal fee = config.feeOn(orderTotal, now);
 
         return new PlatformFeeBreakdown(fee, currency, config.mode(), rate, orderTotal, ruleUuid, now);
     }

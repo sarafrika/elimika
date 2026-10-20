@@ -5,6 +5,7 @@ import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.OffsetDateTime;
 import java.util.Objects;
 
@@ -25,6 +26,25 @@ public record PlatformFeeConfig(
 
     public boolean discountActive(OffsetDateTime evaluationInstant) {
         return discount != null && discount.isActive(evaluationInstant);
+    }
+
+    /** The fee on {@code base} at {@code at}: mode, then waiver, then discount; never negative. */
+    public BigDecimal feeOn(BigDecimal base, OffsetDateTime at) {
+        BigDecimal zero = BigDecimal.ZERO.setScale(2);
+        if (base == null || amount == null || waiverActive(at)) {
+            return zero;
+        }
+        BigDecimal fee = mode == PlatformFeeMode.PERCENTAGE
+                ? base.multiply(amount).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP)
+                : amount.setScale(2, RoundingMode.HALF_UP);
+        if (discountActive(at)) {
+            if (discount.percentage() != null) {
+                fee = fee.subtract(fee.multiply(discount.percentage()).divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP));
+            } else if (discount.amount() != null) {
+                fee = fee.subtract(discount.amount());
+            }
+        }
+        return fee.max(zero);
     }
 
     public record TimeBoundModifier(
