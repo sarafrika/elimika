@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.spi;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Set;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -55,4 +56,9 @@ public interface LearnerProgressLookupService {
      * The subset of the given quizzes the learner has submitted an attempt at.
      */
     Set<UUID> findSubmittedQuizUuids(UUID studentUuid, Collection<UUID> quizUuids);
+
+    /**
+     * The learner a course enrolment belongs to, so a guardian's access can be checked against it.
+     */
+    Optional<UUID> findStudentUuidOfCourseEnrollment(UUID courseEnrollmentUuid);
 }

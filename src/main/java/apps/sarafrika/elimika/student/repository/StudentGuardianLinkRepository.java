@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.student.repository;
 
 import apps.sarafrika.elimika.student.model.StudentGuardianLink;
 import apps.sarafrika.elimika.student.util.enums.GuardianLinkStatus;
+import apps.sarafrika.elimika.student.util.enums.GuardianShareScope;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 
@@ -22,6 +23,11 @@ public interface StudentGuardianLinkRepository extends JpaRepository<StudentGuar
     boolean existsByStudentUuidAndGuardianUserUuidAndStatus(UUID studentUuid,
                                                             UUID guardianUuid,
                                                             GuardianLinkStatus status);
+
+    boolean existsByStudentUuidAndGuardianUserUuidAndStatusAndShareScopeIn(UUID studentUuid,
+                                                                          UUID guardianUserUuid,
+                                                                          GuardianLinkStatus status,
+                                                                          Collection<GuardianShareScope> shareScopes);
 
     List<StudentGuardianLink> findByGuardianUserUuidAndStatus(UUID guardianUuid, GuardianLinkStatus status);
 

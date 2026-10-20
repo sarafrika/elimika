@@ -192,4 +192,9 @@ class LearnerProgressLookupServiceImpl implements LearnerProgressLookupService {
         );
     }
 
+
+    @Override
+    public Optional<UUID> findStudentUuidOfCourseEnrollment(UUID courseEnrollmentUuid) {
+        return courseEnrollmentRepository.findByUuid(courseEnrollmentUuid).map(CourseEnrollment::getStudentUuid);
+    }
 }

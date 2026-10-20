@@ -183,7 +183,8 @@ public class CourseGradeBookController {
 
     @Operation(summary = "Get learner progress report", description = "Lesson-by-lesson report for one learner: what was taught, attendance, marks with criteria, final grade and label, and instructor feedback.")
     @GetMapping("/{courseUuid}/gradebook/enrollments/{enrollmentUuid}/progress-report")
-    @PreAuthorize(READ_ENROLLMENT_ACCESS)
+    // Guardians read the report (drafts never carry a score) but not the gradebook itself.
+    @PreAuthorize(READ_ENROLLMENT_ACCESS + " or @guardianLinkSecurityService.canViewEnrollmentAcademics(#enrollmentUuid)")
     public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<CourseProgressReportDTO>> getProgressReport(
             @PathVariable UUID courseUuid,
             @PathVariable UUID enrollmentUuid
