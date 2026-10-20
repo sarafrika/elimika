@@ -23,6 +23,7 @@ import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import jakarta.persistence.EntityManager;
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -40,7 +41,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -51,7 +51,6 @@ import org.springframework.test.util.ReflectionTestUtils;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -76,10 +75,6 @@ class ClassesSearchIntegrationTest {
     private static final LocalDateTime NOW = LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.MINUTES);
 
     @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17");
-
-    @Container
     static GenericContainer<?> meilisearch = new GenericContainer<>(DockerImageName.parse(IMAGE))
             .withEnv("MEILI_MASTER_KEY", MASTER_KEY)
             .withEnv("MEILI_NO_ANALYTICS", "true")
@@ -88,6 +83,7 @@ class ClassesSearchIntegrationTest {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
+        SharedPostgres.register(registry);
         registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri", () -> "http://localhost/realms/test");
         registry.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri", () -> "http://localhost/realms/test/certs");
         registry.add("MAIL_SERVER", () -> "localhost");

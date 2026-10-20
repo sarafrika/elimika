@@ -1,14 +1,12 @@
 package apps.sarafrika.elimika.course.integration;
 
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -28,14 +26,12 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  * the oldest - with the rows pointing at the removed copies moved onto it, and that the new
  * constraint refuses another copy.
  */
-@Testcontainers
 @DisplayName("course_training_requirements is deduplicated and guarded")
 class CourseTrainingRequirementDedupeMigrationTest {
 
     private static final String SCHEMA_BEFORE = "202610011146";
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    private static final SharedPostgres.Database database = SharedPostgres.emptyDatabase();
 
     private static final UUID COURSE = UUID.randomUUID();
     private static final UUID OTHER_COURSE = UUID.randomUUID();
@@ -183,13 +179,13 @@ class CourseTrainingRequirementDedupeMigrationTest {
 
     private static FluentConfiguration flyway() {
         return Flyway.configure()
-                .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                .dataSource(database.jdbcUrl(), database.username(), database.password())
                 .locations("classpath:db/migration")
                 .outOfOrder(true);
     }
 
     private static Connection connect() throws SQLException {
-        return DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+        return DriverManager.getConnection(database.jdbcUrl(), database.username(), database.password());
     }
 
     private static void execute(Connection connection, String sql, Object... parameters) throws SQLException {

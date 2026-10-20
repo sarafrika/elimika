@@ -38,6 +38,7 @@ import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.tenancy.spi.OrganisationAffiliationService;
 import apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import apps.sarafrika.elimika.timetabling.model.Enrollment;
 import apps.sarafrika.elimika.timetabling.model.ScheduledInstance;
 import apps.sarafrika.elimika.timetabling.repository.EnrollmentRepository;
@@ -57,7 +58,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -67,9 +67,6 @@ import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -102,21 +99,17 @@ import static org.mockito.Mockito.when;
  * <p>
  * A window that is merely stored, or checked on the buying path alone, would pass nothing below.
  */
-// The container dies with this class; a cached context must not outlive it.
+// Each class gets its own database; a cached context must not outlive it.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Testcontainers
 @Import(ClassRegistrationWindowIntegrationTest.TestConfig.class)
 @DisplayName("A class only accepts enrolments inside its registration window")
 class ClassRegistrationWindowIntegrationTest {
 
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
-
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
+        SharedPostgres.register(registry);
         registry.add("spring.flyway.enabled", () -> "true");
         // The real migrations build the schema; Hibernate must not touch it.
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");

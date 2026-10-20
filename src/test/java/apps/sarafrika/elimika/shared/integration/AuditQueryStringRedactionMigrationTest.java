@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.shared.integration;
 import static org.assertj.core.api.Assertions.assertThat;
 
 import apps.sarafrika.elimika.shared.tracking.migration.V202609301821__redact_historical_audit_query_strings;
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.PreparedStatement;
@@ -18,12 +19,8 @@ import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 /** Builds the schema up to the migration before the redaction, seeds audit rows, then migrates. */
-@Testcontainers
 @DisplayName("Historical request_audit_log query strings are redacted in place")
 class AuditQueryStringRedactionMigrationTest {
 
@@ -35,8 +32,7 @@ class AuditQueryStringRedactionMigrationTest {
     private static final UUID NULL_ROW = UUID.randomUUID();
     private static final int BULK_ROWS = 2_345;
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17");
+    private static final SharedPostgres.Database database = SharedPostgres.emptyDatabase();
 
     @BeforeAll
     static void seedThenMigrate() throws SQLException {
@@ -127,13 +123,13 @@ class AuditQueryStringRedactionMigrationTest {
 
     private static FluentConfiguration flyway() {
         return Flyway.configure()
-                .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                .dataSource(database.jdbcUrl(), database.username(), database.password())
                 .locations("classpath:db/migration", "classpath:apps/sarafrika/elimika/shared/tracking/migration")
                 .outOfOrder(true);
     }
 
     private static Connection connect() throws SQLException {
-        return DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+        return DriverManager.getConnection(database.jdbcUrl(), database.username(), database.password());
     }
 
     private static void audit(Connection connection, UUID uuid, String uri, String queryString, int status)

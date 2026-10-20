@@ -23,6 +23,7 @@ import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
 import apps.sarafrika.elimika.tenancy.services.AdminService;
 import apps.sarafrika.elimika.tenancy.services.OrganisationService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import java.time.Duration;
 import java.util.List;
 import java.util.Map;
@@ -35,7 +36,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -47,7 +47,6 @@ import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.support.TransactionTemplate;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -71,10 +70,6 @@ class TenancySearchIntegrationTest {
     private static final String ORGANISATIONS = "organisations";
 
     @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17");
-
-    @Container
     static GenericContainer<?> meilisearch = new GenericContainer<>(DockerImageName.parse(IMAGE))
             .withEnv("MEILI_MASTER_KEY", MASTER_KEY)
             .withEnv("MEILI_NO_ANALYTICS", "true")
@@ -83,6 +78,7 @@ class TenancySearchIntegrationTest {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
+        SharedPostgres.register(registry);
         registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri", () -> "http://localhost/realms/test");
         registry.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri", () -> "http://localhost/realms/test/certs");
         registry.add("MAIL_SERVER", () -> "localhost");

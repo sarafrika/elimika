@@ -19,6 +19,7 @@ import apps.sarafrika.elimika.shared.search.SearchIndexAdmin;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.tenancy.search.OrganisationSearchDocument;
 import apps.sarafrika.elimika.tenancy.search.PeopleSearchDocument;
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.List;
@@ -33,7 +34,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
 import org.springframework.test.annotation.DirtiesContext;
@@ -41,7 +41,6 @@ import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.testcontainers.containers.GenericContainer;
-import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.containers.wait.strategy.Wait;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
@@ -69,10 +68,6 @@ class GlobalSearchIntegrationTest {
             "courses,programs,classes,marketplace_jobs,instructors,organisations,people,rubrics";
 
     @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:17");
-
-    @Container
     static GenericContainer<?> meilisearch = new GenericContainer<>(DockerImageName.parse("getmeili/meilisearch:v1.54.1"))
             .withEnv("MEILI_MASTER_KEY", MASTER_KEY)
             .withEnv("MEILI_NO_ANALYTICS", "true")
@@ -81,6 +76,7 @@ class GlobalSearchIntegrationTest {
 
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
+        SharedPostgres.register(registry);
         registry.add("spring.security.oauth2.resourceserver.jwt.issuer-uri", () -> "http://localhost/realms/test");
         registry.add("spring.security.oauth2.resourceserver.jwt.jwk-set-uri", () -> "http://localhost/realms/test/certs");
         registry.add("MAIL_SERVER", () -> "localhost");

@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.shared.config.JpaConfig;
 import apps.sarafrika.elimika.shared.spi.revenue.CourseEarnings;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseLineSettlement;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.util.List;
@@ -23,16 +24,12 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Import;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 /**
  * Exercises the per-line settlement columns against a real PostgreSQL instance.
@@ -45,21 +42,17 @@ import org.testcontainers.junit.jupiter.Testcontainers;
  * at all - the columns are nullable and nothing is backfilled, because those wallets were credited
  * on gross and are not being clawed back.
  */
-// The container dies with this class; a cached context must not outlive it.
+// Each class gets its own database; a cached context must not outlive it.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Testcontainers
 @Import({CommercePurchaseSettlementRecorder.class, JpaConfig.class})
 @DisplayName("Purchase line settlement")
 class PurchaseSettlementIntegrationTest {
 
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
-
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
+        SharedPostgres.register(registry);
         registry.add("spring.flyway.enabled", () -> "true");
         // The real migrations build the schema; Hibernate must not touch it.
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");

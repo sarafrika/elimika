@@ -1,14 +1,12 @@
 package apps.sarafrika.elimika.classes.integration;
 
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.annotation.DirtiesContext;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -27,14 +25,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 /** Builds the schema up to the migration before the events table, seeds applications, then runs the backfill. */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@Testcontainers
 @DisplayName("The application events backfill gives every existing application its history")
 class ClassMarketplaceJobApplicationEventsBackfillMigrationTest {
 
     private static final String SCHEMA_BEFORE_THE_EVENTS = "202609171338";
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    private static final SharedPostgres.Database database = SharedPostgres.emptyDatabase();
 
     private static final LocalDateTime NOW = LocalDateTime.now(ZoneOffset.UTC).truncatedTo(ChronoUnit.SECONDS);
     private static final UUID INSTRUCTOR_USER = UUID.randomUUID();
@@ -128,13 +124,13 @@ class ClassMarketplaceJobApplicationEventsBackfillMigrationTest {
 
     private static org.flywaydb.core.api.configuration.FluentConfiguration flyway() {
         return Flyway.configure()
-                .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                .dataSource(database.jdbcUrl(), database.username(), database.password())
                 .locations("classpath:db/migration")
                 .outOfOrder(true);
     }
 
     private static Connection connect() throws SQLException {
-        return DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+        return DriverManager.getConnection(database.jdbcUrl(), database.username(), database.password());
     }
 
     private static void user(Connection connection, UUID uuid, String firstName, String lastName, String email)

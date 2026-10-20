@@ -1,14 +1,12 @@
 package apps.sarafrika.elimika.skills.integration;
 
 import apps.sarafrika.elimika.skills.spi.SkillSlugs;
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -25,14 +23,12 @@ import static org.assertj.core.api.Assertions.assertThat;
  * Builds the schema up to the migration before the taxonomy, seeds free-text instructor and course
  * creator skills, then runs the seed and backfill.
  */
-@Testcontainers
 @DisplayName("The skills taxonomy seed and instructor_skills backfill")
 class SkillsTaxonomyBackfillMigrationTest {
 
     private static final String SCHEMA_BEFORE_THE_TAXONOMY = "202609291433";
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    private static final SharedPostgres.Database database = SharedPostgres.emptyDatabase();
 
     private static final UUID INSTRUCTOR_A = UUID.randomUUID();
     private static final UUID INSTRUCTOR_B = UUID.randomUUID();
@@ -121,12 +117,12 @@ class SkillsTaxonomyBackfillMigrationTest {
 
     private static org.flywaydb.core.api.configuration.FluentConfiguration flyway() {
         return Flyway.configure()
-                .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                .dataSource(database.jdbcUrl(), database.username(), database.password())
                 .locations("classpath:db/migration")
                 .outOfOrder(true);
     }
 
     private static Connection connect() throws SQLException {
-        return DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+        return DriverManager.getConnection(database.jdbcUrl(), database.username(), database.password());
     }
 }

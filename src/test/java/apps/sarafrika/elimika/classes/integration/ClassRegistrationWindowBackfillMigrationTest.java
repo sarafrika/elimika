@@ -1,14 +1,12 @@
 package apps.sarafrika.elimika.classes.integration;
 
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import org.springframework.test.annotation.DirtiesContext;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -39,15 +37,13 @@ import static org.assertj.core.api.Assertions.assertThat;
  */
 // The container dies with this class; a cached context must not outlive it.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@Testcontainers
 @DisplayName("The registration window backfill leaves every open class open")
 class ClassRegistrationWindowBackfillMigrationTest {
 
     /** The migration immediately before the backfill: the schema production is on today. */
     private static final String SCHEMA_BEFORE_THE_BACKFILL = "202609041000";
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    private static final SharedPostgres.Database database = SharedPostgres.emptyDatabase();
 
     private static final LocalDate TODAY = LocalDate.now(ZoneOffset.UTC);
     private static final LocalDate SENTINEL = LocalDate.of(2099, 12, 31);
@@ -190,14 +186,14 @@ class ClassRegistrationWindowBackfillMigrationTest {
 
     private static org.flywaydb.core.api.configuration.FluentConfiguration flyway() {
         return Flyway.configure()
-                .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                .dataSource(database.jdbcUrl(), database.username(), database.password())
                 .locations("classpath:db/migration")
                 // Matches spring.flyway.out-of-order in application.yaml.
                 .outOfOrder(true);
     }
 
     private static Connection connect() throws SQLException {
-        return DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+        return DriverManager.getConnection(database.jdbcUrl(), database.username(), database.password());
     }
 
     /** A class row as production holds one, with only the four dates under test varying. */

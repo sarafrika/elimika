@@ -1,13 +1,11 @@
 package apps.sarafrika.elimika.profile.integration;
 
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -21,14 +19,12 @@ import java.util.UUID;
 import static org.assertj.core.api.Assertions.assertThat;
 
 /** Seeds overlapping instructor and course creator qualifications, runs the backfill and checks the merged result. */
-@Testcontainers
 @DisplayName("The professional profile backfill")
 class ProfessionalProfileBackfillMigrationTest {
 
     private static final String SCHEMA_BEFORE_THE_BACKFILL = "202610061243";
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    private static final SharedPostgres.Database database = SharedPostgres.emptyDatabase();
 
     private static final UUID BOTH_USER = UUID.randomUUID();
     private static final UUID CREATOR_USER = UUID.randomUUID();
@@ -213,12 +209,12 @@ class ProfessionalProfileBackfillMigrationTest {
 
     private static org.flywaydb.core.api.configuration.FluentConfiguration flyway() {
         return Flyway.configure()
-                .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                .dataSource(database.jdbcUrl(), database.username(), database.password())
                 .locations("classpath:db/migration")
                 .outOfOrder(true);
     }
 
     private static Connection connect() throws SQLException {
-        return DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+        return DriverManager.getConnection(database.jdbcUrl(), database.username(), database.password());
     }
 }

@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.tenancy.integration;
 
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationInfo;
 import org.flywaydb.core.api.MigrationVersion;
@@ -8,14 +9,8 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.datasource.DriverManagerDataSource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
-import java.sql.Connection;
-import java.sql.Statement;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
@@ -38,15 +33,11 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
  */
 // The container dies with this class; a cached context must not outlive it.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
-@Testcontainers
 @DisplayName("Skills fund schema migration against PostgreSQL")
 class SkillsFundSchemaIntegrationTest {
 
     /** Matches the script this test exists to exercise, without pinning its timestamp. */
     private static final String MIGRATION_MARKER = "harden_skills_fund_money_schema";
-
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
 
     private static MigrationVersion previousVersion;
 
@@ -58,7 +49,7 @@ class SkillsFundSchemaIntegrationTest {
     static void migrateWithLegacyRowsInPlace() {
         resolveVersions();
 
-        DataSource dataSource = freshDatabase("skills_fund_legacy");
+        DataSource dataSource = SharedPostgres.emptyDatabase().dataSource();
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
 
         flyway(dataSource).migrate();
@@ -216,7 +207,7 @@ class SkillsFundSchemaIntegrationTest {
     @Test
     @DisplayName("a status that maps to nothing aborts the migration instead of being quietly rewritten")
     void anUnmappableStatusAbortsTheMigration() {
-        DataSource dataSource = freshDatabase("skills_fund_stray");
+        DataSource dataSource = SharedPostgres.emptyDatabase().dataSource();
         JdbcTemplate jdbc = new JdbcTemplate(dataSource);
         flyway(dataSource).migrate();
 
@@ -282,7 +273,7 @@ class SkillsFundSchemaIntegrationTest {
      */
     private static void resolveVersions() {
         MigrationInfo[] all = Flyway.configure()
-                .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                .dataSource(SharedPostgres.emptyDatabase().dataSource())
                 .load()
                 .info()
                 .all();
@@ -315,21 +306,5 @@ class SkillsFundSchemaIntegrationTest {
             configuration = configuration.target(target);
         }
         return configuration.load();
-    }
-
-    private static DataSource freshDatabase(String name) {
-        try (Connection connection = postgres.createConnection("");
-             Statement statement = connection.createStatement()) {
-            statement.execute("CREATE DATABASE " + name);
-        } catch (Exception e) {
-            throw new IllegalStateException("Could not create test database " + name, e);
-        }
-
-        DriverManagerDataSource dataSource = new DriverManagerDataSource();
-        dataSource.setDriverClassName(postgres.getDriverClassName());
-        dataSource.setUrl("jdbc:postgresql://" + postgres.getHost() + ":" + postgres.getFirstMappedPort() + "/" + name);
-        dataSource.setUsername(postgres.getUsername());
-        dataSource.setPassword(postgres.getPassword());
-        return dataSource;
     }
 }

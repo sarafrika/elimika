@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.shared.enums.Gender;
 import apps.sarafrika.elimika.shared.utils.enums.DocumentStatus;
 import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;
 import apps.sarafrika.elimika.tenancy.entity.User;
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -18,15 +19,11 @@ import org.springframework.boot.autoconfigure.validation.ValidationAutoConfigura
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.core.env.Environment;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import javax.sql.DataSource;
 import java.sql.Connection;
@@ -40,7 +37,7 @@ import static org.assertj.core.api.Assertions.assertThat;
  * {@code stringtype=unspecified}), the way staging connects. The converters bind varchar, so these
  * writes only succeed because the columns are varchar with CHECK constraints.
  */
-// The container dies with this class; a cached context must not outlive it.
+// Each class gets its own database; a cached context must not outlive it.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @DataJpaTest
 // The audit listener reads its EntityManager from a static field; wire it to THIS context, or it
@@ -48,16 +45,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 @Import(DatabaseAuditConfiguration.class)
 @ImportAutoConfiguration(ValidationAutoConfiguration.class)
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Testcontainers
 @DisplayName("Enum-backed columns accept writes on a plain JDBC URL")
 class EnumColumnWriteIntegrationTest {
 
-    @Container
-    @ServiceConnection
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
-
     @DynamicPropertySource
     static void properties(DynamicPropertyRegistry registry) {
+        SharedPostgres.register(registry);
         registry.add("spring.flyway.enabled", () -> "true");
         registry.add("spring.jpa.hibernate.ddl-auto", () -> "none");
     }

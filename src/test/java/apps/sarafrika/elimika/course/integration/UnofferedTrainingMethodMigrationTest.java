@@ -1,14 +1,12 @@
 package apps.sarafrika.elimika.course.integration;
 
+import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import org.flywaydb.core.Flyway;
 import org.flywaydb.core.api.MigrationVersion;
 import org.flywaydb.core.api.configuration.FluentConfiguration;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.junit.jupiter.Container;
-import org.testcontainers.junit.jupiter.Testcontainers;
 
 import java.math.BigDecimal;
 import java.sql.Connection;
@@ -22,14 +20,12 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 // Builds the real schema up to the migration before the change, seeds zero rates, then migrates.
-@Testcontainers
 @DisplayName("Unoffered training methods migrate from zero to null")
 class UnofferedTrainingMethodMigrationTest {
 
     private static final String SCHEMA_BEFORE = "202609170845";
 
-    @Container
-    static PostgreSQLContainer<?> postgres = new PostgreSQLContainer<>("postgres:16-alpine");
+    private static final SharedPostgres.Database database = SharedPostgres.emptyDatabase();
 
     private static final UUID COURSE_APPLICATION = UUID.randomUUID();
     private static final UUID PROGRAM_APPLICATION = UUID.randomUUID();
@@ -126,13 +122,13 @@ class UnofferedTrainingMethodMigrationTest {
 
     private static FluentConfiguration flyway() {
         return Flyway.configure()
-                .dataSource(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword())
+                .dataSource(database.jdbcUrl(), database.username(), database.password())
                 .locations("classpath:db/migration")
                 .outOfOrder(true);
     }
 
     private static Connection connect() throws SQLException {
-        return DriverManager.getConnection(postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
+        return DriverManager.getConnection(database.jdbcUrl(), database.username(), database.password());
     }
 
     private static void execute(Connection connection, String sql, Object... parameters) throws SQLException {
