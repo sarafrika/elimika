@@ -32,6 +32,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.RETURNS_DEEP_STUBS;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.withSettings;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -81,7 +82,7 @@ class LearnerAssessmentScopeTest {
         Predicate nothing = mock(Predicate.class);
         when(cb.disjunction()).thenReturn(nothing);
 
-        assertThat(restricted.toPredicate(mock(Root.class), mock(CriteriaQuery.class), cb)).isSameAs(nothing);
+        assertThat(restricted.toPredicate(mock(), mock(), cb)).isSameAs(nothing);
     }
 
     @Test
@@ -94,7 +95,7 @@ class LearnerAssessmentScopeTest {
 
         CriteriaQuery<?> query = mock(CriteriaQuery.class, RETURNS_DEEP_STUBS);
         CriteriaBuilder cb = mock(CriteriaBuilder.class, RETURNS_DEEP_STUBS);
-        assertThat(restricted.toPredicate(mock(Root.class, RETURNS_DEEP_STUBS), query, cb)).isNotNull();
+        assertThat(restricted.toPredicate(mock(withSettings().defaultAnswer(RETURNS_DEEP_STUBS)), query, cb)).isNotNull();
 
         // Matched through the enrolments on those courses, never by matching nothing.
         verify(query).subquery(UUID.class);
@@ -140,8 +141,8 @@ class LearnerAssessmentScopeTest {
 
         Specification<QuizAttempt> restricted = scope.restrictToCaller(null, "enrollmentUuid");
 
-        Root<QuizAttempt> root = mock(Root.class);
-        Path<Object> enrollmentPath = mock(Path.class);
+        Root<QuizAttempt> root = mock();
+        Path<Object> enrollmentPath = mock();
         CriteriaBuilder cb = mock(CriteriaBuilder.class);
         Predicate inPredicate = mock(Predicate.class);
         when(root.get("enrollmentUuid")).thenReturn(enrollmentPath);
@@ -348,6 +349,6 @@ class LearnerAssessmentScopeTest {
         Predicate nothing = mock(Predicate.class);
         when(cb.disjunction()).thenReturn(nothing);
 
-        assertThat(restricted.toPredicate(mock(Root.class), mock(CriteriaQuery.class), cb)).isSameAs(nothing);
+        assertThat(restricted.toPredicate(mock(), mock(), cb)).isSameAs(nothing);
     }
 }

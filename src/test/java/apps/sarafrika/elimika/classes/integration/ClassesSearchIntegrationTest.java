@@ -39,7 +39,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.ApplicationContext;
 import org.springframework.data.domain.PageRequest;
@@ -107,9 +107,9 @@ class ClassesSearchIntegrationTest {
         registry.add("search.read-enabled.marketplace_jobs", () -> "true");
     }
 
-    @MockBean private JwtDecoder jwtDecoder;
-    @MockBean private ClassListingVisibility classListingVisibility;
-    @MockBean private DomainSecurityService domainSecurityService;
+    @MockitoBean private JwtDecoder jwtDecoder;
+    @MockitoBean private ClassListingVisibility classListingVisibility;
+    @MockitoBean private DomainSecurityService domainSecurityService;
 
     @Autowired private ClassDefinitionServiceInterface classService;
     @Autowired private ClassMarketplaceJobServiceInterface jobService;

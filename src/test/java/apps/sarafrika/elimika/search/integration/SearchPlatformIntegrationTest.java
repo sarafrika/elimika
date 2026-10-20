@@ -41,7 +41,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.context.TestConfiguration;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.http.HttpHeaders;
@@ -117,7 +117,7 @@ class SearchPlatformIntegrationTest {
         return "http://" + meilisearch.getHost() + ":" + meilisearch.getMappedPort(7700);
     }
 
-    @MockBean private JwtDecoder jwtDecoder;
+    @MockitoBean private JwtDecoder jwtDecoder;
 
     @Autowired private SearchGateway gateway;
     @Autowired private SearchIndexAdmin admin;

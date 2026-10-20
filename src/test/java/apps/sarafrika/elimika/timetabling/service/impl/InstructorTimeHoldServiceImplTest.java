@@ -63,7 +63,7 @@ class InstructorTimeHoldServiceImplTest {
                 window(LocalDateTime.of(2026, 5, 2, 9, 0), LocalDateTime.of(2026, 5, 2, 12, 0)),
                 window(LocalDateTime.of(2026, 5, 9, 9, 0), LocalDateTime.of(2026, 5, 9, 12, 0)))));
 
-        ArgumentCaptor<List<InstructorTimeHold>> captor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<InstructorTimeHold>> captor = ArgumentCaptor.captor();
         verify(holdRepository).saveAll(captor.capture());
         assertThat(captor.getValue()).hasSize(2);
         assertThat(captor.getValue()).allSatisfy(hold -> {
@@ -93,7 +93,7 @@ class InstructorTimeHoldServiceImplTest {
         // Re-applying must not leave the old windows sitting on the diary alongside the new ones.
         assertThat(stale.getStatus()).isEqualTo(InstructorTimeHoldStatus.RELEASED);
         assertThat(stale.getReleaseReason()).isEqualTo("Replaced by an updated hold");
-        ArgumentCaptor<List<InstructorTimeHold>> captor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<InstructorTimeHold>> captor = ArgumentCaptor.captor();
         verify(holdRepository, times(2)).saveAll(captor.capture());
         assertThat(captor.getAllValues().getLast()).hasSize(1);
         assertThat(captor.getAllValues().getLast().getFirst().getStatus())
@@ -139,7 +139,7 @@ class InstructorTimeHoldServiceImplTest {
                 window(LocalDateTime.of(2026, 5, 2, 9, 0), LocalDateTime.of(2026, 5, 2, 12, 0)),
                 window(LocalDateTime.of(2026, 5, 9, 9, 0), LocalDateTime.of(2026, 5, 9, 12, 0)))));
 
-        ArgumentCaptor<List<InstructorTimeHold>> captor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<InstructorTimeHold>> captor = ArgumentCaptor.captor();
         verify(holdRepository).saveAll(captor.capture());
         assertThat(captor.getValue()).hasSize(2);
         assertThat(captor.getValue())
@@ -242,7 +242,7 @@ class InstructorTimeHoldServiceImplTest {
                 .satisfies(dto -> assertThat(dto.jobUuid()).isEqualTo(otherJobUuid));
 
         // TENTATIVE is never asked for: an instructor may apply to overlapping jobs.
-        ArgumentCaptor<Collection<InstructorTimeHoldStatus>> statuses = ArgumentCaptor.forClass(Collection.class);
+        ArgumentCaptor<Collection<InstructorTimeHoldStatus>> statuses = ArgumentCaptor.captor();
         verify(holdRepository).findOverlappingHolds(eq(instructorUuid), statuses.capture(),
                 any(LocalDateTime.class), any(LocalDateTime.class));
         assertThat(statuses.getValue()).containsExactly(InstructorTimeHoldStatus.FIRM);

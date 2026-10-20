@@ -83,7 +83,7 @@ class ResourceBookingServiceImplTest {
                 new OccurrenceWindow(START, END),
                 new OccurrenceWindow(secondStart, secondStart.plusHours(2)))));
 
-        ArgumentCaptor<List<ResourceBooking>> captor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<ResourceBooking>> captor = ArgumentCaptor.captor();
         verify(bookingRepository).saveAll(captor.capture());
         List<ResourceBooking> holds = captor.getValue();
         assertThat(holds).hasSize(2);
@@ -539,7 +539,7 @@ class ResourceBookingServiceImplTest {
                 new ResourceBookingRequest(venue.getUuid(), 1, List.of()),
                 new ResourceBookingRequest(equipmentPool.getUuid(), 5, List.of())));
 
-        ArgumentCaptor<List<ResourceBooking>> captor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<ResourceBooking>> captor = ArgumentCaptor.captor();
         verify(bookingRepository).saveAll(captor.capture());
         assertThat(captor.getValue()).hasSize(2);
         assertThat(captor.getValue()).allSatisfy(saved -> {

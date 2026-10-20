@@ -34,7 +34,7 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
@@ -102,8 +102,8 @@ class TenancySearchIntegrationTest {
         registry.add("search.meilisearch.api-key", () -> MASTER_KEY);
     }
 
-    @MockBean private JwtDecoder jwtDecoder;
-    @MockBean private DomainSecurityService domainSecurityService;
+    @MockitoBean private JwtDecoder jwtDecoder;
+    @MockitoBean private DomainSecurityService domainSecurityService;
 
     @Autowired private UserService userService;
     @Autowired private AdminService adminService;

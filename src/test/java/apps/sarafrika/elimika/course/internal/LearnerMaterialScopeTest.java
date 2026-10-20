@@ -90,7 +90,7 @@ class LearnerMaterialScopeTest {
         Predicate nothing = mock(Predicate.class);
         when(cb.disjunction()).thenReturn(nothing);
 
-        assertThat(restricted.toPredicate(mock(Root.class), mock(CriteriaQuery.class), cb)).isSameAs(nothing);
+        assertThat(restricted.toPredicate(mock(), mock(), cb)).isSameAs(nothing);
     }
 
     @Test
@@ -104,11 +104,11 @@ class LearnerMaterialScopeTest {
 
         Specification<Quiz> restricted = scope.restrictQuizzes(null);
 
-        Root<Quiz> root = mock(Root.class);
+        Root<Quiz> root = mock();
         CriteriaBuilder cb = mock(CriteriaBuilder.class);
-        Path<Object> statusPath = mock(Path.class);
-        Path<Object> activePath = mock(Path.class);
-        Path<Object> lessonPath = mock(Path.class);
+        Path<Object> statusPath = mock();
+        Path<Object> activePath = mock();
+        Path<Object> lessonPath = mock();
         Predicate publishedPredicate = mock(Predicate.class);
         Predicate activePredicate = mock(Predicate.class);
         Predicate lessonPredicate = mock(Predicate.class);

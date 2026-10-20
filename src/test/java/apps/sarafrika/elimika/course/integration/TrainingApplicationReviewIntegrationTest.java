@@ -8,7 +8,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -68,7 +68,7 @@ class TrainingApplicationReviewIntegrationTest {
     @Autowired private JdbcTemplate jdbc;
     @Autowired private ObjectMapper objectMapper;
 
-    @MockBean private JwtDecoder jwtDecoder;
+    @MockitoBean private JwtDecoder jwtDecoder;
 
     private UUID courseUuid;
     private UUID applicationUuid;

@@ -139,7 +139,7 @@ class GenericSpecificationBuilderTest {
                 .toPredicate(root, criteriaQuery, criteriaBuilder);
 
         verify(criteriaBuilder).notEqual(path, "ada");
-        verify(criteriaBuilder, never()).like(any(Expression.class), anyString(), anyChar());
+        verify(criteriaBuilder, never()).like(any(), anyString(), anyChar());
     }
 
     @Test

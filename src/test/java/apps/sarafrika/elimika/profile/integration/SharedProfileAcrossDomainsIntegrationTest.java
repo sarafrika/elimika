@@ -34,7 +34,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
@@ -98,9 +98,9 @@ class SharedProfileAcrossDomainsIntegrationTest {
         }
     }
 
-    @MockBean private SkillLookupService skillLookupService;
-    @MockBean private MediaStorageService mediaStorageService;
-    @MockBean private DomainSecurityService domainSecurityService;
+    @MockitoBean private SkillLookupService skillLookupService;
+    @MockitoBean private MediaStorageService mediaStorageService;
+    @MockitoBean private DomainSecurityService domainSecurityService;
 
     @Autowired private InstructorSkillServiceImpl instructorSkills;
     @Autowired private CourseCreatorSkillServiceImpl courseCreatorSkills;

@@ -18,7 +18,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.boot.testcontainers.service.connection.ServiceConnection;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -112,7 +112,7 @@ class CatalogueSearchIntegrationTest {
     @Autowired private CategoryRepository categoryRepository;
     @Autowired private PlatformTransactionManager transactionManager;
 
-    @MockBean private JwtDecoder jwtDecoder;
+    @MockitoBean private JwtDecoder jwtDecoder;
 
     private UUID courseCreatorUuid;
     private UUID categoryUuid;

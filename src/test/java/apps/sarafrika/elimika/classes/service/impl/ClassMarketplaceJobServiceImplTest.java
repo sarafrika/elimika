@@ -2143,7 +2143,7 @@ class ClassMarketplaceJobServiceImplTest {
 
         service.createJob(request);
 
-        ArgumentCaptor<List<ResourceBookingRequest>> requestsCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<ResourceBookingRequest>> requestsCaptor = ArgumentCaptor.captor();
         verify(resourceBookingService).holdResourcesForJob(any(UUID.class), eq(request.organisationUuid()), requestsCaptor.capture());
         List<ResourceBookingRequest> holdRequests = requestsCaptor.getValue();
         assertThat(holdRequests).hasSize(1);
@@ -2556,13 +2556,13 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
         assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.ASSIGNED);
 
-        ArgumentCaptor<List<InstanceWindow>> windowsCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<InstanceWindow>> windowsCaptor = ArgumentCaptor.captor();
         verify(resourceBookingService).confirmHoldsForJob(eq(job.getUuid()), eq(classDefinitionUuid), windowsCaptor.capture());
         assertThat(windowsCaptor.getValue()).hasSize(1);
         assertThat(windowsCaptor.getValue().getFirst().scheduledInstanceUuid()).isEqualTo(instance.uuid());
 
         ArgumentCaptor<List<apps.sarafrika.elimika.classes.model.ClassDefinitionResource>> copiesCaptor =
-                ArgumentCaptor.forClass(List.class);
+                ArgumentCaptor.captor();
         verify(classDefinitionResourceRepository).saveAll(copiesCaptor.capture());
         assertThat(copiesCaptor.getValue()).hasSize(1);
         assertThat(copiesCaptor.getValue().getFirst().getClassDefinitionUuid()).isEqualTo(classDefinitionUuid);
@@ -3866,7 +3866,7 @@ class ClassMarketplaceJobServiceImplTest {
 
         // Same windows the resource holds are confirmed against; unscheduled ones are
         // released inside the hold service, which InstructorTimeHoldServiceImplTest pins.
-        ArgumentCaptor<List<InstanceWindow>> windowsCaptor = ArgumentCaptor.forClass(List.class);
+        ArgumentCaptor<List<InstanceWindow>> windowsCaptor = ArgumentCaptor.captor();
         verify(instructorTimeHoldService)
                 .confirmHoldsForJob(eq(job.getUuid()), eq(classDefinitionUuid), windowsCaptor.capture());
         assertThat(windowsCaptor.getValue()).hasSize(1);
