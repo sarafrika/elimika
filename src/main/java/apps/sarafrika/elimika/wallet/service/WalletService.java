@@ -40,5 +40,11 @@ public interface WalletService {
      */
     boolean creditSaleIdempotent(UUID userUuid, BigDecimal amount, String currencyCode, String reference, String description);
 
+    /** The SALE credit carrying {@code reference}, if there is one. */
+    java.util.Optional<SaleRecord> findSaleByReference(String reference);
+
+    /** Debits the SALE credit carrying {@code reference} back out of its wallet; false when already reversed. */
+    boolean reverseSale(String reference, String description);
+
     WalletTransferResult transfer(UUID fromUserUuid, UUID toUserUuid, BigDecimal amount, String currencyCode, String reference, String description);
 }

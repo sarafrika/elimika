@@ -8,7 +8,9 @@ public enum WalletTransactionType {
     TRANSFER_IN,
     TRANSFER_OUT,
     /** The platform's fee on a sale share, debited right after the share itself. */
-    PLATFORM_FEE;
+    PLATFORM_FEE,
+    /** Takes back a sale credited to the wrong party, e.g. when re-settling history. */
+    SALE_REVERSAL;
 
     public static WalletTransactionType fromString(String value) {
         if (value == null || value.isBlank()) {
