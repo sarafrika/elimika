@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.timetabling.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.timetabling.dto.AttendanceRequest;
 import apps.sarafrika.elimika.timetabling.spi.OrganisationStudentPerformanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
@@ -198,6 +199,20 @@ public class EnrollmentController {
         timetableService.markAttendance(enrollmentUuid, attended, InstrumentCondition.fromValue(instrumentCondition),
                 comment);
         return ResponseEntity.ok(ApiResponse.success(null, "Attendance marked successfully"));
+    }
+
+    @Operation(summary = "Record attendance for a student enrollment",
+            description = "Same as the PATCH, but the rich-text comment travels in the body instead of the URL.")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Attendance recorded")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "The session's report is locked")
+    @PutMapping("/{enrollmentUuid}/attendance")
+    @PreAuthorize("@enrollmentVisibilityService.canManageClassOfEnrollment(#enrollmentUuid)")
+    public ResponseEntity<ApiResponse<Void>> recordAttendance(
+            @PathVariable UUID enrollmentUuid,
+            @Valid @RequestBody AttendanceRequest request) {
+        timetableService.markAttendance(enrollmentUuid, request.attended(),
+                InstrumentCondition.fromValue(request.instrumentCondition()), request.comment());
+        return ResponseEntity.ok(ApiResponse.success(null, "Attendance recorded"));
     }
 
     @Operation(summary = "List an organisation's session reports",

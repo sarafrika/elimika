@@ -218,6 +218,20 @@ class SessionReportIntegrationTest {
     }
 
     @Test
+    @DisplayName("attendance sent as a body keeps the rich-text comment and shows on the report")
+    void attendanceBodyKeepsRichTextComment() throws Exception {
+        mockMvc.perform(put("/api/v1/enrollment/" + absentSeat + "/attendance").with(jwt(TRAINER))
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"attended\":false,\"instrument_condition\":\"needs_repair\",\"comment\":\"<p><strong>Sick</strong> today</p>\"}"))
+                .andExpect(status().isOk());
+
+        mockMvc.perform(get(reportUrl()).with(jwt(TRAINER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.rows[?(@.attendance == 'ABSENT')].attendance_comment").value("<p><strong>Sick</strong> today</p>"))
+                .andExpect(jsonPath("$.data.rows[?(@.attendance == 'ABSENT')].instrument_condition").value("NEEDS_REPAIR"));
+    }
+
+    @Test
     @DisplayName("after the grace window, attendance, the session record and lesson scores are refused")
     void lockedReportRefusesChanges() throws Exception {
         captureSession();
@@ -225,6 +239,9 @@ class SessionReportIntegrationTest {
         jdbc.update("UPDATE session_reports SET editable_until = ?", Timestamp.valueOf(LocalDateTime.now(ZoneOffset.UTC).minusMinutes(1)));
 
         mockMvc.perform(patch("/api/v1/enrollment/" + absentSeat + "/attendance").param("attended", "true").with(jwt(TRAINER)))
+                .andExpect(status().isConflict());
+        mockMvc.perform(put("/api/v1/enrollment/" + absentSeat + "/attendance").with(jwt(TRAINER))
+                        .contentType(MediaType.APPLICATION_JSON).content("{\"attended\":true}"))
                 .andExpect(status().isConflict());
         mockMvc.perform(put("/api/v1/timetable/schedule/" + sessionUuid + "/record").with(jwt(TRAINER))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"topic_covered\":\"Changed\"}"))
