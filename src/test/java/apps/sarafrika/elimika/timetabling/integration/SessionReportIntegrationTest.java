@@ -299,6 +299,21 @@ class SessionReportIntegrationTest {
     }
 
     @Test
+    @DisplayName("a session that ended days ago without a report is opened and flagged overdue, without a late due reminder")
+    void missedSessionIsTrackedAndFlaggedOverdue() {
+        LocalDateTime threeDaysAgo = LocalDateTime.now(ZoneOffset.UTC).minusDays(3);
+        jdbc.update("UPDATE scheduled_instances SET start_time = ?, end_time = ? WHERE uuid = ?",
+                Timestamp.valueOf(threeDaysAgo), Timestamp.valueOf(threeDaysAgo.plusHours(1)), sessionUuid);
+
+        scheduler.run();
+
+        assertThat(jdbc.queryForObject("SELECT LOWER(status) FROM session_reports WHERE scheduled_instance_uuid = ?", String.class, sessionUuid))
+                .isEqualTo("draft");
+        assertThat(jdbc.queryForObject("SELECT reminded_at FROM session_reports", LocalDateTime.class)).isNull();
+        assertThat(jdbc.queryForObject("SELECT overdue_notified_at FROM session_reports", LocalDateTime.class)).isNotNull();
+    }
+
+    @Test
     @DisplayName("the notification tables accept the three session report types")
     void notificationTypesAreAllowed() {
         UUID recipient = user("kc-report-recipient");

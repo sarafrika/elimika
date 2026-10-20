@@ -189,6 +189,11 @@ public class SessionReportService {
         });
     }
 
+    /** Opens the report of a session found after its reminder window; the overdue step then flags it. */
+    public void trackMissedSession(UUID instanceUuid) {
+        ensureReport(instance(instanceUuid));
+    }
+
     /** The "report due" reminder, published once per session however often the job runs. */
     public void remindDue(UUID instanceUuid) {
         ScheduledInstance instance = instance(instanceUuid);

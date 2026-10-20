@@ -65,4 +65,14 @@ public interface SessionReportRepository extends JpaRepository<SessionReport, Lo
             + "AND UPPER(ce.status) IN ('ENROLLED', 'ATTENDED', 'ABSENT'))",
             nativeQuery = true)
     List<UUID> findEndedSessionsAwaitingReminder(@Param("since") LocalDateTime since, @Param("now") LocalDateTime now);
+
+    /** Sessions with learners that ended between trackFrom and before but never got a report row (e.g. missed runs). */
+    @Query(value = "SELECT si.uuid FROM scheduled_instances si "
+            + "WHERE si.class_definition_uuid IS NOT NULL AND UPPER(si.status) <> 'CANCELLED' "
+            + "AND COALESCE(si.concluded_at, si.end_time) >= :trackFrom AND COALESCE(si.concluded_at, si.end_time) <= :before "
+            + "AND NOT EXISTS (SELECT 1 FROM session_reports sr WHERE sr.scheduled_instance_uuid = si.uuid) "
+            + "AND EXISTS (SELECT 1 FROM class_enrollments ce WHERE ce.scheduled_instance_uuid = si.uuid "
+            + "AND UPPER(ce.status) IN ('ENROLLED', 'ATTENDED', 'ABSENT'))",
+            nativeQuery = true)
+    List<UUID> findEndedSessionsWithoutReport(@Param("trackFrom") LocalDateTime trackFrom, @Param("before") LocalDateTime before);
 }
