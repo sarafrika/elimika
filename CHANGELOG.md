@@ -1,3 +1,10 @@
+# [2.178.0](https://github.com/sarafrika/elimika/compare/v2.177.0...v2.178.0) (2026-10-20)
+
+
+### Features
+
+* **timetabling:** record attendance with the rich-text comment in a request body ([55e1a1e](https://github.com/sarafrika/elimika/commit/55e1a1e74919a24e12fe4e78ae8f1db51c2ad982))
+
 # [2.177.0](https://github.com/sarafrika/elimika/compare/v2.176.0...v2.177.0) (2026-10-20)
 
 
