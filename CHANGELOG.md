@@ -1,3 +1,18 @@
+# [2.175.0](https://github.com/sarafrika/elimika/compare/v2.174.0...v2.175.0) (2026-10-20)
+
+
+### Bug Fixes
+
+* **notifications:** publish each class and assignment reminder once instead of every minute ([06ab965](https://github.com/sarafrika/elimika/commit/06ab965a63cc0d8fb87ebca449e3c5ced41654d3))
+
+
+### Features
+
+* **course:** expose lesson performance for session reports and refuse score changes once a report locks ([d73b02f](https://github.com/sarafrika/elimika/commit/d73b02f9fbb0eee8f66752f0a9dc1e24e786bfbb))
+* **notifications:** add session report due and overdue notification types ([01d71a7](https://github.com/sarafrika/elimika/commit/01d71a786e6aa1fac3691b525fb0ecf6967b0974))
+* **tenancy:** add organisation settings with the session report grace period ([baaa7c5](https://github.com/sarafrika/elimika/commit/baaa7c5c3d535bf9d541fd8ad8e9eb2132df7d72))
+* **timetabling:** add mandatory session reports with preview, final submission, grace window, lock, reminders and class report ([28de92a](https://github.com/sarafrika/elimika/commit/28de92ab75da0861390c9446f16e06737aae10af))
+
 # [2.174.0](https://github.com/sarafrika/elimika/compare/v2.173.0...v2.174.0) (2026-10-16)
 
 
