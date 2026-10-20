@@ -23,6 +23,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -53,6 +54,8 @@ class AssignmentDeadlineReminderSchedulerTest {
         schedule.setDueAt(LocalDateTime.now(ZoneOffset.UTC));
 
         when(assignmentScheduleRepository.findByDueAtBetween(any(), any())).thenReturn(List.of(schedule));
+        when(assignmentScheduleRepository.claimOneDayReminder(schedule.getUuid())).thenReturn(1);
+        when(assignmentScheduleRepository.claimDueReminder(schedule.getUuid())).thenReturn(1);
         when(timetableService.getActiveStudentUuidsForClass(classDefinitionUuid)).thenReturn(List.of(studentUuid));
         when(studentLookupService.getStudentUserUuid(studentUuid)).thenReturn(Optional.of(UUID.randomUUID()));
 
@@ -63,5 +66,22 @@ class AssignmentDeadlineReminderSchedulerTest {
         assertThat(captor.getAllValues())
                 .extracting(NotificationRequestedEvent::actionUrl)
                 .containsOnly("/dashboard/student/assignment/" + assignmentUuid);
+    }
+
+    @Test
+    void remindersAlreadySentForThisDueTimeAreNotPublishedAgain() {
+        ClassAssignmentSchedule schedule = new ClassAssignmentSchedule();
+        schedule.setUuid(UUID.randomUUID());
+        schedule.setClassDefinitionUuid(UUID.randomUUID());
+        schedule.setAssignmentUuid(UUID.randomUUID());
+        schedule.setDueAt(LocalDateTime.now(ZoneOffset.UTC));
+
+        when(assignmentScheduleRepository.findByDueAtBetween(any(), any())).thenReturn(List.of(schedule));
+        when(assignmentScheduleRepository.claimOneDayReminder(schedule.getUuid())).thenReturn(0);
+        when(assignmentScheduleRepository.claimDueReminder(schedule.getUuid())).thenReturn(0);
+
+        scheduler.sendAssignmentDeadlineReminders();
+
+        verifyNoInteractions(eventPublisher);
     }
 }

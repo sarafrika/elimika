@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -69,6 +70,7 @@ class UpcomingClassReminderSchedulerTest {
                 .thenReturn(List.of(instance));
         when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
                 .thenReturn(Optional.of(snapshot(classDefinitionUuid)));
+        when(scheduledInstanceRepository.claimUpcomingReminder(instance.getUuid())).thenReturn(1);
         when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(instructorUserUuid));
         when(enrollmentRepository.findByScheduledInstanceUuidAndStatus(instance.getUuid(), EnrollmentStatus.ENROLLED))
                 .thenReturn(List.of(enrollment));
@@ -94,5 +96,25 @@ class UpcomingClassReminderSchedulerTest {
         return new ClassDefinitionLookupService.ClassDefinitionSnapshot(
                 classDefinitionUuid, null, null, "Algebra", null, null, null, null,
                 null, null, null, null, 30, null, null);
+    }
+
+    @Test
+    void aReminderAlreadySentForThisStartTimeIsNotPublishedAgain() {
+        UUID classDefinitionUuid = UUID.randomUUID();
+        ScheduledInstance instance = new ScheduledInstance();
+        instance.setUuid(UUID.randomUUID());
+        instance.setClassDefinitionUuid(classDefinitionUuid);
+        instance.setInstructorUuid(UUID.randomUUID());
+        instance.setStartTime(LocalDateTime.now(ZoneOffset.UTC).plusMinutes(10));
+
+        when(scheduledInstanceRepository.findScheduledInstancesStartingBetween(any(), any()))
+                .thenReturn(List.of(instance));
+        when(classDefinitionLookupService.findByUuid(classDefinitionUuid))
+                .thenReturn(Optional.of(snapshot(classDefinitionUuid)));
+        when(scheduledInstanceRepository.claimUpcomingReminder(instance.getUuid())).thenReturn(0);
+
+        scheduler.sendUpcomingClassReminders();
+
+        verifyNoInteractions(eventPublisher);
     }
 }
