@@ -1,3 +1,10 @@
+## [2.180.1](https://github.com/sarafrika/elimika/compare/v2.180.0...v2.180.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **timetabling:** open and flag overdue reports for sessions that ended outside the reminder window ([1690d39](https://github.com/sarafrika/elimika/commit/1690d3937c7aa1194dab5dcacc17c85e0ba3c764))
+
 # [2.180.0](https://github.com/sarafrika/elimika/compare/v2.179.1...v2.180.0) (2026-10-20)
 
 
