@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.commerce.order.service.OrderService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.media.Content;
@@ -11,6 +12,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Pageable;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -19,6 +21,7 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 
 /**
  * REST controller exposing order management endpoints.
@@ -47,6 +50,18 @@ public class OrderController {
         OrderResponse order = orderService.completeCheckout(request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(order, "Order created successfully"));
+    }
+
+    @Operation(
+            summary = "List my orders",
+            description = "The signed-in buyer's own orders, paid or awaiting payment, newest first, with their items"
+    )
+    @GetMapping("/mine")
+    public ResponseEntity<ApiResponse<PagedDTO<OrderResponse>>> listMyOrders(Pageable pageable) {
+        PagedDTO<OrderResponse> paged = PagedDTO.from(
+                orderService.listMyOrders(pageable),
+                ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString());
+        return ResponseEntity.ok(ApiResponse.success(paged, "Orders retrieved successfully"));
     }
 
     @Operation(

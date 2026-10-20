@@ -9,6 +9,8 @@ import apps.sarafrika.elimika.shared.event.commerce.OrderCompletedEvent;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.context.ApplicationEventPublisher;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 
 /**
@@ -51,6 +53,11 @@ public class OrderServiceImpl implements OrderService {
     @Override
     public OrderResponse getOrder(String orderId) {
         return internalOrderService.getOrder(orderId);
+    }
+
+    @Override
+    public Page<OrderResponse> listMyOrders(Pageable pageable) {
+        return internalOrderService.listOrdersForCurrentUser(pageable);
     }
 
     private String findEnrolmentBlocker(OrderResponse order) {

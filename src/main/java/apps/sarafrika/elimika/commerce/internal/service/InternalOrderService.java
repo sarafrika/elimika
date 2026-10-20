@@ -2,6 +2,8 @@ package apps.sarafrika.elimika.commerce.internal.service;
 
 import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import java.util.Optional;
 
 /**
@@ -12,6 +14,9 @@ public interface InternalOrderService {
     OrderResponse completeCheckout(CheckoutRequest request);
 
     OrderResponse getOrder(String orderId);
+
+    /** The caller's own orders, paid or not, newest first; empty for an anonymous caller. */
+    Page<OrderResponse> listOrdersForCurrentUser(Pageable pageable);
 
     /**
      * Marks an order's payment as captured (idempotent) and returns the refreshed order.

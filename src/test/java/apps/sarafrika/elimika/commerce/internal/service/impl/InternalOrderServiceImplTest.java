@@ -23,6 +23,10 @@ import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageImpl;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Sort;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
@@ -190,6 +194,31 @@ class InternalOrderServiceImplTest {
                 .claim("azp", clientId)
                 .build();
         SecurityContextHolder.getContext().setAuthentication(new JwtAuthenticationToken(jwt));
+    }
+
+    @Test
+    void listsOnlyTheCallersOwnOrdersNewestFirst() {
+        CommerceOrder mine = orderOwnedBy(BUYER);
+        OrderResponse response = order("CAPTURED");
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(BUYER);
+        when(orderRepository.findByUserUuidOrderByCreatedDateDesc(BUYER, PageRequest.of(1, 5)))
+                .thenReturn(new PageImpl<>(List.of(mine), PageRequest.of(1, 5), 6));
+        when(mapper.toOrderResponse(mine)).thenReturn(response);
+
+        Page<OrderResponse> page = service.listOrdersForCurrentUser(PageRequest.of(1, 5, Sort.by("total")));
+
+        assertThat(page.getContent()).containsExactly(response);
+        assertThat(page.getTotalElements()).isEqualTo(6);
+    }
+
+    @Test
+    void anAnonymousCallerHasNoOrders() {
+        when(domainSecurityService.getCurrentUserUuid()).thenReturn(null);
+
+        Page<OrderResponse> page = service.listOrdersForCurrentUser(PageRequest.of(0, 20));
+
+        assertThat(page.getContent()).isEmpty();
+        verify(orderRepository, never()).findByUserUuidOrderByCreatedDateDesc(any(), any());
     }
 
     private CommerceOrder orderOwnedBy(UUID buyerUuid) {

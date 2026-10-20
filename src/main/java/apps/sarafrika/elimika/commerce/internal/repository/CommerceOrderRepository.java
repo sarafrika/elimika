@@ -6,6 +6,8 @@ import apps.sarafrika.elimika.commerce.internal.enums.PaymentStatus;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 
 public interface CommerceOrderRepository extends JpaRepository<CommerceOrder, Long> {
@@ -15,6 +17,8 @@ public interface CommerceOrderRepository extends JpaRepository<CommerceOrder, Lo
     Optional<CommerceOrder> findFirstByCart_UuidOrderByCreatedDateDesc(UUID cartUuid);
 
     List<CommerceOrder> findByStatus(OrderStatus status);
+
+    Page<CommerceOrder> findByUserUuidOrderByCreatedDateDesc(UUID userUuid, Pageable pageable);
 
     /**
      * Orders whose M-Pesa prompt was issued but never resolved in the browser. The sweep re-asks the

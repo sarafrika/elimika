@@ -22,6 +22,9 @@ import org.springframework.security.authentication.AnonymousAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken;
+import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
+import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
@@ -84,6 +87,18 @@ public class InternalOrderServiceImpl implements InternalOrderService {
     @Transactional(readOnly = true)
     public OrderResponse getOrder(String orderId) {
         return mapper.toOrderResponse(loadOrder(orderId));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<OrderResponse> listOrdersForCurrentUser(Pageable pageable) {
+        UUID callerUuid = domainSecurityService.getCurrentUserUuid();
+        if (callerUuid == null) {
+            return Page.empty(pageable);
+        }
+        // Newest first is the only order a payment history is read in, so a requested sort is ignored.
+        Pageable unsorted = PageRequest.of(pageable.getPageNumber(), pageable.getPageSize());
+        return orderRepository.findByUserUuidOrderByCreatedDateDesc(callerUuid, unsorted).map(mapper::toOrderResponse);
     }
 
     @Override
