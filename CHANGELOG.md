@@ -1,3 +1,15 @@
+# [2.181.0](https://github.com/sarafrika/elimika/compare/v2.180.1...v2.181.0) (2026-10-20)
+
+
+### Bug Fixes
+
+* **student:** send the guardian's learner list and dashboard in snake_case ([08eb1aa](https://github.com/sarafrika/elimika/commit/08eb1aa0ea9eaf7b1125681cf1964e6f5fe78877))
+
+
+### Features
+
+* **course:** let a guardian read a linked child's progress report when the link shares academics ([f15e60d](https://github.com/sarafrika/elimika/commit/f15e60db5a6532e522babe323a2f7c9ded10a4f4))
+
 ## [2.180.1](https://github.com/sarafrika/elimika/compare/v2.180.0...v2.180.1) (2026-10-20)
 
 
