@@ -39,7 +39,7 @@ class TimetableControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new TimetableController(timetableService, instructorTimeHoldService)).build();
+        mockMvc = MockMvcBuilders.standaloneSetup(new TimetableController(timetableService, org.mockito.Mockito.mock(apps.sarafrika.elimika.timetabling.service.SessionReportService.class), org.mockito.Mockito.mock(apps.sarafrika.elimika.timetabling.security.TimetableSecurityService.class), org.mockito.Mockito.mock(apps.sarafrika.elimika.shared.security.DomainSecurityService.class), instructorTimeHoldService)).build();
     }
 
     @Test

@@ -12,8 +12,8 @@ public record SessionRecordDTO(
         @JsonProperty(value = "instance_uuid", access = JsonProperty.Access.READ_ONLY) UUID instanceUuid,
         @JsonProperty(value = "lesson_uuid", access = JsonProperty.Access.READ_ONLY) UUID lessonUuid,
         @JsonProperty(value = "title", access = JsonProperty.Access.READ_ONLY) String title,
-        @JsonProperty("topic_covered") @Size(max = 5000) String topicCovered,
-        @JsonProperty("instructor_remarks") @Size(max = 5000) String instructorRemarks,
+        @JsonProperty("topic_covered") @Size(max = 20000) String topicCovered,
+        @JsonProperty("instructor_remarks") @Size(max = 20000) String instructorRemarks,
         @JsonProperty(value = "start_time", access = JsonProperty.Access.READ_ONLY) LocalDateTime startTime,
         @JsonProperty(value = "end_time", access = JsonProperty.Access.READ_ONLY) LocalDateTime endTime,
         @JsonProperty(value = "duration_minutes", access = JsonProperty.Access.READ_ONLY) Long durationMinutes

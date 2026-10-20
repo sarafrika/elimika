@@ -141,7 +141,8 @@ class TimetableServiceImplTest {
                 resourceBookingService,
                 domainSecurityService,
                 timetableSecurityService,
-                instructorTimeHoldService
+                instructorTimeHoldService,
+                org.mockito.Mockito.mock(apps.sarafrika.elimika.timetabling.internal.SessionReportLocks.class)
         );
     }
 

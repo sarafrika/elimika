@@ -171,7 +171,8 @@ class InstructorFirmHoldConflictIntegrationTest {
                 mock(ResourceBookingService.class),
                 mock(DomainSecurityService.class),
                 mock(TimetableSecurityService.class),
-                new InstructorTimeHoldServiceImpl(holdRepository, mock(OrganisationLookupService.class)));
+                new InstructorTimeHoldServiceImpl(holdRepository, mock(OrganisationLookupService.class)),
+                org.mockito.Mockito.mock(apps.sarafrika.elimika.timetabling.internal.SessionReportLocks.class));
 
         @SuppressWarnings("unchecked")
         ObjectProvider<TimetableService> timetableProvider = mock(ObjectProvider.class);

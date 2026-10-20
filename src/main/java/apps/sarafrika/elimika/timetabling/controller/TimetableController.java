@@ -1,13 +1,20 @@
 package apps.sarafrika.elimika.timetabling.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.timetabling.dto.BlockInstructorTimeRequest;
+import apps.sarafrika.elimika.timetabling.security.TimetableSecurityService;
+import apps.sarafrika.elimika.timetabling.service.SessionReportService;
+import apps.sarafrika.elimika.timetabling.spi.ClassReportDTO;
 import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldDTO;
 import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduleRequestDTO;
-import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceRescheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
+import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceRescheduleRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.SessionRecordDTO;
+import apps.sarafrika.elimika.timetabling.spi.SessionReportDTO;
+import apps.sarafrika.elimika.timetabling.spi.SessionReportStatus;
+import apps.sarafrika.elimika.timetabling.spi.SessionReportSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentScheduleDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -43,6 +50,9 @@ public class TimetableController {
             + "@timetableSecurityService.canReadLearnerRecord(#studentUuid)";
 
     private final TimetableService timetableService;
+    private final SessionReportService sessionReportService;
+    private final TimetableSecurityService timetableSecurityService;
+    private final DomainSecurityService domainSecurityService;
     private final InstructorTimeHoldService instructorTimeHoldService;
 
     // ================================
@@ -109,6 +119,65 @@ public class TimetableController {
             @RequestParam(required = false) UUID lessonUuid) {
         timetableService.assignLesson(instanceUuid, lessonUuid);
         return ResponseEntity.ok(ApiResponse.success(null, "Session lesson updated successfully"));
+    }
+
+    @Operation(summary = "Get a session's report",
+            description = "The session's instructors get the live report with its checklist; the school's managers get the last submitted version.")
+    @GetMapping("/schedule/{instanceUuid}/report")
+    @PreAuthorize("@timetableSecurityService.isSessionInstructor(#instanceUuid) "
+            + "or @timetableSecurityService.managesOrganisationOfSession(#instanceUuid)")
+    public ResponseEntity<ApiResponse<SessionReportDTO>> getSessionReport(@PathVariable UUID instanceUuid) {
+        SessionReportDTO report = timetableSecurityService.isSessionInstructor(instanceUuid)
+                ? sessionReportService.preview(instanceUuid)
+                : sessionReportService.submittedReport(instanceUuid);
+        return ResponseEntity.ok(ApiResponse.success(report, "Session report retrieved successfully"));
+    }
+
+    @Operation(summary = "Submit a session's report",
+            description = "Final submission: refused while anything on the checklist blocks it. Complete draft scores are submitted with it. Editable until the school's grace period ends.")
+    @PostMapping("/schedule/{instanceUuid}/report/submit")
+    @PreAuthorize("@timetableSecurityService.isSessionInstructor(#instanceUuid)")
+    public ResponseEntity<ApiResponse<SessionReportDTO>> submitSessionReport(@PathVariable UUID instanceUuid) {
+        return ResponseEntity.ok(ApiResponse.success(
+                sessionReportService.submit(instanceUuid, domainSecurityService.getCurrentUserUuid()),
+                "Session report submitted"));
+    }
+
+    @Operation(summary = "Reopen a locked session report", description = "Platform admins only: opens one more grace period.")
+    @PostMapping("/schedule/{instanceUuid}/report/reopen")
+    @PreAuthorize("@domainSecurityService.isPlatformAdmin()")
+    public ResponseEntity<ApiResponse<SessionReportDTO>> reopenSessionReport(@PathVariable UUID instanceUuid) {
+        return ResponseEntity.ok(ApiResponse.success(sessionReportService.reopen(instanceUuid), "Session report reopened"));
+    }
+
+    @Operation(summary = "Get a class report", description = "Every learner's lesson marks across the class's sessions. School managers see submitted session reports only.")
+    @GetMapping("/classes/{classDefinitionUuid}/report")
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#classDefinitionUuid)")
+    public ResponseEntity<ApiResponse<ClassReportDTO>> getClassReport(@PathVariable UUID classDefinitionUuid) {
+        return ResponseEntity.ok(ApiResponse.success(
+                sessionReportService.classReport(classDefinitionUuid, timetableSecurityService.isClassInstructor(classDefinitionUuid)),
+                "Class report retrieved successfully"));
+    }
+
+    @Operation(summary = "Download a class report as CSV")
+    @GetMapping(value = "/classes/{classDefinitionUuid}/report.csv", produces = "text/csv")
+    @PreAuthorize("@classAccessSecurityService.canManageClass(#classDefinitionUuid)")
+    public ResponseEntity<String> getClassReportCsv(@PathVariable UUID classDefinitionUuid) {
+        String csv = sessionReportService.classReportCsv(classDefinitionUuid, timetableSecurityService.isClassInstructor(classDefinitionUuid));
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"class-report-" + classDefinitionUuid + ".csv\"")
+                .contentType(org.springframework.http.MediaType.parseMediaType("text/csv"))
+                .body(csv);
+    }
+
+    @Operation(summary = "List my session reports", description = "The signed-in instructor's session reports, soonest due first.")
+    @GetMapping("/session-reports")
+    @PreAuthorize("@domainSecurityService.getCurrentInstructorUuid() != null")
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<SessionReportSummaryDTO>>> getMySessionReports(
+            @RequestParam(required = false) List<String> status,
+            org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(sessionReportService.listForInstructor(
+                domainSecurityService.getCurrentInstructorUuid(), SessionReportStatus.parseAll(status), pageable), "Session reports retrieved successfully"));
     }
 
     @Operation(summary = "Get what was taught in a session", description = "Topic covered, instructor remarks and duration.")

@@ -30,6 +30,13 @@ public final class DashboardLinks {
                 : "/dashboard/instructor/classes/class-training/" + classDefinitionUuid;
     }
 
+    /** The session's report tab in the instructor's lesson workbook. */
+    public static String instructorSessionReport(UUID classDefinitionUuid, UUID instanceUuid) {
+        return "/dashboard/instructor/classes/training/" + classDefinitionUuid + "?schedule=" + instanceUuid + "&tab=report";
+    }
+
+    public static final String ORGANISATION_SESSION_REPORTS = "/dashboard/organisation/session-reports";
+
     public static String courseCreatorCourse(UUID courseUuid) {
         return courseUuid == null ? COURSE_CREATOR_COURSES : COURSE_CREATOR_COURSES + "/" + courseUuid;
     }

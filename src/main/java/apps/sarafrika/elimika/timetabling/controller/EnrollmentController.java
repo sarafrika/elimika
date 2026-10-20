@@ -14,6 +14,8 @@ import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentVisibilityService;
 import apps.sarafrika.elimika.timetabling.spi.InstrumentCondition;
+import apps.sarafrika.elimika.timetabling.spi.SessionReportStatus;
+import apps.sarafrika.elimika.timetabling.spi.SessionReportSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentClassEnrollmentSummaryDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentEnrollmentOverviewDTO;
@@ -106,6 +108,7 @@ public class EnrollmentController {
                     + "@classAccessSecurityService.canManageClass(#request.classDefinitionUuid())";
 
     private final TimetableService timetableService;
+    private final apps.sarafrika.elimika.timetabling.service.SessionReportService sessionReportService;
     private final EnrollmentVisibilityService enrollmentVisibilityService;
 
     // ================================
@@ -195,6 +198,19 @@ public class EnrollmentController {
         timetableService.markAttendance(enrollmentUuid, attended, InstrumentCondition.fromValue(instrumentCondition),
                 comment);
         return ResponseEntity.ok(ApiResponse.success(null, "Attendance marked successfully"));
+    }
+
+    @Operation(summary = "List an organisation's session reports",
+            description = "Session reports for the organisation's classes, soonest due first; filter by status to see overdue ones.")
+    @GetMapping("/organisations/{organisationUuid}/session-reports")
+    @PreAuthorize(MANAGE_ORGANISATION)
+    public ResponseEntity<ApiResponse<org.springframework.data.domain.Page<SessionReportSummaryDTO>>> getOrganisationSessionReports(
+            @PathVariable UUID organisationUuid,
+            @RequestParam(required = false) List<String> status,
+            org.springframework.data.domain.Pageable pageable) {
+        return ResponseEntity.ok(ApiResponse.success(
+                sessionReportService.listForOrganisation(organisationUuid, SessionReportStatus.parseAll(status), pageable),
+                "Session reports retrieved successfully"));
     }
 
     // ================================

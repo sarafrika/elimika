@@ -25,6 +25,7 @@ import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.shared.spi.enrollment.AttendanceMarkedEventDTO;
 import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentStatusChangedEventDTO;
 import apps.sarafrika.elimika.shared.spi.enrollment.StudentEnrolledEventDTO;
+import apps.sarafrika.elimika.timetabling.internal.SessionReportLocks;
 import apps.sarafrika.elimika.timetabling.spi.InstrumentCondition;
 import apps.sarafrika.elimika.timetabling.spi.SessionRecordDTO;
 import apps.sarafrika.elimika.timetabling.spi.StudentCourseEnrollmentSummaryDTO;
@@ -114,6 +115,7 @@ public class TimetableServiceImpl implements TimetableService {
     private final DomainSecurityService domainSecurityService;
     private final TimetableSecurityService timetableSecurityService;
     private final InstructorTimeHoldService instructorTimeHoldService;
+    private final SessionReportLocks sessionReportLocks;
 
     /** How a registration date is written back to a learner, rather than how the column stores it. */
     private static final java.time.format.DateTimeFormatter REGISTRATION_WINDOW_DATE_FORMAT =
@@ -678,6 +680,7 @@ public class TimetableServiceImpl implements TimetableService {
         Enrollment entity = enrollmentRepository.findByUuid(enrollmentUuid)
             .orElseThrow(() -> new ResourceNotFoundException(
                 String.format(ENROLLMENT_NOT_FOUND_TEMPLATE, enrollmentUuid)));
+        sessionReportLocks.requireSessionOpen(entity.getScheduledInstanceUuid());
 
         // A mark can be corrected, but only on a seat the learner actually holds.
         if (!MARKABLE_STATUSES.contains(entity.getStatus())) {
@@ -728,6 +731,7 @@ public class TimetableServiceImpl implements TimetableService {
         ScheduledInstance instance = scheduledInstanceRepository.findByUuid(instanceUuid)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         String.format(SCHEDULED_INSTANCE_NOT_FOUND_TEMPLATE, instanceUuid)));
+        sessionReportLocks.requireSessionOpen(instanceUuid);
         instance.setTopicCovered(blankToNull(topicCovered));
         instance.setInstructorRemarks(blankToNull(instructorRemarks));
         return toSessionRecord(scheduledInstanceRepository.save(instance));

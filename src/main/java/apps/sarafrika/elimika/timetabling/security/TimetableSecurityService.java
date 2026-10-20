@@ -49,6 +49,56 @@ public class TimetableSecurityService {
     private final DomainSecurityService domainSecurityService;
     private final RequestScopedCache requestScopedCache;
 
+    /** True for the session's own instructors (default or scheduled) and platform admins; not school managers. */
+    public boolean isSessionInstructor(UUID instanceUuid) {
+        if (instanceUuid == null) {
+            return false;
+        }
+        try {
+            if (domainSecurityService.isPlatformAdmin()) {
+                return true;
+            }
+            return scheduledInstanceRepository.findByUuid(instanceUuid)
+                    .map(instance -> domainSecurityService.isInstructorWithUuid(instance.getInstructorUuid())
+                            || classDefinitionLookupService.findDefaultInstructorUuid(instance.getClassDefinitionUuid())
+                            .map(domainSecurityService::isInstructorWithUuid)
+                            .orElse(false))
+                    .orElse(false);
+        } catch (Exception e) {
+            log.error("Error checking the instructors of scheduled instance {}", instanceUuid, e);
+            return false;
+        }
+    }
+
+    /** True for the class's default instructor and platform admins; they see live marks in the class report. */
+    public boolean isClassInstructor(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            return false;
+        }
+        if (domainSecurityService.isPlatformAdmin()) {
+            return true;
+        }
+        return classDefinitionLookupService.findDefaultInstructorUuid(classDefinitionUuid)
+                .map(domainSecurityService::isInstructorWithUuid)
+                .orElse(false);
+    }
+
+    /** True when the caller manages the organisation that owns this session's class. */
+    public boolean managesOrganisationOfSession(UUID instanceUuid) {
+        if (instanceUuid == null) {
+            return false;
+        }
+        try {
+            return scheduledInstanceRepository.findByUuid(instanceUuid)
+                    .flatMap(instance -> classDefinitionLookupService.findOrganisationUuid(instance.getClassDefinitionUuid()))
+                    .map(domainSecurityService::managesOrganisation)
+                    .orElse(false);
+        } catch (Exception e) {
+            log.error("Error checking the organisation of scheduled instance {}", instanceUuid, e);
+            return false;
+        }
+    }
+
     /** True when the caller is the instructor scheduled to teach this very session (a substitute included). */
     public boolean teachesSession(UUID instanceUuid) {
         if (instanceUuid == null) {

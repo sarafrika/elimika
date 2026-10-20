@@ -186,7 +186,8 @@ class ClassRegistrationWindowIntegrationTest {
                 mock(ResourceBookingService.class),
                 timetableSecurity,
                 mock(TimetableSecurityService.class),
-                mock(InstructorTimeHoldService.class));
+                mock(InstructorTimeHoldService.class),
+                org.mockito.Mockito.mock(apps.sarafrika.elimika.timetabling.internal.SessionReportLocks.class));
 
         enrolmentGate = new ClassEnrolmentGateServiceImpl(timetableService, studentLookupService);
 

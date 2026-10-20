@@ -42,7 +42,7 @@ class EnrollmentControllerTest {
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new EnrollmentController(timetableService, enrollmentVisibilityService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new EnrollmentController(timetableService, org.mockito.Mockito.mock(apps.sarafrika.elimika.timetabling.service.SessionReportService.class), enrollmentVisibilityService))
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .build();
     }
