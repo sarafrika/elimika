@@ -11,6 +11,7 @@ import apps.sarafrika.elimika.commerce.internal.entity.CommerceProductVariant;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVariantRepository;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
+import apps.sarafrika.elimika.shared.utils.commerce.ClassLinePricing;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService.ClassScheduleSummary;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import jakarta.transaction.Transactional;
@@ -416,24 +417,7 @@ public class CommerceCatalogueServiceImpl implements CommerceCatalogueService {
             return baseAmount;
         }
 
-        BigDecimal units = billableUnits(basis, summary);
-        if (units.signum() <= 0) {
-            return baseAmount;
-        }
-        return baseAmount.multiply(units).setScale(4, RoundingMode.HALF_UP);
-    }
-
-    /**
-     * How many of the priced unit this class contains. The same multiplier the payout side applies,
-     * so the margin between the two prices stays a like-for-like subtraction.
-     */
-    private BigDecimal billableUnits(RateBasis basis, ClassScheduleSummary summary) {
-        return switch (basis) {
-            case PER_SESSION -> BigDecimal.valueOf(summary.scheduledInstances());
-            case PER_DAY -> BigDecimal.valueOf(summary.scheduledDays());
-            case PER_HOUR -> BigDecimal.valueOf(summary.scheduledMinutes())
-                    .divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
-        };
+        return ClassLinePricing.price(baseAmount, basis, summary);
     }
 
     /**

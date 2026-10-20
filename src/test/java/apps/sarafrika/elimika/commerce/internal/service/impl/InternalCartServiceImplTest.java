@@ -21,6 +21,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.spi.ClassCapacityService;
 import apps.sarafrika.elimika.shared.spi.ClassEnrolmentGateService;
+import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
@@ -74,6 +75,8 @@ class InternalCartServiceImplTest {
     @Mock
     private ClassScheduleService classScheduleService;
     @Mock
+    private ClassDefinitionLookupService classDefinitionLookupService;
+    @Mock
     private CurrencyValidator currencyValidator;
     @Mock
     private DomainSecurityService domainSecurityService;
@@ -95,6 +98,7 @@ class InternalCartServiceImplTest {
                 classCapacityService,
                 classEnrolmentGateService,
                 classScheduleService,
+                classDefinitionLookupService,
                 currencyValidator,
                 domainSecurityService);
     }

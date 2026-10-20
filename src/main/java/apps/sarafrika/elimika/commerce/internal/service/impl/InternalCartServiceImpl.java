@@ -30,6 +30,9 @@ import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.spi.ClassCapacityService;
 import apps.sarafrika.elimika.shared.spi.ClassEnrolmentGateService;
+import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
+import apps.sarafrika.elimika.shared.utils.commerce.ClassLinePricing;
+import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService.ClassScheduleSummary;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -74,6 +77,7 @@ public class InternalCartServiceImpl implements InternalCartService {
     private final ClassCapacityService classCapacityService;
     private final ClassEnrolmentGateService classEnrolmentGateService;
     private final ClassScheduleService classScheduleService;
+    private final ClassDefinitionLookupService classDefinitionLookupService;
     private final CurrencyValidator currencyValidator;
     private final DomainSecurityService domainSecurityService;
 
@@ -670,13 +674,11 @@ public class InternalCartServiceImpl implements InternalCartService {
     }
 
     private BigDecimal resolveUnitAmount(CommerceProductVariant variant, ClassScheduleSummary scheduleSummary) {
-        BigDecimal unitAmount = amount(variant.getUnitAmount());
-        if (scheduleSummary == null || scheduleSummary.scheduledMinutes() <= 0) {
-            return unitAmount;
-        }
-        BigDecimal hours = BigDecimal.valueOf(scheduleSummary.scheduledMinutes())
-                .divide(BigDecimal.valueOf(60), 4, RoundingMode.HALF_UP);
-        return amount(unitAmount.multiply(hours));
+        UUID classDefinitionUuid = resolveClassDefinitionUuid(variant);
+        RateBasis basis = classDefinitionUuid == null ? null : classDefinitionLookupService.findByUuid(classDefinitionUuid)
+                .map(ClassDefinitionLookupService.ClassDefinitionSnapshot::rateBasis)
+                .orElse(null);
+        return amount(ClassLinePricing.price(variant.getUnitAmount(), basis, scheduleSummary));
     }
 
     private boolean shouldEnforceInventory(CommerceProductVariant variant) {

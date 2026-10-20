@@ -211,6 +211,7 @@ class ClassRegistrationWindowIntegrationTest {
                 classCapacityService,
                 enrolmentGate,
                 mock(ClassScheduleService.class),
+                mock(apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.class),
                 mock(CurrencyValidator.class),
                 cartSecurity);
     }
