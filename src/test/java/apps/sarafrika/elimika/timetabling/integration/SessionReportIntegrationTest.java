@@ -225,6 +225,21 @@ class SessionReportIntegrationTest {
     }
 
     @Test
+    @DisplayName("a session with no lesson set still locks its lesson's scores, by the lesson submit froze onto it")
+    void submitFreezesTheSessionsLessonForTheLock() throws Exception {
+        jdbc.update("UPDATE scheduled_instances SET lesson_uuid = NULL WHERE uuid = ?", sessionUuid);
+        captureSession();
+        mockMvc.perform(post(reportUrl() + "/submit").with(jwt(TRAINER))).andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("SELECT lesson_uuid FROM scheduled_instances WHERE uuid = ?", UUID.class, sessionUuid))
+                .isEqualTo(jdbc.queryForObject("SELECT lesson_uuid FROM course_assessment_line_items WHERE uuid = ?",
+                        UUID.class, lineItemUuid));
+
+        jdbc.update("UPDATE session_reports SET editable_until = ?", Timestamp.valueOf(LocalDateTime.now(ZoneOffset.UTC).minusMinutes(1)));
+        mockMvc.perform(put(rubricUrl()).with(jwt(TRAINER)).contentType(MediaType.APPLICATION_JSON).content(marks("completed", 6)))
+                .andExpect(status().isConflict());
+    }
+
+    @Test
     @DisplayName("after the grace window, attendance, the session record and lesson scores are refused")
     void lockedReportRefusesChanges() throws Exception {
         captureSession();

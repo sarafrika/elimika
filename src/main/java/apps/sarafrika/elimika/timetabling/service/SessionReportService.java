@@ -127,6 +127,11 @@ public class SessionReportService {
         if (!blockers.isEmpty()) {
             throw new IllegalArgumentException("The session report is not complete: " + String.join("; ", blockers));
         }
+        if (instance.getLessonUuid() == null && live.lessonUuid() != null) {
+            // Freeze the lesson the session taught: locks match on it, and a later cancellation must not shift it.
+            instance.setLessonUuid(live.lessonUuid());
+            instance = instanceRepository.save(instance);
+        }
         if (live.courseUuid() != null && live.lessonUuid() != null && live.rubricScored()) {
             List<UUID> present = live.rows().stream()
                     .filter(row -> "ATTENDED".equals(row.attendance()))
