@@ -1,3 +1,10 @@
+## [2.181.1](https://github.com/sarafrika/elimika/compare/v2.181.0...v2.181.1) (2026-10-20)
+
+
+### Bug Fixes
+
+* **tenancy:** grant the school staff domain only to admins and members, not learners or trainers ([92e1363](https://github.com/sarafrika/elimika/commit/92e136397a3034fa97c80f720fdfee69631c9092))
+
 # [2.181.0](https://github.com/sarafrika/elimika/compare/v2.180.1...v2.181.0) (2026-10-20)
 
 
