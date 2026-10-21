@@ -83,8 +83,6 @@ public class OrganisationSecurityService {
             // competition-scoped guard funnels through here, so a single request asks this
             // repeatedly about the same organisation.
             return domainSecurityService.belongsToOrganisationWithDomain(
-                            organisationUuid, UserDomain.organisation_user)
-                    || domainSecurityService.belongsToOrganisationWithDomain(
                             organisationUuid, UserDomain.admin);
         } catch (Exception e) {
             log.error("Error checking management rights for organisation {}", organisationUuid, e);

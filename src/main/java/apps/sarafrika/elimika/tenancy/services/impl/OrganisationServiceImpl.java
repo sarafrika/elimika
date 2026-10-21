@@ -253,7 +253,7 @@ public class OrganisationServiceImpl implements OrganisationService {
 
         userOrganisationDomainMappingRepository.save(mapping);
 
-        // Only school staff get the umbrella organisation_user domain (and with it the school dashboard).
+        // Only school admins get the umbrella organisation_user domain (and with it the school dashboard).
         if (isOrganisationStaffDomain(domain)) {
             ensureOrganisationUserDomain(user);
         }
@@ -332,7 +332,7 @@ public class OrganisationServiceImpl implements OrganisationService {
 
         userOrganisationDomainMappingRepository.save(mapping);
 
-        // Promotion to school staff brings the umbrella domain; a learner or trainer role never does.
+        // Promotion to school admin brings the umbrella domain; no other school role does.
         if (isOrganisationStaffDomain(newDomain)) {
             User user = userRepository.findByUuid(userUuid)
                     .orElseThrow(() -> new ResourceNotFoundException("User not found"));
@@ -422,10 +422,9 @@ public class OrganisationServiceImpl implements OrganisationService {
         }
     }
 
-    /** School staff roles: the organisation's admins and members. Students, trainers and parents are not staff. */
+    /** Only a school admin operates the school dashboard; everyone else in a school is a community member. */
     private static boolean isOrganisationStaffDomain(UserDomain domain) {
-        String name = domain.getDomainName();
-        return "admin".equalsIgnoreCase(name) || "organisation_user".equalsIgnoreCase(name);
+        return "admin".equalsIgnoreCase(domain.getDomainName());
     }
 
     /**

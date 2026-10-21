@@ -136,7 +136,7 @@ class InstructorGradingAccessIntegrationTest {
 
         UUID adminUser = user(SCHOOL_ADMIN, "admin@grading.test");
         grantDomain(adminUser, "organisation_user");
-        membership(adminUser, school, "organisation_user");
+        membership(adminUser, school, "admin");
 
         UUID unrelated = user(UNRELATED_STUDENT, "unrelated@grading.test");
         grantDomain(unrelated, "student");

@@ -636,7 +636,7 @@ class CourseSecurityServiceImplTest {
         UUID school = UUID.randomUUID();
         when(enrollmentLookupService.findClassOrganisationsOfStudentForCourse(STUDENT_UUID, COURSE_UUID))
                 .thenReturn(Set.of(school));
-        when(userLookupService.userBelongsToOrganizationWithDomain(USER_UUID, school, UserDomain.organisation_user))
+        when(userLookupService.userBelongsToOrganizationWithDomain(USER_UUID, school, UserDomain.admin))
                 .thenReturn(true);
 
         assertThat(service.canReadEnrollmentGrades(COURSE_UUID, ENROLLMENT_UUID)).isTrue();

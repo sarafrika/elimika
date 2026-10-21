@@ -134,7 +134,7 @@ class SkillTaggingIntegrationTest {
 
         organisationUuid = organisation("Skills Org " + run);
         UUID managerUser = user(managerSubject);
-        membership(managerUser, organisationUuid, "organisation_user");
+        membership(managerUser, organisationUuid, "admin");
 
         grantDomain(user(outsiderSubject), "student");
     }

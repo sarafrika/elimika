@@ -60,7 +60,7 @@ public class EnrollmentController {
     /**
      * Every organisation-scoped route below answers a question about one organisation's learners,
      * classes or money, so each is confined to the people who run that organisation — an org-scoped
-     * {@code organisation_user} or {@code admin} of it — plus platform admins doing support. The
+     * {@code admin} of it — plus platform admins doing support. The
      * check is against the organisation named in the path, never a role held somewhere else.
      */
     private static final String MANAGE_ORGANISATION =

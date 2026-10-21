@@ -118,10 +118,11 @@ class OrganisationSecurityServiceTest {
     }
 
     @Test
-    void anOrganisationUserOfThisOrganisationMayManageIt() {
+    void aNonAdminOrganisationUserOfThisOrganisationMayNotManageIt() {
+        // Only school admins operate the school; other members are part of its community.
         belongsWithDomain(ORG_UUID, UserDomain.organisation_user);
 
-        assertThat(service.canManageOrganisation(ORG_UUID)).isTrue();
+        assertThat(service.canManageOrganisation(ORG_UUID)).isFalse();
     }
 
     @Test
@@ -180,7 +181,7 @@ class OrganisationSecurityServiceTest {
 
     @Test
     void aManagerOfTheOwningOrganisationMayManageItsGroups() {
-        belongsWithDomain(ORG_UUID, UserDomain.organisation_user);
+        belongsWithDomain(ORG_UUID, UserDomain.admin);
 
         assertThat(service.canManageGroup(GROUP_UUID)).isTrue();
     }
@@ -232,7 +233,7 @@ class OrganisationSecurityServiceTest {
     void theOwningOrganisationOfAGroupIsResolvedOncePerRequest() {
         // The group-scoped routes carry no organisation in the path, and adding members resolves it
         // twice over a single request. Without memoisation each guarded call is another round-trip.
-        belongsWithDomain(ORG_UUID, UserDomain.organisation_user);
+        belongsWithDomain(ORG_UUID, UserDomain.admin);
         when(domainSecurityService.belongsToOrganisation(ORG_UUID)).thenReturn(true);
 
         assertThat(service.canReadGroup(GROUP_UUID)).isTrue();
@@ -300,7 +301,7 @@ class OrganisationSecurityServiceTest {
 
     @Test
     void aManagerOfTheOwningOrganisationMayDeleteItsFundSourcesAndTransactions() {
-        belongsWithDomain(ORG_UUID, UserDomain.organisation_user);
+        belongsWithDomain(ORG_UUID, UserDomain.admin);
 
         assertThat(service.canManageFundSource(SOURCE_UUID)).isTrue();
         assertThat(service.canManageFundTransaction(TRANSACTION_UUID)).isTrue();
@@ -407,7 +408,7 @@ class OrganisationSecurityServiceTest {
     @Test
     void theOwningOrganisationOfACompetitionIsResolvedOncePerRequest() {
         // Removing a team resolves the competition for the guard and again for the service call.
-        belongsWithDomain(ORG_UUID, UserDomain.organisation_user);
+        belongsWithDomain(ORG_UUID, UserDomain.admin);
         when(domainSecurityService.belongsToOrganisation(ORG_UUID)).thenReturn(true);
 
         assertThat(service.canReadCompetition(COMPETITION_UUID)).isTrue();

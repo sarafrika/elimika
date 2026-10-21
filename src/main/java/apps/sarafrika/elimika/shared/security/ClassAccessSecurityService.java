@@ -20,7 +20,7 @@ import java.util.UUID;
  * the gap this closes: a global domain is self-grantable in effect, so it can never stand in for
  * ownership of a particular party's data.
  * <p>
- * The organisation branch reads an org-scoped {@code organisation_user} or {@code admin} mapping for
+ * The organisation branch reads an org-scoped {@code admin} mapping for
  * that organisation specifically, never the global "administers something, anywhere" reading. It is
  * the same test the class service already applies before disclosing {@code instructor_pay}, and for
  * the same reason: that pay is an obligation the organisation owes, so whoever can create or re-home
@@ -159,7 +159,7 @@ public class ClassAccessSecurityService {
 
     /**
      * True when the caller manages this organisation specifically: a platform admin, or the holder
-     * of an org-scoped {@code organisation_user} or {@code admin} mapping for it.
+     * of an org-scoped {@code admin} mapping for it.
      * <p>
      * Mere membership is not enough. An organisation's learners and its contracted trainers belong
      * to it too, and organisation-wide figures — who is enrolled, how each of them is performing —
@@ -182,8 +182,6 @@ public class ClassAccessSecurityService {
                     return false;
                 }
                 return userLookupService.userBelongsToOrganizationWithDomain(
-                                callerUuid, organisationUuid, UserDomain.organisation_user)
-                        || userLookupService.userBelongsToOrganizationWithDomain(
                                 callerUuid, organisationUuid, UserDomain.admin);
             } catch (Exception e) {
                 log.error("Error checking management rights for organisation {}", organisationUuid, e);

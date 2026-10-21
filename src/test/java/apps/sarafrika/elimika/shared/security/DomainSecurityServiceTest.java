@@ -243,7 +243,7 @@ class DomainSecurityServiceTest {
     void aManagerOfTheOwningOrganisationMayManageItsClass() {
         givenClassRunBy(OTHER_INSTRUCTOR_UUID, OWNING_ORG_UUID);
         when(userLookupService.userBelongsToOrganizationWithDomain(
-                CALLER_UUID, OWNING_ORG_UUID, UserDomain.organisation_user)).thenReturn(true);
+                CALLER_UUID, OWNING_ORG_UUID, UserDomain.admin)).thenReturn(true);
 
         assertThat(service.canManageClass(CLASS_UUID)).isTrue();
     }

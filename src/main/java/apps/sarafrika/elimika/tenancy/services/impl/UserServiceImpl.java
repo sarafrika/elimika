@@ -260,8 +260,10 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        // Ensure umbrella organisation_user domain is present without granting platform admin scope
-        ensureOrganisationUserDomain(user);
+        // Only a school admin operates the school dashboard; learners and trainers are community members.
+        if ("admin".equalsIgnoreCase(domainName)) {
+            ensureOrganisationUserDomain(user);
+        }
 
 
         return toUserDTO(user);

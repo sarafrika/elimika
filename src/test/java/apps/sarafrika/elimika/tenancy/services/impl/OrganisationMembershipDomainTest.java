@@ -33,7 +33,7 @@ import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/** Joining a school as a learner or trainer must not open the school dashboard (organisation_user). */
+/** Only a school admin operates the school dashboard (organisation_user); everyone else is community. */
 @ExtendWith(MockitoExtension.class)
 @MockitoSettings(strictness = Strictness.LENIENT)
 class OrganisationMembershipDomainTest {
@@ -73,9 +73,9 @@ class OrganisationMembershipDomainTest {
     }
 
     @Test
-    @DisplayName("adding a learner, trainer or parent to a school grants no school staff domain")
+    @DisplayName("adding a learner, trainer, parent or non-admin member grants no school dashboard domain")
     void nonStaffGetNoUmbrellaDomain() {
-        for (String role : new String[]{"student", "instructor", "parent"}) {
+        for (String role : new String[]{"student", "instructor", "parent", "organisation_user"}) {
             service.inviteUserToOrganisation(organisationUuid, "person@school.test", role, null);
         }
         verify(domainApprovalService, never()).grant(any(), any());

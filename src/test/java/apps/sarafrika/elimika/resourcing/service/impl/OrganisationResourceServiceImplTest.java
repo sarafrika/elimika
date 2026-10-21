@@ -73,7 +73,7 @@ class OrganisationResourceServiceImplTest {
                 new BranchLocation(invocation.getArgument(1), invocation.getArgument(0), "Main Campus",
                         "Kasarani, Nairobi", null, null, true)));
         lenient().when(domainSecurityService.getCurrentUserUuid()).thenReturn(USER_UUID);
-        lenient().when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.organisation_user))
+        lenient().when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.admin))
                 .thenReturn(true);
     }
 
@@ -138,8 +138,6 @@ class OrganisationResourceServiceImplTest {
 
     @Test
     void createRequiresOrganisationManagerAccess() {
-        when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.organisation_user))
-                .thenReturn(false);
         when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.admin))
                 .thenReturn(false);
 
@@ -149,9 +147,16 @@ class OrganisationResourceServiceImplTest {
     }
 
     @Test
-    void adminDomainAlsoGrantsAccess() {
-        when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.organisation_user))
+    void aNonAdminSchoolMemberCannotManageResources() {
+        when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.admin))
                 .thenReturn(false);
+
+        assertThatThrownBy(() -> service.createResource(ORG_UUID, venueDto("Physics Lab", 30)))
+                .isInstanceOf(AccessDeniedException.class);
+    }
+
+    @Test
+    void adminDomainGrantsAccess() {
         when(domainSecurityService.belongsToOrganisationWithDomain(ORG_UUID, UserDomain.admin))
                 .thenReturn(true);
         when(resourceRepository.existsByOrganisationUuidAndNameIgnoreCase(eq(ORG_UUID), any())).thenReturn(false);

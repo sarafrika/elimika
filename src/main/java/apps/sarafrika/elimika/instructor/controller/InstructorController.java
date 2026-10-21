@@ -558,8 +558,8 @@ public class InstructorController {
     )
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "200", description = "Instructor summaries retrieved successfully")
     @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not manage the organisation")
-    // Both units guarding this route landed on the same predicate: organisation-scoped
-    // organisation_user or admin, plus platform admins. That is exactly what
+    // Both units guarding this route landed on the same predicate: the school's admins,
+    // plus platform admins. That is exactly what
     // organisationSecurityService.canManageOrganisation resolves to, so one annotation carries both.
     @PreAuthorize(ORGANISATION_STAFF_OR_PLATFORM_ADMIN)
     @GetMapping("/organisations/{organisationUuid}/summaries")

@@ -387,8 +387,6 @@ public class StudentDirectorySecurityService {
         Set<UUID> members = new LinkedHashSet<>();
         for (UUID organisationUuid : userLookupService.getActiveUserOrganizations(callerUuid)) {
             boolean manages = userLookupService.userBelongsToOrganizationWithDomain(
-                    callerUuid, organisationUuid, UserDomain.organisation_user)
-                    || userLookupService.userBelongsToOrganizationWithDomain(
                     callerUuid, organisationUuid, UserDomain.admin);
             if (manages) {
                 members.addAll(userLookupService.getOrganizationMemberUserUuids(organisationUuid));

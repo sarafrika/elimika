@@ -511,12 +511,10 @@ public class OrganisationResourceServiceImpl implements OrganisationResourceServ
 
         // Memoised per organisation and domain: a resource calendar walks many rows behind one
         // guard, and the membership answer cannot change mid-request.
-        boolean hasOrganisationUserAccess = domainSecurityService.belongsToOrganisationWithDomain(
-                organisationUuid, UserDomain.organisation_user);
         boolean hasAdminAccess = domainSecurityService.belongsToOrganisationWithDomain(
                 organisationUuid, UserDomain.admin);
 
-        if (!hasOrganisationUserAccess && !hasAdminAccess) {
+        if (!hasAdminAccess) {
             throw new AccessDeniedException(String.format(
                     "User %s is not allowed to manage resources for organisation %s.",
                     currentUserUuid, organisationUuid));

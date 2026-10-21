@@ -226,12 +226,11 @@ public class DomainSecurityService {
 
     /**
      * True when the caller <em>manages</em> an organisation the target user currently belongs to —
-     * holds an org-scoped {@code organisation_user} or {@code admin} mapping there.
+     * holds an org-scoped {@code admin} mapping there.
      * <p>
-     * The manager counterpart of {@link #administersOrganisationOf(UUID)}. That predicate admits
-     * only org-scoped {@code admin}; this one uses the same manager definition the organisation
-     * endpoints enforce (see {@code OrganisationSecurityService#canManageOrganisation}), so an
-     * organisation's control user reaches its members' records the same way its admin does. Like
+     * The manager counterpart of {@link #administersOrganisationOf(UUID)}: only a school admin manages a
+     * school, the same definition the organisation endpoints enforce (see
+     * {@code OrganisationSecurityService#canManageOrganisation}). Like
      * its sibling it is subject-scoped — managing organisation A says nothing about a member of
      * organisation B — fails closed, and is memoised per request and per target.
      * <p>
@@ -256,8 +255,6 @@ public class DomainSecurityService {
                 }
                 return userLookupService.getActiveUserOrganizations(targetUserUuid).stream()
                         .anyMatch(organisationUuid -> userLookupService.userBelongsToOrganizationWithDomain(
-                                callerUuid, organisationUuid, UserDomain.organisation_user)
-                                || userLookupService.userBelongsToOrganizationWithDomain(
                                 callerUuid, organisationUuid, UserDomain.admin));
             } catch (Exception e) {
                 log.error("Error checking management reach over user {}", targetUserUuid, e);
@@ -267,7 +264,7 @@ public class DomainSecurityService {
     }
 
     /**
-     * True when the caller holds an org-scoped {@code organisation_user} or {@code admin} mapping
+     * True when the caller holds an org-scoped {@code admin} mapping
      * <em>for this organisation specifically</em>.
      * <p>
      * The organisation-scoped counterpart to {@link #isOrganizationAdmin()} for requests that name
@@ -290,8 +287,6 @@ public class DomainSecurityService {
                     return false;
                 }
                 return userLookupService.userBelongsToOrganizationWithDomain(
-                                callerUuid, organisationUuid, UserDomain.organisation_user)
-                        || userLookupService.userBelongsToOrganizationWithDomain(
                                 callerUuid, organisationUuid, UserDomain.admin);
             } catch (Exception e) {
                 log.error("Error checking management rights over organisation {}", organisationUuid, e);
@@ -328,9 +323,7 @@ public class DomainSecurityService {
                 return userLookupService.getUserOrganizations(targetUserUuid).stream()
                         .anyMatch(organisationUuid ->
                                 userLookupService.userBelongsToOrganizationWithDomain(
-                                        callerUuid, organisationUuid, UserDomain.admin)
-                                        || userLookupService.userBelongsToOrganizationWithDomain(
-                                        callerUuid, organisationUuid, UserDomain.organisation_user));
+                                        callerUuid, organisationUuid, UserDomain.admin));
             } catch (Exception e) {
                 log.error("Error checking organisation staff reach over user {}", targetUserUuid, e);
                 return false;
@@ -362,9 +355,7 @@ public class DomainSecurityService {
                     return false;
                 }
                 return userLookupService.userBelongsToOrganizationWithDomain(
-                        callerUuid, organisationUuid, UserDomain.admin)
-                        || userLookupService.userBelongsToOrganizationWithDomain(
-                        callerUuid, organisationUuid, UserDomain.organisation_user);
+                        callerUuid, organisationUuid, UserDomain.admin);
             } catch (Exception e) {
                 log.error("Error checking organisation staff membership of organisation {}", organisationUuid, e);
                 return false;
@@ -384,7 +375,7 @@ public class DomainSecurityService {
      * classes, and then the instructor branch is the only way through.
      * <p>
      * The organisation branch mirrors {@code canManageOrganisation} in tenancy: an org-scoped
-     * {@code organisation_user} or {@code admin} mapping for that organisation specifically.
+     * {@code admin} mapping for that organisation specifically.
      * <p>
      * Fails closed and is memoised per request and per class, because a request that touches several
      * schedules of one class would otherwise re-read the class and re-query the caller's mappings
@@ -421,8 +412,6 @@ public class DomainSecurityService {
                 }
 
                 return userLookupService.userBelongsToOrganizationWithDomain(
-                                callerUuid, organisationUuid, UserDomain.organisation_user)
-                        || userLookupService.userBelongsToOrganizationWithDomain(
                                 callerUuid, organisationUuid, UserDomain.admin);
             } catch (Exception e) {
                 log.error("Error checking management rights over class {}", classDefinitionUuid, e);
@@ -512,13 +501,11 @@ public class DomainSecurityService {
     }
 
     /**
-     * True when the caller holds a management role — {@code organisation_user} or {@code admin} —
+     * True when the caller holds a management role — {@code admin} —
      * in this specific organisation.
      */
     private boolean managesOrganisation(UUID callerUuid, UUID organisationUuid) {
         return userLookupService.userBelongsToOrganizationWithDomain(
-                        callerUuid, organisationUuid, UserDomain.organisation_user)
-                || userLookupService.userBelongsToOrganizationWithDomain(
                         callerUuid, organisationUuid, UserDomain.admin);
     }
 

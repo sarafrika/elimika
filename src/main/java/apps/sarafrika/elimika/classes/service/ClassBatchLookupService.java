@@ -187,8 +187,7 @@ public class ClassBatchLookupService {
         }
 
         private boolean manages(UUID organisationUuid) {
-            return domainSecurityService.belongsToOrganisationWithDomain(organisationUuid, UserDomain.organisation_user)
-                    || domainSecurityService.belongsToOrganisationWithDomain(organisationUuid, UserDomain.admin);
+            return domainSecurityService.belongsToOrganisationWithDomain(organisationUuid, UserDomain.admin);
         }
     }
 }

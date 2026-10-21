@@ -248,7 +248,7 @@ class TrainingApplicationReviewIntegrationTest {
     void venuesAndRequirementAnswersRoundTrip() throws Exception {
         UUID managerUser = user(MANAGER, "manager@test.local", "Njeri", "Kamau");
         UUID organisationUuid = organisation("Westlands Institute");
-        grantOrganisationDomain(managerUser, organisationUuid, "organisation_user");
+        grantOrganisationDomain(managerUser, organisationUuid, "admin");
         UUID branchUuid = UUID.randomUUID();
         jdbc.update("INSERT INTO training_branches (uuid, organisation_uuid, branch_name, created_by) VALUES (?, ?, 'Westlands', 'test')",
                 branchUuid, organisationUuid);
@@ -402,7 +402,7 @@ class TrainingApplicationReviewIntegrationTest {
         UUID instructorUser = jdbc.queryForObject("SELECT uuid FROM users WHERE keycloak_id = ?", UUID.class, INSTRUCTOR);
         UUID managerUser = user(MANAGER, "manager@test.local", "Njeri", "Kamau");
         UUID organisationUuid = organisation("Westlands Institute");
-        grantOrganisationDomain(managerUser, organisationUuid, "organisation_user");
+        grantOrganisationDomain(managerUser, organisationUuid, "admin");
         String juniors = "{\"name\": \"Juniors\", \"min_age\": 3, \"max_age\": 5}";
 
         String mine = mockMvc.perform(post("/api/v1/instructors/me/age-groups").with(jwt(INSTRUCTOR))

@@ -137,7 +137,7 @@ class SessionReportIntegrationTest {
         uuidInsert("INSERT INTO instructors (uuid, user_uuid, full_name, admin_verified, created_by) VALUES (?, ?, 'Colleague', true, 'test')", colleagueUser);
         UUID adminUser = user(SCHOOL_ADMIN);
         grantDomain(adminUser, "organisation_user");
-        membership(adminUser, "organisation_user");
+        membership(adminUser, "admin");
 
         UUID classUuid = uuidInsert("INSERT INTO class_definitions (uuid, title, default_instructor_uuid, course_uuid, organisation_uuid, "
                 + "default_start_time, default_end_time, location_type, class_visibility, session_format, max_participants, is_active, "

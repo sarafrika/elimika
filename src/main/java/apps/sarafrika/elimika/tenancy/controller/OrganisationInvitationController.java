@@ -139,7 +139,7 @@ public class OrganisationInvitationController {
      * <p>
      * Delegates to the tenant-scoped predicate rather than repeating it: platform admins are
      * allowed through for support purposes, everyone else must hold an org-scoped
-     * {@code organisation_user} or {@code admin} mapping for this organisation specifically.
+     * {@code admin} mapping for this organisation specifically.
      * Answering it there also means the three membership queries this used to issue per call are
      * resolved once for the whole request.
      */

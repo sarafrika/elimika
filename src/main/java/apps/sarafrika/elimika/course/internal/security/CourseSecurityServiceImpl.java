@@ -487,10 +487,9 @@ public class CourseSecurityServiceImpl implements CourseSecuritySpi {
         }
     }
 
-    /** Organisation managers only; an org's instructors read through their own classes instead. */
+    /** School admins only; an org's instructors read through their own classes instead. */
     private boolean managesOrganisation(UUID userUuid, UUID organisationUuid) {
-        return userLookupService.userBelongsToOrganizationWithDomain(userUuid, organisationUuid, UserDomain.organisation_user)
-                || userLookupService.userBelongsToOrganizationWithDomain(userUuid, organisationUuid, UserDomain.admin);
+        return userLookupService.userBelongsToOrganizationWithDomain(userUuid, organisationUuid, UserDomain.admin);
     }
 
     /**
