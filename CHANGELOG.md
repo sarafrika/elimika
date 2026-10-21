@@ -1,3 +1,10 @@
+## [2.181.2](https://github.com/sarafrika/elimika/compare/v2.181.1...v2.181.2) (2026-10-21)
+
+
+### Bug Fixes
+
+* **tenancy:** let only school admins operate the school dashboard and manage the school ([8ceda4a](https://github.com/sarafrika/elimika/commit/8ceda4a6cfaa38ce89ebd873e3ef6728c16db82a))
+
 ## [2.181.1](https://github.com/sarafrika/elimika/compare/v2.181.0...v2.181.1) (2026-10-20)
 
 
