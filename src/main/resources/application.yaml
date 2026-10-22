@@ -218,6 +218,10 @@ commerce:
     auto-on-complete: ${COMMERCE_CAPTURE_AUTO_ON_COMPLETE:true}
 
 wallet:
+  # M-Pesa withdrawals by instructors, course creators and organisations. Off until the payout
+  # rail is live; while off every balance reports can_withdraw=false.
+  withdrawals:
+    enabled: ${WALLET_WITHDRAWALS_ENABLED:false}
   ledger:
     reconciliation:
       # Compares every wallet's balance_amount against the balance derived from its ledger entries.

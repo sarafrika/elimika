@@ -24,6 +24,9 @@ public interface WalletService {
 
     Page<UserWalletTransaction> statementOf(WalletOwner owner, String currencyCode, Pageable pageable);
 
+    /** What is held for payouts in flight and what is free to use; the caller decides {@code canWithdraw}. */
+    WalletStanding standingOf(WalletOwner owner, String currencyCode, boolean canWithdraw);
+
     /**
      * Pays one earner's sale share: a SALE credit of {@code gross}, then a PLATFORM_FEE debit when the fee
      * is above zero, in one transaction. Returns false when {@code reference} was already settled.

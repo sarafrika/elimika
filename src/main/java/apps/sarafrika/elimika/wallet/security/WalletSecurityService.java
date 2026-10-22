@@ -1,8 +1,10 @@
 package apps.sarafrika.elimika.wallet.security;
 
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 /**
@@ -23,6 +25,9 @@ import org.springframework.stereotype.Service;
 public class WalletSecurityService {
 
     private final DomainSecurityService domainSecurityService;
+
+    @Value("${wallet.withdrawals.enabled:false}")
+    private boolean withdrawalsEnabled;
 
     /**
      * Read access to a wallet and its ledger: the holder, a platform admin, or an administrator of
@@ -57,6 +62,20 @@ public class WalletSecurityService {
      */
     public boolean canTransferFrom(UUID userUuid) {
         return canAccessWallet(userUuid);
+    }
+
+    /**
+     * Withdrawing is holder-only, and only for people who earn: an approved instructor or course
+     * creator. Off until {@code wallet.withdrawals.enabled} is set.
+     */
+    public boolean canWithdraw(UUID userUuid) {
+        return withdrawalsEnabled && userUuid != null && isSelf(userUuid)
+                && domainSecurityService.hasAnyDomain(UserDomain.instructor, UserDomain.course_creator);
+    }
+
+    /** An organisation's money is withdrawn by its own administrators; platform admins never do it for them. */
+    public boolean canWithdrawFromOrganisation(UUID organisationUuid) {
+        return withdrawalsEnabled && domainSecurityService.managesOrganisation(organisationUuid);
     }
 
     private boolean isSelf(UUID userUuid) {

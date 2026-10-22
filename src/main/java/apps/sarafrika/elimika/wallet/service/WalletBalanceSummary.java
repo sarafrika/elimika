@@ -27,16 +27,33 @@ public record WalletBalanceSummary(
         Long salesCount,
         @JsonInclude(JsonInclude.Include.NON_NULL)
         @JsonProperty("transferred_out_total")
-        BigDecimal transferredOutTotal
+        BigDecimal transferredOutTotal,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty("held_amount")
+        BigDecimal heldAmount,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty("available_amount")
+        BigDecimal availableAmount,
+        @JsonInclude(JsonInclude.Include.NON_NULL)
+        @JsonProperty("can_withdraw")
+        Boolean canWithdraw
 ) {
 
     public WalletBalanceSummary(UUID walletUuid, String currencyCode, BigDecimal balanceAmount) {
-        this(walletUuid, currencyCode, balanceAmount, null, null, null, null);
+        this(walletUuid, currencyCode, balanceAmount, null, null, null, null, null, null, null);
     }
 
     /** The same balance with the wallet's lifetime totals, for the screens that show them. */
     public WalletBalanceSummary withTotals(WalletTotals totals) {
         return new WalletBalanceSummary(walletUuid, currencyCode, balanceAmount, totals.sharesTotal(),
-                totals.platformFeesTotal(), totals.salesCount(), totals.transferredOutTotal());
+                totals.platformFeesTotal(), totals.salesCount(), totals.transferredOutTotal(),
+                heldAmount, availableAmount, canWithdraw);
+    }
+
+    /** The same balance with what is held, what is available and whether the caller may withdraw. */
+    public WalletBalanceSummary withStanding(WalletStanding standing) {
+        return new WalletBalanceSummary(walletUuid, currencyCode, balanceAmount, sharesTotal, platformFeesTotal,
+                salesCount, transferredOutTotal, standing.heldAmount(), standing.availableAmount(),
+                standing.canWithdraw());
     }
 }

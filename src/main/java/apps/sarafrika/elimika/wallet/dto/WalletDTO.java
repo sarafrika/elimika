@@ -95,6 +95,21 @@ public record WalletDTO(
         @Schema(description = "**[READ-ONLY]** Lifetime money transferred out to other users.",
                 accessMode = Schema.AccessMode.READ_ONLY)
         @JsonProperty("transferred_out_total")
-        BigDecimal transferredOutTotal
+        BigDecimal transferredOutTotal,
+
+        @Schema(description = "**[READ-ONLY]** Money held for withdrawals still being paid out; not part of the balance.",
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty("held_amount")
+        BigDecimal heldAmount,
+
+        @Schema(description = "**[READ-ONLY]** What can be withdrawn or spent now.",
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty("available_amount")
+        BigDecimal availableAmount,
+
+        @Schema(description = "**[READ-ONLY]** Whether the caller may withdraw from this wallet.",
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty("can_withdraw")
+        Boolean canWithdraw
 ) {
 }

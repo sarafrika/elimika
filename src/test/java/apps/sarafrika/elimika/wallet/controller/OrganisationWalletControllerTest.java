@@ -4,7 +4,9 @@ import apps.sarafrika.elimika.wallet.entity.UserWallet;
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
 import apps.sarafrika.elimika.wallet.enums.WalletTransactionType;
 import apps.sarafrika.elimika.wallet.service.WalletBalanceSummary;
+import apps.sarafrika.elimika.wallet.security.WalletSecurityService;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
+import apps.sarafrika.elimika.wallet.service.WalletStanding;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import apps.sarafrika.elimika.wallet.service.WalletTotals;
 import org.junit.jupiter.api.BeforeEach;
@@ -36,11 +38,14 @@ class OrganisationWalletControllerTest {
     @Mock
     private WalletService walletService;
 
+    @Mock
+    private WalletSecurityService walletSecurityService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new OrganisationWalletController(walletService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new OrganisationWalletController(walletService, walletSecurityService))
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .build();
     }
@@ -52,6 +57,9 @@ class OrganisationWalletControllerTest {
                 .thenReturn(new WalletBalanceSummary(UUID.randomUUID(), "KES", new BigDecimal("31500.00")));
         when(walletService.totalsOf(WalletOwner.organisation(organisationUuid), null))
                 .thenReturn(new WalletTotals(new BigDecimal("35000.00"), new BigDecimal("3500.00"), 1, BigDecimal.ZERO));
+        when(walletSecurityService.canWithdrawFromOrganisation(organisationUuid)).thenReturn(true);
+        when(walletService.standingOf(WalletOwner.organisation(organisationUuid), null, true))
+                .thenReturn(new WalletStanding(BigDecimal.ZERO, new BigDecimal("31500.00"), true));
 
         mockMvc.perform(get("/api/v1/organisations/{organisationUuid}/wallet", organisationUuid))
                 .andExpect(status().isOk())
@@ -59,7 +67,10 @@ class OrganisationWalletControllerTest {
                 .andExpect(jsonPath("$.data.balance_amount").value(31500.00))
                 .andExpect(jsonPath("$.data.shares_total").value(35000.00))
                 .andExpect(jsonPath("$.data.platform_fees_total").value(3500.00))
-                .andExpect(jsonPath("$.data.sales_count").value(1));
+                .andExpect(jsonPath("$.data.sales_count").value(1))
+                .andExpect(jsonPath("$.data.held_amount").value(0))
+                .andExpect(jsonPath("$.data.available_amount").value(31500.00))
+                .andExpect(jsonPath("$.data.can_withdraw").value(true));
     }
 
     @Test

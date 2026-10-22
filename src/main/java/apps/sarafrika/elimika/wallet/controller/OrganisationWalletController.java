@@ -6,7 +6,9 @@ import apps.sarafrika.elimika.wallet.dto.WalletTransactionDTO;
 import apps.sarafrika.elimika.wallet.mapper.WalletMapper;
 import apps.sarafrika.elimika.wallet.service.WalletBalanceSummary;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
+import apps.sarafrika.elimika.wallet.security.WalletSecurityService;
 import apps.sarafrika.elimika.wallet.service.WalletService;
+import apps.sarafrika.elimika.wallet.service.WalletStanding;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import java.util.UUID;
@@ -31,6 +33,7 @@ import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
 public class OrganisationWalletController {
 
     private final WalletService walletService;
+    private final WalletSecurityService walletSecurityService;
 
     @GetMapping
     @Operation(operationId = "getOrganisationWallet", summary = "Get an organisation's wallet balance")
@@ -40,7 +43,10 @@ public class OrganisationWalletController {
     ) {
         WalletOwner owner = WalletOwner.organisation(organisationUuid);
         WalletBalanceSummary summary = walletService.balanceOf(owner, currencyCode);
-        return ResponseEntity.ok(ApiResponse.success(summary.withTotals(walletService.totalsOf(owner, currencyCode)),
+        WalletStanding standing = walletService.standingOf(
+                owner, currencyCode, walletSecurityService.canWithdrawFromOrganisation(organisationUuid));
+        return ResponseEntity.ok(ApiResponse.success(summary.withTotals(walletService.totalsOf(owner, currencyCode))
+                        .withStanding(standing),
                 "Organisation wallet retrieved successfully"));
     }
 

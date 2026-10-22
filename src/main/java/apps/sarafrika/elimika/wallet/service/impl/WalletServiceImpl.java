@@ -17,6 +17,7 @@ import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
 import apps.sarafrika.elimika.wallet.service.WalletTotals;
 import apps.sarafrika.elimika.wallet.service.WalletService;
+import apps.sarafrika.elimika.wallet.service.WalletStanding;
 import apps.sarafrika.elimika.wallet.service.WalletTransferResult;
 import java.math.BigDecimal;
 import java.util.Comparator;
@@ -122,6 +123,14 @@ public class WalletServiceImpl implements WalletService {
                         owner.type(), owner.uuid(), resolveCurrencyCode(currencyCode))
                 .map(wallet -> transactionRepository.findByWalletUuid(wallet.getUuid(), pageable))
                 .orElseGet(() -> Page.empty(pageable));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public WalletStanding standingOf(WalletOwner owner, String currencyCode, boolean canWithdraw) {
+        // Nothing is held until withdrawals exist; a hold will debit the balance, so available is the balance.
+        BigDecimal balance = balanceOf(owner, currencyCode).balanceAmount();
+        return new WalletStanding(ZERO, balance, canWithdraw);
     }
 
     @Override
