@@ -1,3 +1,18 @@
+# [2.182.0](https://github.com/sarafrika/elimika/compare/v2.181.2...v2.182.0) (2026-10-22)
+
+
+### Bug Fixes
+
+* **wallet:** open and close each monthly statement by transaction time ([b420cd9](https://github.com/sarafrika/elimika/commit/b420cd90f91205063b04b561e3bdb92c895517f8))
+
+
+### Features
+
+* **wallet:** add monthly statements for user and organisation wallets ([5307728](https://github.com/sarafrika/elimika/commit/530772849fbe311ae00c59df9330c6972edfd512))
+* **wallet:** filter wallet transactions by type and date and download them as CSV ([f1a044c](https://github.com/sarafrika/elimika/commit/f1a044c81a481a07477fb53a24c7e851051c15ba))
+* **wallet:** keep an append-only audit trail for user and organisation wallets ([6d029ca](https://github.com/sarafrika/elimika/commit/6d029ca8a257a91eb17c11cc82cf254b85399eef))
+* **wallet:** report held and available amounts and withdraw permission on user and organisation balances ([06b63a4](https://github.com/sarafrika/elimika/commit/06b63a449c894353b8288fd210e8702584b6bd56))
+
 ## [2.181.2](https://github.com/sarafrika/elimika/compare/v2.181.1...v2.181.2) (2026-10-21)
 
 
