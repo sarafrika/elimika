@@ -26,6 +26,8 @@ import java.time.LocalDate;
 import java.util.List;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
+import apps.sarafrika.elimika.wallet.dto.WalletStatementDTO;
+import apps.sarafrika.elimika.wallet.service.WalletBalanceSummary;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -100,6 +102,21 @@ public class WalletController {
         String csv = WalletCsv.transactions(walletService.exportOf(
                 WalletOwner.user(userUuid), currencyCode, WalletTransactionFilter.of(types, from, to)));
         return csvAttachment(csv, "wallet-transactions.csv");
+    }
+
+    @GetMapping("/{userUuid}/statements")
+    @PreAuthorize("@walletSecurityService.canAccessWallet(#userUuid)")
+    @Operation(summary = "List a user's monthly wallet statements",
+            description = "Newest month first, UTC months; quiet months carry the balance over.")
+    public ResponseEntity<ApiResponse<List<WalletStatementDTO>>> listStatements(
+            @PathVariable("userUuid") UUID userUuid,
+            @RequestParam(value = "currency_code", required = false) String currencyCode,
+            @RequestParam(value = "months", defaultValue = "12") int months
+    ) {
+        WalletBalanceSummary balance = walletService.balanceOf(WalletOwner.user(userUuid), currencyCode);
+        List<WalletStatementDTO> statements = walletService.monthlyStatementsOf(WalletOwner.user(userUuid), currencyCode, months)
+                .stream().map(statement -> WalletStatementDTO.from(statement, balance.currencyCode())).toList();
+        return ResponseEntity.ok(ApiResponse.success(statements, "Wallet statements retrieved successfully"));
     }
 
     @PostMapping("/{userUuid}/deposits")

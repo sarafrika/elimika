@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.wallet.security;
 
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -8,6 +9,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.test.util.ReflectionTestUtils;
 
 import java.util.UUID;
 
@@ -43,6 +45,40 @@ class WalletSecurityServiceTest {
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(CALLER_UUID);
         when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
         when(domainSecurityService.administersOrganisationOf(any())).thenReturn(false);
+    }
+
+    @Test
+    void withdrawingIsOffUntilEnabled() {
+        when(domainSecurityService.hasAnyDomain(UserDomain.instructor, UserDomain.course_creator)).thenReturn(true);
+        when(domainSecurityService.managesOrganisation(any())).thenReturn(true);
+
+        assertThat(service.canWithdraw(CALLER_UUID)).isFalse();
+        assertThat(service.canWithdrawFromOrganisation(UUID.randomUUID())).isFalse();
+    }
+
+    @Test
+    void onlyAnEarningHolderMayWithdraw() {
+        ReflectionTestUtils.setField(service, "withdrawalsEnabled", true);
+        when(domainSecurityService.hasAnyDomain(UserDomain.instructor, UserDomain.course_creator)).thenReturn(true);
+
+        assertThat(service.canWithdraw(CALLER_UUID)).isTrue();
+        assertThat(service.canWithdraw(OTHER_USER_UUID)).isFalse();
+
+        when(domainSecurityService.hasAnyDomain(UserDomain.instructor, UserDomain.course_creator)).thenReturn(false);
+        assertThat(service.canWithdraw(CALLER_UUID)).isFalse();
+    }
+
+    @Test
+    void organisationMoneyIsWithdrawnByItsAdministratorsOnly() {
+        ReflectionTestUtils.setField(service, "withdrawalsEnabled", true);
+        UUID organisationUuid = UUID.randomUUID();
+        when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
+        when(domainSecurityService.managesOrganisation(organisationUuid)).thenReturn(false);
+
+        assertThat(service.canWithdrawFromOrganisation(organisationUuid)).isFalse();
+
+        when(domainSecurityService.managesOrganisation(organisationUuid)).thenReturn(true);
+        assertThat(service.canWithdrawFromOrganisation(organisationUuid)).isTrue();
     }
 
     @Test

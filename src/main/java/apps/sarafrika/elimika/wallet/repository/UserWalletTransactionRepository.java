@@ -31,6 +31,24 @@ public interface UserWalletTransactionRepository extends JpaRepository<UserWalle
                                              @Param("to") LocalDateTime to,
                                              Pageable pageable);
 
+    /**
+     * One row per calendar month with activity, newest first. In and out are the balance moves, so
+     * every transaction type counts by what it did to the balance.
+     */
+    @Query(value = """
+            select to_char(date_trunc('month', t.created_date), 'YYYY-MM') as month,
+                   coalesce(sum(greatest(t.balance_after - t.balance_before, 0)), 0) as moneyIn,
+                   coalesce(sum(greatest(t.balance_before - t.balance_after, 0)), 0) as moneyOut,
+                   count(*) as transactionCount,
+                   (array_agg(t.balance_before order by t.id))[1] as openingBalance,
+                   (array_agg(t.balance_after order by t.id desc))[1] as closingBalance
+            from user_wallet_transactions t
+            where t.wallet_id = :walletId
+            group by 1
+            order by 1 desc
+            """, nativeQuery = true)
+    List<MonthlyWalletActivity> monthlyActivity(@Param("walletId") Long walletId);
+
     boolean existsByReference(String reference);
 
     /** Sum and count per transaction type for one wallet; each row is {type, sum, count}. */

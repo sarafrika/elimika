@@ -21,6 +21,13 @@ import apps.sarafrika.elimika.wallet.service.WalletStanding;
 import apps.sarafrika.elimika.wallet.service.WalletTransactionFilter;
 import apps.sarafrika.elimika.wallet.service.WalletTransferResult;
 import java.math.BigDecimal;
+import java.util.Map;
+import java.util.HashMap;
+import java.util.ArrayList;
+import java.time.ZoneOffset;
+import java.time.YearMonth;
+import apps.sarafrika.elimika.wallet.service.WalletMonthStatement;
+import apps.sarafrika.elimika.wallet.repository.MonthlyWalletActivity;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -51,6 +58,7 @@ import org.springframework.util.StringUtils;
 public class WalletServiceImpl implements WalletService {
 
     private static final BigDecimal ZERO = BigDecimal.ZERO;
+    private static final int MAX_STATEMENT_MONTHS = 36;
     /** Transactions sort by when and what; amounts and balances are not ordering keys. */
     private static final Set<String> TRANSACTION_SORTABLE_PROPERTIES = Set.of(
             "createdDate", "lastModifiedDate", "transactionType");
@@ -144,6 +152,46 @@ public class WalletServiceImpl implements WalletService {
                     + " rows match; narrow the dates and download again");
         }
         return page.getContent();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<WalletMonthStatement> monthlyStatementsOf(WalletOwner owner, String currencyCode, int months) {
+        int window = Math.clamp(months, 1, MAX_STATEMENT_MONTHS);
+        return userWalletRepository
+                .findByOwnerTypeAndOwnerUuidAndCurrencyCode(owner.type(), owner.uuid(), resolveCurrencyCode(currencyCode))
+                .map(wallet -> monthlyStatements(transactionRepository.monthlyActivity(wallet.getId()), window))
+                .orElseGet(List::of);
+    }
+
+    private static List<WalletMonthStatement> monthlyStatements(List<MonthlyWalletActivity> newestFirst, int window) {
+        if (newestFirst.isEmpty()) {
+            return List.of();
+        }
+        Map<YearMonth, MonthlyWalletActivity> byMonth = new HashMap<>();
+        newestFirst.forEach(row -> byMonth.put(YearMonth.parse(row.getMonth()), row));
+        YearMonth current = YearMonth.now(ZoneOffset.UTC);
+        YearMonth earliest = YearMonth.parse(newestFirst.getLast().getMonth());
+        YearMonth windowStart = current.minusMonths(window - 1L);
+        YearMonth start = earliest.isAfter(windowStart) ? earliest : windowStart;
+        BigDecimal running = newestFirst.stream()
+                .filter(row -> YearMonth.parse(row.getMonth()).isBefore(start))
+                .findFirst()
+                .map(MonthlyWalletActivity::getClosingBalance)
+                .orElse(ZERO);
+
+        List<WalletMonthStatement> statements = new ArrayList<>();
+        for (YearMonth month = start; !month.isAfter(current); month = month.plusMonths(1)) {
+            MonthlyWalletActivity row = byMonth.get(month);
+            if (row == null) {
+                statements.add(new WalletMonthStatement(month, running, ZERO, ZERO, running, 0));
+            } else {
+                statements.add(new WalletMonthStatement(month, row.getOpeningBalance(), row.getMoneyIn(),
+                        row.getMoneyOut(), row.getClosingBalance(), row.getTransactionCount()));
+                running = row.getClosingBalance();
+            }
+        }
+        return statements.reversed();
     }
 
     @Override

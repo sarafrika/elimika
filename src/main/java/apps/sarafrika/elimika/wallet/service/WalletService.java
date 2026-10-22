@@ -33,6 +33,9 @@ public interface WalletService {
 
     int MAX_EXPORT_ROWS = 20_000;
 
+    /** The last {@code months} calendar months (UTC), newest first; quiet months carry the balance over. */
+    List<WalletMonthStatement> monthlyStatementsOf(WalletOwner owner, String currencyCode, int months);
+
     /** What is held for payouts in flight and what is free to use; the caller decides {@code canWithdraw}. */
     WalletStanding standingOf(WalletOwner owner, String currencyCode, boolean canWithdraw);
 
