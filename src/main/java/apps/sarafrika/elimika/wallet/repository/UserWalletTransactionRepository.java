@@ -1,6 +1,9 @@
 package apps.sarafrika.elimika.wallet.repository;
 
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
+import apps.sarafrika.elimika.wallet.enums.WalletTransactionType;
+import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
@@ -16,6 +19,17 @@ public interface UserWalletTransactionRepository extends JpaRepository<UserWalle
     @EntityGraph(attributePaths = "wallet")
     @Query("select txn from UserWalletTransaction txn where txn.wallet.uuid = :walletUuid order by txn.id desc")
     Page<UserWalletTransaction> findByWalletUuid(@Param("walletUuid") UUID walletUuid, Pageable pageable);
+
+    /** One wallet's rows of the given types recorded in {@code [from, to)}, newest first. */
+    @EntityGraph(attributePaths = "wallet")
+    @Query("select txn from UserWalletTransaction txn where txn.wallet.uuid = :walletUuid "
+            + "and txn.transactionType in :types and txn.createdDate >= :from and txn.createdDate < :to "
+            + "order by txn.id desc")
+    Page<UserWalletTransaction> findFiltered(@Param("walletUuid") UUID walletUuid,
+                                             @Param("types") Collection<WalletTransactionType> types,
+                                             @Param("from") LocalDateTime from,
+                                             @Param("to") LocalDateTime to,
+                                             Pageable pageable);
 
     boolean existsByReference(String reference);
 

@@ -19,10 +19,18 @@ import apps.sarafrika.elimika.wallet.service.WalletTransferResult;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
+import apps.sarafrika.elimika.wallet.enums.WalletTransactionType;
+import apps.sarafrika.elimika.wallet.service.WalletTransactionFilter;
+import apps.sarafrika.elimika.wallet.util.WalletCsv;
+import java.time.LocalDate;
+import java.util.List;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -63,15 +71,35 @@ public class WalletController {
     public ResponseEntity<ApiResponse<PagedDTO<WalletTransactionDTO>>> listTransactions(
             @PathVariable("userUuid") UUID userUuid,
             @RequestParam(value = "currency_code", required = false) String currencyCode,
+            @RequestParam(value = "type", required = false) List<WalletTransactionType> types,
+            @RequestParam(value = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             Pageable pageable
     ) {
-        Page<UserWalletTransaction> transactions = walletService.getTransactions(userUuid, currencyCode, pageable);
+        Page<UserWalletTransaction> transactions = walletService.statementOf(
+                WalletOwner.user(userUuid), currencyCode, WalletTransactionFilter.of(types, from, to), pageable);
         Page<WalletTransactionDTO> payload = transactions.map(WalletMapper::toDto);
         PagedDTO<WalletTransactionDTO> paged = PagedDTO.from(
                 payload,
                 ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()
         );
         return ResponseEntity.ok(ApiResponse.success(paged, "Wallet transactions retrieved successfully"));
+    }
+
+    @GetMapping(value = "/{userUuid}/transactions.csv", produces = "text/csv")
+    @PreAuthorize("@walletSecurityService.canAccessWallet(#userUuid)")
+    @Operation(summary = "Download wallet transactions as CSV",
+            description = "Every matching row, newest first; dates are UTC and inclusive.")
+    public ResponseEntity<String> exportTransactions(
+            @PathVariable("userUuid") UUID userUuid,
+            @RequestParam(value = "currency_code", required = false) String currencyCode,
+            @RequestParam(value = "type", required = false) List<WalletTransactionType> types,
+            @RequestParam(value = "from", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to
+    ) {
+        String csv = WalletCsv.transactions(walletService.exportOf(
+                WalletOwner.user(userUuid), currencyCode, WalletTransactionFilter.of(types, from, to)));
+        return csvAttachment(csv, "wallet-transactions.csv");
     }
 
     @PostMapping("/{userUuid}/deposits")
@@ -133,5 +161,12 @@ public class WalletController {
         );
 
         return ResponseEntity.ok(ApiResponse.success(response, "Wallet transfer completed successfully"));
+    }
+
+    static ResponseEntity<String> csvAttachment(String csv, String filename) {
+        return ResponseEntity.ok()
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"" + filename + "\"")
+                .contentType(MediaType.parseMediaType("text/csv"))
+                .body(csv);
     }
 }

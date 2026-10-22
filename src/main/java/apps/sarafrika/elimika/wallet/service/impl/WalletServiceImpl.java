@@ -18,6 +18,7 @@ import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
 import apps.sarafrika.elimika.wallet.service.WalletTotals;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import apps.sarafrika.elimika.wallet.service.WalletStanding;
+import apps.sarafrika.elimika.wallet.service.WalletTransactionFilter;
 import apps.sarafrika.elimika.wallet.service.WalletTransferResult;
 import java.math.BigDecimal;
 import java.util.Comparator;
@@ -29,6 +30,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.data.domain.Page;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -118,11 +120,30 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional(readOnly = true)
     public Page<UserWalletTransaction> statementOf(WalletOwner owner, String currencyCode, Pageable pageable) {
+        return statementOf(owner, currencyCode, WalletTransactionFilter.all(), pageable);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<UserWalletTransaction> statementOf(WalletOwner owner, String currencyCode,
+                                                   WalletTransactionFilter filter, Pageable pageable) {
         SortAllowList.validate(pageable, TRANSACTION_SORTABLE_PROPERTIES);
         return userWalletRepository.findByOwnerTypeAndOwnerUuidAndCurrencyCode(
                         owner.type(), owner.uuid(), resolveCurrencyCode(currencyCode))
-                .map(wallet -> transactionRepository.findByWalletUuid(wallet.getUuid(), pageable))
+                .map(wallet -> transactionRepository.findFiltered(wallet.getUuid(), filter.typesOrAll(),
+                        filter.fromInclusive(), filter.toExclusive(), pageable))
                 .orElseGet(() -> Page.empty(pageable));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<UserWalletTransaction> exportOf(WalletOwner owner, String currencyCode, WalletTransactionFilter filter) {
+        Page<UserWalletTransaction> page = statementOf(owner, currencyCode, filter, PageRequest.of(0, MAX_EXPORT_ROWS));
+        if (page.getTotalElements() > MAX_EXPORT_ROWS) {
+            throw new IllegalArgumentException("More than " + MAX_EXPORT_ROWS
+                    + " rows match; narrow the dates and download again");
+        }
+        return page.getContent();
     }
 
     @Override

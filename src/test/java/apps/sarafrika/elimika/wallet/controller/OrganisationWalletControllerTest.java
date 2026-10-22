@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletStanding;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import apps.sarafrika.elimika.wallet.service.WalletTotals;
+import apps.sarafrika.elimika.wallet.service.WalletTransactionFilter;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -21,6 +22,7 @@ import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
 
@@ -29,6 +31,8 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -76,7 +80,8 @@ class OrganisationWalletControllerTest {
     @Test
     void returnsTheStatementWithTheShareAndItsFee() throws Exception {
         UUID organisationUuid = UUID.randomUUID();
-        when(walletService.statementOf(eq(WalletOwner.organisation(organisationUuid)), eq(null), any()))
+        when(walletService.statementOf(eq(WalletOwner.organisation(organisationUuid)), eq(null),
+                eq(WalletTransactionFilter.all()), any()))
                 .thenReturn(new PageImpl<>(List.of(
                         row(WalletTransactionType.PLATFORM_FEE, "3500.00", "Platform fee - Class sale share"),
                         row(WalletTransactionType.SALE, "35000.00", "Class sale share"))));
@@ -87,6 +92,34 @@ class OrganisationWalletControllerTest {
                 .andExpect(jsonPath("$.data.content[0].amount").value(3500.00))
                 .andExpect(jsonPath("$.data.content[1].transaction_type").value("SALE"))
                 .andExpect(jsonPath("$.data.content[1].amount").value(35000.00));
+    }
+
+    @Test
+    void filtersTheStatementByTypeAndDates() throws Exception {
+        UUID organisationUuid = UUID.randomUUID();
+        WalletTransactionFilter filter = WalletTransactionFilter.of(
+                List.of(WalletTransactionType.SALE), LocalDate.of(2026, 10, 1), LocalDate.of(2026, 10, 31));
+        when(walletService.statementOf(eq(WalletOwner.organisation(organisationUuid)), eq(null), eq(filter), any()))
+                .thenReturn(new PageImpl<>(List.of(row(WalletTransactionType.SALE, "35000.00", "Class sale share"))));
+
+        mockMvc.perform(get("/api/v1/organisations/{organisationUuid}/wallet/transactions", organisationUuid)
+                        .param("type", "SALE").param("from", "2026-10-01").param("to", "2026-10-31"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.content[0].transaction_type").value("SALE"));
+    }
+
+    @Test
+    void downloadsEveryMatchingRowAsCsv() throws Exception {
+        UUID organisationUuid = UUID.randomUUID();
+        when(walletService.exportOf(WalletOwner.organisation(organisationUuid), null, WalletTransactionFilter.all()))
+                .thenReturn(List.of(row(WalletTransactionType.SALE, "35000.00", "=HYPERLINK(\"x\")")));
+
+        mockMvc.perform(get("/api/v1/organisations/{organisationUuid}/wallet/transactions.csv", organisationUuid))
+                .andExpect(status().isOk())
+                .andExpect(header().string("Content-Disposition",
+                        "attachment; filename=\"organisation-wallet-transactions.csv\""))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("\"SALE\",\"35000.00\"")))
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("\"'=HYPERLINK(\"\"x\"\")\"")));
     }
 
     @Test

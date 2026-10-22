@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.wallet.service;
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
 import java.math.BigDecimal;
+import java.util.List;
 import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
@@ -23,6 +24,14 @@ public interface WalletService {
     WalletTotals totalsOf(WalletOwner owner, String currencyCode);
 
     Page<UserWalletTransaction> statementOf(WalletOwner owner, String currencyCode, Pageable pageable);
+
+    Page<UserWalletTransaction> statementOf(WalletOwner owner, String currencyCode, WalletTransactionFilter filter,
+                                            Pageable pageable);
+
+    /** Every matching row, newest first, for a download; refuses more than {@code MAX_EXPORT_ROWS}. */
+    List<UserWalletTransaction> exportOf(WalletOwner owner, String currencyCode, WalletTransactionFilter filter);
+
+    int MAX_EXPORT_ROWS = 20_000;
 
     /** What is held for payouts in flight and what is free to use; the caller decides {@code canWithdraw}. */
     WalletStanding standingOf(WalletOwner owner, String currencyCode, boolean canWithdraw);
