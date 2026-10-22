@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.wallet.integration;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 
@@ -8,6 +9,8 @@ import apps.sarafrika.elimika.shared.config.JpaConfig;
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.testsupport.SharedPostgres;
+import apps.sarafrika.elimika.wallet.entity.WalletAuditEvent;
+import apps.sarafrika.elimika.wallet.enums.WalletAuditEventType;
 import apps.sarafrika.elimika.wallet.enums.WalletTransactionType;
 import apps.sarafrika.elimika.wallet.ledger.WalletLedgerReconciliationJob;
 import apps.sarafrika.elimika.wallet.ledger.impl.LedgerServiceImpl;
@@ -38,13 +41,13 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-/** Monthly statements and filtered reads come straight from the wallet's rows, scoped to one owner. */
+/** Statements, filtered reads and the audit trail come straight from the wallet's rows, scoped to one owner. */
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({WalletServiceImpl.class, LedgerServiceImpl.class, WalletLedgerReconciliationJob.class, JpaConfig.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
-@DisplayName("Wallet statements and filters")
+@DisplayName("Wallet statements, filters and audit")
 class WalletStatementsIntegrationTest {
 
     private static final String KES = "KES";
@@ -133,6 +136,39 @@ class WalletStatementsIntegrationTest {
                 .extracting(row -> row.getTransactionType())
                 .containsExactly(WalletTransactionType.PLATFORM_FEE, WalletTransactionType.SALE);
         assertThat(walletService.exportOf(earner, KES, WalletTransactionFilter.all())).hasSize(3);
+    }
+
+    @Test
+    @DisplayName("every money movement leaves an audit event with the balance before and after")
+    void auditTrail() {
+        WalletOwner earner = WalletOwner.user(user("Chebet"));
+        walletService.settleSaleShare(earner, new BigDecimal("1000.00"), new BigDecimal("100.00"),
+                KES, "order-6:creator", "Class sale share");
+
+        List<WalletAuditEvent> events = walletService.auditOf(earner, PageRequest.of(0, 20)).getContent();
+
+        assertThat(events).extracting(WalletAuditEvent::getEventType)
+                .containsExactly(WalletAuditEventType.PLATFORM_FEE_CHARGED, WalletAuditEventType.SALE_SHARE_CREDITED);
+        assertThat(events.get(1).getActorUserUuid()).isNull();
+        assertThat(new BigDecimal(String.valueOf(events.get(0).getPreviousValues().get("balance_amount"))))
+                .isEqualByComparingTo("1000.00");
+        assertThat(new BigDecimal(String.valueOf(events.get(0).getUpdatedValues().get("balance_amount"))))
+                .isEqualByComparingTo("900.00");
+        assertThat(walletService.auditOf(WalletOwner.organisation(earner.uuid()), PageRequest.of(0, 20)))
+                .isEmpty();
+    }
+
+    @Test
+    @DisplayName("the audit trail cannot be edited or deleted")
+    void auditIsAppendOnly() {
+        WalletOwner earner = WalletOwner.user(user("Kiprop"));
+        walletService.settleSaleShare(earner, new BigDecimal("50.00"), BigDecimal.ZERO,
+                KES, "order-7:creator", "Class sale share");
+
+        assertThatThrownBy(() -> jdbc.update("update wallet_audit_events set reason = 'x' where owner_uuid = ?",
+                earner.uuid())).hasMessageContaining("append-only");
+        assertThatThrownBy(() -> jdbc.update("delete from wallet_audit_events where owner_uuid = ?",
+                earner.uuid())).hasMessageContaining("append-only");
     }
 
     private static void assertMonth(WalletMonthStatement statement, String opening, String in, String out,

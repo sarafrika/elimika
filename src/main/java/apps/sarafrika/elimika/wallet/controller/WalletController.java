@@ -28,6 +28,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import apps.sarafrika.elimika.wallet.dto.WalletStatementDTO;
 import apps.sarafrika.elimika.wallet.service.WalletBalanceSummary;
+import apps.sarafrika.elimika.wallet.dto.WalletAuditEventDTO;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -117,6 +118,20 @@ public class WalletController {
         List<WalletStatementDTO> statements = walletService.monthlyStatementsOf(WalletOwner.user(userUuid), currencyCode, months)
                 .stream().map(statement -> WalletStatementDTO.from(statement, balance.currencyCode())).toList();
         return ResponseEntity.ok(ApiResponse.success(statements, "Wallet statements retrieved successfully"));
+    }
+
+    @GetMapping("/{userUuid}/audit")
+    @PreAuthorize("@walletSecurityService.canAccessWallet(#userUuid)")
+    @Operation(summary = "List a user's wallet audit trail", description = "Append-only, newest first.")
+    public ResponseEntity<ApiResponse<PagedDTO<WalletAuditEventDTO>>> listAudit(
+            @PathVariable("userUuid") UUID userUuid,
+            Pageable pageable
+    ) {
+        Page<WalletAuditEventDTO> events = walletService.auditOf(WalletOwner.user(userUuid), pageable)
+                .map(WalletAuditEventDTO::from);
+        return ResponseEntity.ok(ApiResponse.success(
+                PagedDTO.from(events, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()),
+                "Wallet audit trail retrieved successfully"));
     }
 
     @PostMapping("/{userUuid}/deposits")

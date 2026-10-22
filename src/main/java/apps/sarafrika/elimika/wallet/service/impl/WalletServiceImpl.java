@@ -20,6 +20,11 @@ import apps.sarafrika.elimika.wallet.service.WalletService;
 import apps.sarafrika.elimika.wallet.service.WalletStanding;
 import apps.sarafrika.elimika.wallet.service.WalletTransactionFilter;
 import apps.sarafrika.elimika.wallet.service.WalletTransferResult;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.wallet.entity.WalletAuditEvent;
+import apps.sarafrika.elimika.wallet.enums.WalletAuditEventType;
+import apps.sarafrika.elimika.wallet.repository.WalletAuditEventRepository;
+import org.springframework.beans.factory.ObjectProvider;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.HashMap;
@@ -69,6 +74,8 @@ public class WalletServiceImpl implements WalletService {
     private final UserWalletTransactionRepository transactionRepository;
     private final CurrencyService currencyService;
     private final LedgerService ledgerService;
+    private final WalletAuditEventRepository auditEventRepository;
+    private final ObjectProvider<DomainSecurityService> domainSecurityService;
 
     @Override
     @Transactional
@@ -152,6 +159,12 @@ public class WalletServiceImpl implements WalletService {
                     + " rows match; narrow the dates and download again");
         }
         return page.getContent();
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Page<WalletAuditEvent> auditOf(WalletOwner owner, Pageable pageable) {
+        return auditEventRepository.findByOwner(owner.type(), owner.uuid(), pageable);
     }
 
     @Override
@@ -338,6 +351,7 @@ public class WalletServiceImpl implements WalletService {
                 transferReference
         );
         transactionRepository.save(transaction);
+        recordAudit(wallet, transaction);
         return transaction;
     }
 
@@ -373,6 +387,7 @@ public class WalletServiceImpl implements WalletService {
                 transferReference
         );
         transactionRepository.save(transaction);
+        recordAudit(wallet, transaction);
         return transaction;
     }
 
@@ -400,6 +415,38 @@ public class WalletServiceImpl implements WalletService {
         transaction.setCounterpartyUserUuid(counterpartyUserUuid);
         transaction.setTransferReference(transferReference);
         return transaction;
+    }
+
+    /** Writes the transaction's audit event in the same database transaction, so neither exists without the other. */
+    private void recordAudit(UserWallet wallet, UserWalletTransaction transaction) {
+        WalletAuditEvent event = new WalletAuditEvent();
+        event.setOwnerType(wallet.getOwnerType());
+        event.setOwnerUuid(wallet.getOwnerUuid());
+        event.setCurrencyCode(transaction.getCurrencyCode());
+        event.setEventType(WalletAuditEventType.forTransaction(transaction.getTransactionType()));
+        event.setActorUserUuid(currentUserUuid());
+        event.setReference(transaction.getReference());
+        event.setReason(transaction.getDescription());
+        event.setPreviousValues(Map.of("balance_amount", transaction.getBalanceBefore()));
+        event.setUpdatedValues(Map.of(
+                "balance_amount", transaction.getBalanceAfter(),
+                "amount", transaction.getAmount(),
+                "transaction_type", transaction.getTransactionType().name(),
+                "transaction_uuid", String.valueOf(transaction.getUuid())));
+        auditEventRepository.save(event);
+    }
+
+    /** The signed-in user behind a change; null for the system (event listeners, jobs, scripts). */
+    private UUID currentUserUuid() {
+        DomainSecurityService security = domainSecurityService.getIfAvailable();
+        if (security == null) {
+            return null;
+        }
+        try {
+            return security.getCurrentUserUuid();
+        } catch (RuntimeException ex) {
+            return null;
+        }
     }
 
     /**

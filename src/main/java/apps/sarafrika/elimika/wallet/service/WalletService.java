@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.wallet.service;
 
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
+import apps.sarafrika.elimika.wallet.entity.WalletAuditEvent;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.UUID;
@@ -32,6 +33,9 @@ public interface WalletService {
     List<UserWalletTransaction> exportOf(WalletOwner owner, String currencyCode, WalletTransactionFilter filter);
 
     int MAX_EXPORT_ROWS = 20_000;
+
+    /** The wallet's audit trail, newest first. */
+    Page<WalletAuditEvent> auditOf(WalletOwner owner, Pageable pageable);
 
     /** The last {@code months} calendar months (UTC), newest first; quiet months carry the balance over. */
     List<WalletMonthStatement> monthlyStatementsOf(WalletOwner owner, String currencyCode, int months);

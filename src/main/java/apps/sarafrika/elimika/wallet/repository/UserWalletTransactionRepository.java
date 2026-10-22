@@ -36,7 +36,7 @@ public interface UserWalletTransactionRepository extends JpaRepository<UserWalle
      * every transaction type counts by what it did to the balance.
      */
     @Query(value = """
-            select to_char(date_trunc('month', t.created_date), 'YYYY-MM') as month,
+            select to_char(date_trunc('month', t.created_date at time zone 'UTC'), 'YYYY-MM') as month,
                    coalesce(sum(greatest(t.balance_after - t.balance_before, 0)), 0) as moneyIn,
                    coalesce(sum(greatest(t.balance_before - t.balance_after, 0)), 0) as moneyOut,
                    count(*) as transactionCount,

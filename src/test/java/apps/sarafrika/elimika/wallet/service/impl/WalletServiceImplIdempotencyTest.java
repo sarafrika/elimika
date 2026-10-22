@@ -20,7 +20,10 @@ import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
+import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.wallet.repository.WalletAuditEventRepository;
 import org.mockito.InjectMocks;
+import org.springframework.beans.factory.ObjectProvider;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 
@@ -35,6 +38,10 @@ class WalletServiceImplIdempotencyTest {
     private CurrencyService currencyService;
     @Mock
     private LedgerService ledgerService;
+    @Mock
+    private WalletAuditEventRepository auditEventRepository;
+    @Mock
+    private ObjectProvider<DomainSecurityService> domainSecurityService;
 
     @InjectMocks
     private WalletServiceImpl walletService;

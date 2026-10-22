@@ -17,6 +17,7 @@ import apps.sarafrika.elimika.wallet.util.WalletCsv;
 import java.time.LocalDate;
 import java.util.List;
 import apps.sarafrika.elimika.wallet.dto.WalletStatementDTO;
+import apps.sarafrika.elimika.wallet.dto.WalletAuditEventDTO;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Page;
@@ -106,5 +107,19 @@ public class OrganisationWalletController {
         List<WalletStatementDTO> statements = walletService.monthlyStatementsOf(owner, currencyCode, months)
                 .stream().map(statement -> WalletStatementDTO.from(statement, currency)).toList();
         return ResponseEntity.ok(ApiResponse.success(statements, "Organisation wallet statements retrieved successfully"));
+    }
+
+    @GetMapping("/audit")
+    @Operation(operationId = "listOrganisationWalletAudit", summary = "List an organisation's wallet audit trail",
+            description = "Append-only, newest first.")
+    public ResponseEntity<ApiResponse<PagedDTO<WalletAuditEventDTO>>> listAudit(
+            @PathVariable UUID organisationUuid,
+            Pageable pageable
+    ) {
+        Page<WalletAuditEventDTO> events = walletService.auditOf(WalletOwner.organisation(organisationUuid), pageable)
+                .map(WalletAuditEventDTO::from);
+        return ResponseEntity.ok(ApiResponse.success(
+                PagedDTO.from(events, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()),
+                "Organisation wallet audit trail retrieved successfully"));
     }
 }
