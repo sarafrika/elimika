@@ -24,6 +24,11 @@ public class MpesaGatewayProperties {
     private UUID shortcodeUuid;
 
     /**
+     * UUID of the shortcode wallet withdrawals are paid out from (B2C); payouts are off while unset.
+     */
+    private UUID payoutShortcodeUuid;
+
+    /**
      * Keycloak client-credentials settings used to obtain a bearer token for the mpesa-service.
      */
     private OAuth oauth = new OAuth();
