@@ -64,6 +64,10 @@ public class PayoutMethod extends BaseEntity {
     @Column(name = "added_by_user_uuid")
     private UUID addedByUserUuid;
 
+    /** M-Pesa returned a name unlike the owner's on a payout; later withdrawals to it go to review. */
+    @Column(name = "name_mismatch")
+    private boolean nameMismatch;
+
     /** Verified and past its hold: money may be sent to it now. */
     public boolean isUsable(OffsetDateTime now) {
         return status == PayoutMethodStatus.VERIFIED && (unlockAt == null || !unlockAt.isAfter(now));

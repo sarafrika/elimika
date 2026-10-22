@@ -25,6 +25,10 @@ import apps.sarafrika.elimika.wallet.entity.WalletAuditEvent;
 import apps.sarafrika.elimika.wallet.enums.WalletAuditEventType;
 import apps.sarafrika.elimika.wallet.repository.WalletAuditEventRepository;
 import org.springframework.beans.factory.ObjectProvider;
+import apps.sarafrika.elimika.wallet.enums.LedgerAccountType;
+import apps.sarafrika.elimika.wallet.enums.LedgerPurse;
+import apps.sarafrika.elimika.wallet.enums.WithdrawalStatus;
+import apps.sarafrika.elimika.wallet.repository.WithdrawalRepository;
 import java.math.BigDecimal;
 import java.util.Map;
 import java.util.HashMap;
@@ -69,6 +73,7 @@ public class WalletServiceImpl implements WalletService {
             "createdDate", "lastModifiedDate", "transactionType");
     private static final String CAUSE_WALLET_TRANSACTION = "WALLET_TRANSACTION";
     private static final String CAUSE_WALLET_TRANSFER = "WALLET_TRANSFER";
+    private static final String CAUSE_WITHDRAWAL = "WITHDRAWAL";
 
     private final UserWalletRepository userWalletRepository;
     private final UserWalletTransactionRepository transactionRepository;
@@ -76,6 +81,7 @@ public class WalletServiceImpl implements WalletService {
     private final LedgerService ledgerService;
     private final WalletAuditEventRepository auditEventRepository;
     private final ObjectProvider<DomainSecurityService> domainSecurityService;
+    private final WithdrawalRepository withdrawalRepository;
 
     @Override
     @Transactional
@@ -210,9 +216,83 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional(readOnly = true)
     public WalletStanding standingOf(WalletOwner owner, String currencyCode, boolean canWithdraw) {
-        // Nothing is held until withdrawals exist; a hold will debit the balance, so available is the balance.
-        BigDecimal balance = balanceOf(owner, currencyCode).balanceAmount();
-        return new WalletStanding(ZERO, balance, canWithdraw);
+        // A confirmed withdrawal has already left the balance, so available is the balance and held is extra.
+        WalletBalanceSummary summary = balanceOf(owner, currencyCode);
+        BigDecimal held = withdrawalRepository.sumByStatus(owner.type(), owner.uuid(), summary.currencyCode(),
+                WithdrawalStatus.HELD);
+        return new WalletStanding(held, summary.balanceAmount(), canWithdraw);
+    }
+
+    @Override
+    @Transactional
+    public UserWalletTransaction holdWithdrawal(WalletOwner owner, BigDecimal netAmount, String currencyCode,
+                                                String reference, String description) {
+        String currency = resolveCurrencyCode(currencyCode);
+        UserWallet wallet = lockOrCreateWallet(owner, currency);
+        UserWalletTransaction row = applyDebit(wallet, netAmount, WalletTransactionType.WITHDRAWAL, reference,
+                description, null, null);
+        postRow(row, description, List.of(LedgerPostingLeg.debit(earningsAccount(wallet, currency), netAmount),
+                LedgerPostingLeg.credit(payoutsInFlight(currency), netAmount)));
+        return row;
+    }
+
+    @Override
+    @Transactional
+    public UserWalletTransaction chargePayoutFee(WalletOwner owner, BigDecimal fee, String currencyCode,
+                                                 String reference, String description) {
+        String currency = resolveCurrencyCode(currencyCode);
+        UserWallet wallet = lockOrCreateWallet(owner, currency);
+        UserWalletTransaction row = applyDebit(wallet, fee, WalletTransactionType.PAYOUT_FEE, reference + ":fee",
+                description, null, null);
+        postRow(row, description, List.of(LedgerPostingLeg.debit(earningsAccount(wallet, currency), fee),
+                LedgerPostingLeg.credit(LedgerAccountRef.platformFeeRevenue(currency), fee)));
+        return row;
+    }
+
+    @Override
+    @Transactional
+    public UserWalletTransaction reverseWithdrawal(WalletOwner owner, BigDecimal netAmount, BigDecimal fee,
+                                                   String currencyCode, String reference, String description) {
+        String currency = resolveCurrencyCode(currencyCode);
+        BigDecimal feeBack = fee == null ? ZERO : fee;
+        BigDecimal total = netAmount.add(feeBack);
+        UserWallet wallet = lockOrCreateWallet(owner, currency);
+        UserWalletTransaction row = applyCredit(wallet, total, currency, WalletTransactionType.WITHDRAWAL_REVERSAL,
+                reference + ":reversal", description, null, null);
+        List<LedgerPostingLeg> legs = new ArrayList<>();
+        legs.add(LedgerPostingLeg.debit(payoutsInFlight(currency), netAmount));
+        if (feeBack.signum() > 0) {
+            legs.add(LedgerPostingLeg.debit(LedgerAccountRef.platformFeeRevenue(currency), feeBack));
+        }
+        legs.add(LedgerPostingLeg.credit(earningsAccount(wallet, currency), total));
+        postRow(row, description, legs);
+        return row;
+    }
+
+    @Override
+    @Transactional
+    public void settleWithdrawal(BigDecimal netAmount, BigDecimal mpesaCharges, String currencyCode, String reference,
+                                 String description) {
+        String currency = resolveCurrencyCode(currencyCode);
+        List<LedgerPostingLeg> legs = new ArrayList<>();
+        legs.add(LedgerPostingLeg.debit(payoutsInFlight(currency), netAmount));
+        legs.add(LedgerPostingLeg.credit(LedgerAccountRef.platformCashMpesa(currency), netAmount));
+        if (mpesaCharges != null && mpesaCharges.signum() > 0) {
+            legs.add(LedgerPostingLeg.debit(LedgerAccountRef.platform(LedgerAccountType.EXPENSE, LedgerPurse.PAYOUT_FEES,
+                    currency), mpesaCharges));
+            legs.add(LedgerPostingLeg.credit(LedgerAccountRef.platformCashMpesa(currency), mpesaCharges));
+        }
+        postToLedger(new LedgerPostingRequest("withdrawal-settle:" + reference, null, description,
+                CAUSE_WITHDRAWAL, null, legs));
+    }
+
+    private void postRow(UserWalletTransaction row, String description, List<LedgerPostingLeg> legs) {
+        postToLedger(new LedgerPostingRequest("wallet-txn:" + row.getUuid(), row.getCreatedDate(), description,
+                CAUSE_WALLET_TRANSACTION, row.getUuid(), legs));
+    }
+
+    private static LedgerAccountRef payoutsInFlight(String currency) {
+        return LedgerAccountRef.platform(LedgerAccountType.LIABILITY, LedgerPurse.PAYOUTS_IN_FLIGHT, currency);
     }
 
     @Override

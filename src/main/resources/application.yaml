@@ -241,6 +241,10 @@ wallet:
   # rail is live; while off every balance reports can_withdraw=false.
   withdrawals:
     enabled: ${WALLET_WITHDRAWALS_ENABLED:false}
+    # A withdrawal must be confirmed by its SMS code within this window, or it expires.
+    confirmation-window: ${WALLET_WITHDRAWAL_CONFIRMATION_WINDOW:PT15M}
+    # How often cleared withdrawals are handed to M-Pesa and those in flight are checked.
+    process-interval: ${WALLET_WITHDRAWAL_PROCESS_INTERVAL:PT30S}
   # A newly verified payout number cannot receive money until this hold passes.
   payout-methods:
     hold: ${WALLET_PAYOUT_METHOD_HOLD:PT24H}
@@ -288,6 +292,8 @@ mpesa:
   service:
     base-url: ${MPESA_SERVICE_BASE_URL:}
     shortcode-uuid: ${MPESA_SERVICE_SHORTCODE_UUID:}
+    # Shortcode wallet withdrawals are paid from (B2C). Withdrawals cannot be sent while unset.
+    payout-shortcode-uuid: ${MPESA_SERVICE_PAYOUT_SHORTCODE_UUID:}
     # OAuth2 client-credentials against Keycloak; the resulting bearer token authenticates
     # elimika to the mpesa-service gateway (replaces the previous HTTP Basic credentials).
     # Defaults reuse elimika's existing confidential Keycloak client (elimika-backend) and its

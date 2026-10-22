@@ -15,7 +15,18 @@ public enum WalletAuditEventType {
     PAYOUT_METHOD_REMOVED,
     PAYOUT_METHOD_DEFAULT_CHANGED,
     PAYOUT_APPROVER_ADDED,
-    PAYOUT_APPROVER_REMOVED;
+    PAYOUT_APPROVER_REMOVED,
+    WITHDRAWAL_REQUESTED,
+    WITHDRAWAL_CONFIRMED,
+    WITHDRAWAL_SECOND_APPROVED,
+    WITHDRAWAL_APPROVED,
+    WITHDRAWAL_REJECTED,
+    WITHDRAWAL_PAID,
+    WITHDRAWAL_FAILED,
+    WITHDRAWAL_REVERSED,
+    WITHDRAWAL_CANCELLED,
+    PAYOUT_FEE_CHARGED,
+    PAYOUT_SETTINGS_CHANGED;
 
     public static WalletAuditEventType forTransaction(WalletTransactionType type) {
         return switch (type) {
@@ -25,6 +36,9 @@ public enum WalletAuditEventType {
             case TRANSFER_OUT -> TRANSFER_SENT;
             case TRANSFER_IN -> TRANSFER_RECEIVED;
             case SALE_REVERSAL -> SALE_SHARE_REVERSED;
+            case WITHDRAWAL -> WITHDRAWAL_CONFIRMED;
+            case WITHDRAWAL_REVERSAL -> WITHDRAWAL_REVERSED;
+            case PAYOUT_FEE -> PAYOUT_FEE_CHARGED;
         };
     }
 

@@ -22,6 +22,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.wallet.repository.WalletAuditEventRepository;
+import apps.sarafrika.elimika.wallet.repository.WithdrawalRepository;
 import org.mockito.InjectMocks;
 import org.springframework.beans.factory.ObjectProvider;
 import org.mockito.Mock;
@@ -42,6 +43,8 @@ class WalletServiceImplIdempotencyTest {
     private WalletAuditEventRepository auditEventRepository;
     @Mock
     private ObjectProvider<DomainSecurityService> domainSecurityService;
+    @Mock
+    private WithdrawalRepository withdrawalRepository;
 
     @InjectMocks
     private WalletServiceImpl walletService;

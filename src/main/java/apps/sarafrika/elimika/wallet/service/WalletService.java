@@ -50,6 +50,22 @@ public interface WalletService {
     boolean settleSaleShare(WalletOwner owner, BigDecimal gross, BigDecimal platformFee, String currencyCode,
                             String reference, String description);
 
+    /** Takes a confirmed withdrawal's net amount out of the balance into money in flight. */
+    UserWalletTransaction holdWithdrawal(WalletOwner owner, BigDecimal netAmount, String currencyCode, String reference,
+                                         String description);
+
+    /** Charges the earner the M-Pesa fee on a withdrawal, when they pay it. */
+    UserWalletTransaction chargePayoutFee(WalletOwner owner, BigDecimal fee, String currencyCode, String reference,
+                                          String description);
+
+    /** Puts a withdrawal's net amount and any fee back in the balance after a failure or rejection. */
+    UserWalletTransaction reverseWithdrawal(WalletOwner owner, BigDecimal netAmount, BigDecimal fee, String currencyCode,
+                                            String reference, String description);
+
+    /** Records in the ledger that M-Pesa paid a withdrawal out, with what M-Pesa charged the platform. */
+    void settleWithdrawal(BigDecimal netAmount, BigDecimal mpesaCharges, String currencyCode, String reference,
+                          String description);
+
     UserWallet deposit(UUID userUuid, BigDecimal amount, String currencyCode, String reference, String description);
 
     UserWallet creditSale(UUID userUuid, BigDecimal amount, String currencyCode, String reference, String description);

@@ -97,6 +97,8 @@ public enum NotificationType {
     DOMAIN_APPROVAL_REQUESTED("DOMAIN_APPROVAL_REQUESTED", "domain-approval-requested", "Account Awaiting Approval", NotificationCategory.SYSTEM_ADMIN),
     DOMAIN_APPROVAL_GRANTED("DOMAIN_APPROVAL_GRANTED", "domain-approval-decision", "Account Approved", NotificationCategory.SYSTEM_ADMIN),
     DOMAIN_APPROVAL_DECLINED("DOMAIN_APPROVAL_DECLINED", "domain-approval-decision", "Account Not Approved", NotificationCategory.SYSTEM_ADMIN),
+    WALLET_WITHDRAWAL_PAID("WALLET_WITHDRAWAL_PAID", "wallet-withdrawal-update", "Withdrawal Paid", NotificationCategory.SYSTEM_ADMIN),
+    WALLET_WITHDRAWAL_FAILED("WALLET_WITHDRAWAL_FAILED", "wallet-withdrawal-update", "Withdrawal Returned", NotificationCategory.SYSTEM_ADMIN),
 
     // Engagement & Motivation
     WEEKLY_PROGRESS_SUMMARY("WEEKLY_PROGRESS_SUMMARY", "weekly-progress-summary", "Progress Summary", NotificationCategory.LEARNING_PROGRESS),
@@ -274,7 +276,9 @@ public enum NotificationType {
                  ORGANISATION_ANNOUNCEMENT,
                  DOMAIN_APPROVAL_REQUESTED,
                  DOMAIN_APPROVAL_GRANTED,
-                 DOMAIN_APPROVAL_DECLINED -> null;
+                 DOMAIN_APPROVAL_DECLINED,
+                 WALLET_WITHDRAWAL_PAID,
+                 WALLET_WITHDRAWAL_FAILED -> null;
         };
     }
 }
