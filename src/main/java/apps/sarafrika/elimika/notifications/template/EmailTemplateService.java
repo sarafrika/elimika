@@ -109,6 +109,7 @@ public class EmailTemplateService {
                     String.format("%s joined %s", value(vars, "recipientName", "Someone"),
                             value(vars, "organisationName", "your organisation"));
             case "organisation-announcement" -> value(vars, "title", event.getNotificationType().getDisplayName());
+            case "security-alert" -> value(vars, "alertTitle", "Security alert on your account");
             case "domain-approval-decision" -> Boolean.TRUE.equals(vars.get("approved"))
                     ? String.format("You're approved as %s on %s", article(value(vars, "domainLabel", "member")), applicationName)
                     : String.format("Your %s application needs another look", value(vars, "domainLabel", "account"));

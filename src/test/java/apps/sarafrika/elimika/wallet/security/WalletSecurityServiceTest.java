@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.wallet.security;
 
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.wallet.repository.PayoutApproverRepository;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -35,12 +36,13 @@ class WalletSecurityServiceTest {
     private static final UUID OTHER_USER_UUID = UUID.randomUUID();
 
     @Mock private DomainSecurityService domainSecurityService;
+    @Mock private PayoutApproverRepository payoutApproverRepository;
 
     private WalletSecurityService service;
 
     @BeforeEach
     void setUp() {
-        service = new WalletSecurityService(domainSecurityService);
+        service = new WalletSecurityService(domainSecurityService, payoutApproverRepository);
 
         when(domainSecurityService.getCurrentUserUuid()).thenReturn(CALLER_UUID);
         when(domainSecurityService.isPlatformAdmin()).thenReturn(false);
@@ -69,16 +71,30 @@ class WalletSecurityServiceTest {
     }
 
     @Test
-    void organisationMoneyIsWithdrawnByItsAdministratorsOnly() {
+    void organisationMoneyIsWithdrawnByItsNamedApproversOnly() {
         ReflectionTestUtils.setField(service, "withdrawalsEnabled", true);
         UUID organisationUuid = UUID.randomUUID();
         when(domainSecurityService.isPlatformAdmin()).thenReturn(true);
         when(domainSecurityService.managesOrganisation(organisationUuid)).thenReturn(false);
+        when(payoutApproverRepository.existsByOrganisationUuidAndUserUuid(organisationUuid, CALLER_UUID)).thenReturn(true);
 
         assertThat(service.canWithdrawFromOrganisation(organisationUuid)).isFalse();
 
         when(domainSecurityService.managesOrganisation(organisationUuid)).thenReturn(true);
         assertThat(service.canWithdrawFromOrganisation(organisationUuid)).isTrue();
+        assertThat(service.canManageOrganisationPayouts(organisationUuid)).isTrue();
+
+        when(payoutApproverRepository.existsByOrganisationUuidAndUserUuid(organisationUuid, CALLER_UUID)).thenReturn(false);
+        assertThat(service.canWithdrawFromOrganisation(organisationUuid)).isFalse();
+        assertThat(service.canManagePayoutApprovers(organisationUuid)).isTrue();
+    }
+
+    @Test
+    void onlyAnEarnerManagesTheirOwnPayoutNumbers() {
+        when(domainSecurityService.hasAnyDomain(UserDomain.instructor, UserDomain.course_creator)).thenReturn(true);
+
+        assertThat(service.canManagePayouts(CALLER_UUID)).isTrue();
+        assertThat(service.canManagePayouts(OTHER_USER_UUID)).isFalse();
     }
 
     @Test

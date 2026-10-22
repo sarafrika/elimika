@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.wallet.security;
 
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
+import apps.sarafrika.elimika.wallet.repository.PayoutApproverRepository;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.annotation.Value;
@@ -25,6 +26,7 @@ import org.springframework.stereotype.Service;
 public class WalletSecurityService {
 
     private final DomainSecurityService domainSecurityService;
+    private final PayoutApproverRepository payoutApproverRepository;
 
     @Value("${wallet.withdrawals.enabled:false}")
     private boolean withdrawalsEnabled;
@@ -73,9 +75,27 @@ public class WalletSecurityService {
                 && domainSecurityService.hasAnyDomain(UserDomain.instructor, UserDomain.course_creator);
     }
 
-    /** An organisation's money is withdrawn by its own administrators; platform admins never do it for them. */
+    /** An organisation's money is withdrawn by its named payout approvers; platform admins never do it for them. */
     public boolean canWithdrawFromOrganisation(UUID organisationUuid) {
-        return withdrawalsEnabled && domainSecurityService.managesOrganisation(organisationUuid);
+        return withdrawalsEnabled && canManageOrganisationPayouts(organisationUuid);
+    }
+
+    /** A person's own payout numbers, managed by them alone, and only by people who earn. */
+    public boolean canManagePayouts(UUID userUuid) {
+        return userUuid != null && isSelf(userUuid)
+                && domainSecurityService.hasAnyDomain(UserDomain.instructor, UserDomain.course_creator);
+    }
+
+    /** An organisation's payout numbers: an admin of it who is also one of its named payout approvers. */
+    public boolean canManageOrganisationPayouts(UUID organisationUuid) {
+        UUID caller = domainSecurityService.getCurrentUserUuid();
+        return caller != null && domainSecurityService.managesOrganisation(organisationUuid)
+                && payoutApproverRepository.existsByOrganisationUuidAndUserUuid(organisationUuid, caller);
+    }
+
+    /** Naming payout approvers is for any admin of the organisation. */
+    public boolean canManagePayoutApprovers(UUID organisationUuid) {
+        return domainSecurityService.managesOrganisation(organisationUuid);
     }
 
     private boolean isSelf(UUID userUuid) {

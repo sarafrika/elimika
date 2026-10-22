@@ -55,6 +55,11 @@ public final class EmailSamples {
         };
         v.put("statusLabel", status);
         switch (type) {
+            case SECURITY_ALERT -> {
+                v.put("alertTitle", "A payout number was added to your wallet");
+                v.put("alertMessage", "+254 7•• ••• 678 can receive withdrawals from 24 Oct 2026, 14:12 (EAT). "
+                        + "If this wasn't you, remove it and change your password.");
+            }
             case COURSE_TRAINING_APPLICATION_REJECTED -> v.put("contextType", "course");
             case PROGRAM_TRAINING_APPLICATION_REJECTED -> {
                 v.put("contextType", "programme");

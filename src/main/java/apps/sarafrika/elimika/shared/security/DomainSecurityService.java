@@ -295,6 +295,19 @@ public class DomainSecurityService {
         });
     }
 
+    /** Whether {@code userUuid} holds the admin role in {@code organisationUuid}; fails closed. */
+    public boolean isOrganisationAdmin(UUID userUuid, UUID organisationUuid) {
+        if (userUuid == null || organisationUuid == null) {
+            return false;
+        }
+        try {
+            return userLookupService.userBelongsToOrganizationWithDomain(userUuid, organisationUuid, UserDomain.admin);
+        } catch (Exception e) {
+            log.error("Error checking admin role of {} in organisation {}", userUuid, organisationUuid, e);
+            return false;
+        }
+    }
+
     /**
      * True when the caller holds a staff role — {@code admin} or {@code organisation_user} — <em>in
      * an organisation the target user belongs to</em>.
@@ -838,6 +851,23 @@ public class DomainSecurityService {
     /**
      * Extracts the Keycloak ID from the JWT token.
      */
+    /** The signed-in user's email and display name from their token, for notices about what they just did. */
+    public java.util.Optional<CallerContact> getCurrentCallerContact() {
+        Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
+        if (authentication == null || !(authentication.getPrincipal() instanceof Jwt jwt)) {
+            return java.util.Optional.empty();
+        }
+        String email = jwt.getClaimAsString("email");
+        if (email == null || email.isBlank()) {
+            return java.util.Optional.empty();
+        }
+        String name = jwt.getClaimAsString("name");
+        return java.util.Optional.of(new CallerContact(email, name == null || name.isBlank() ? email : name));
+    }
+
+    public record CallerContact(String email, String name) {
+    }
+
     private String getKeycloakId(Authentication authentication) {
         try {
             if (authentication.getPrincipal() instanceof Jwt jwt) {

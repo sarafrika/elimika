@@ -241,6 +241,9 @@ wallet:
   # rail is live; while off every balance reports can_withdraw=false.
   withdrawals:
     enabled: ${WALLET_WITHDRAWALS_ENABLED:false}
+  # A newly verified payout number cannot receive money until this hold passes.
+  payout-methods:
+    hold: ${WALLET_PAYOUT_METHOD_HOLD:PT24H}
   ledger:
     reconciliation:
       # Compares every wallet's balance_amount against the balance derived from its ledger entries.

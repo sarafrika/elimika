@@ -9,7 +9,13 @@ public enum WalletAuditEventType {
     PLATFORM_FEE_CHARGED,
     TRANSFER_SENT,
     TRANSFER_RECEIVED,
-    SALE_SHARE_REVERSED;
+    SALE_SHARE_REVERSED,
+    PAYOUT_METHOD_ADDED,
+    PAYOUT_METHOD_VERIFIED,
+    PAYOUT_METHOD_REMOVED,
+    PAYOUT_METHOD_DEFAULT_CHANGED,
+    PAYOUT_APPROVER_ADDED,
+    PAYOUT_APPROVER_REMOVED;
 
     public static WalletAuditEventType forTransaction(WalletTransactionType type) {
         return switch (type) {

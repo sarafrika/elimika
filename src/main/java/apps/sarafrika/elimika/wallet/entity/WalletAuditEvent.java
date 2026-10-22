@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.wallet.entity;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.wallet.enums.WalletAuditEventType;
+import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
 import apps.sarafrika.elimika.wallet.util.converter.WalletAuditEventTypeConverter;
 import apps.sarafrika.elimika.wallet.util.converter.WalletOwnerTypeConverter;
@@ -57,4 +58,19 @@ public class WalletAuditEvent extends BaseEntity {
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "updated_values")
     private Map<String, Object> updatedValues;
+
+    public static WalletAuditEvent of(WalletOwner owner, WalletAuditEventType type, UUID actorUserUuid, String reference,
+                                      String reason, Map<String, Object> previousValues,
+                                      Map<String, Object> updatedValues) {
+        WalletAuditEvent event = new WalletAuditEvent();
+        event.setOwnerType(owner.type());
+        event.setOwnerUuid(owner.uuid());
+        event.setEventType(type);
+        event.setActorUserUuid(actorUserUuid);
+        event.setReference(reference);
+        event.setReason(reason);
+        event.setPreviousValues(previousValues);
+        event.setUpdatedValues(updatedValues);
+        return event;
+    }
 }
