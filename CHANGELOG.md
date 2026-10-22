@@ -1,3 +1,11 @@
+# [2.184.0](https://github.com/sarafrika/elimika/compare/v2.183.1...v2.184.0) (2026-10-22)
+
+
+### Features
+
+* **commerce:** pay mobile-money payouts through the mpesa-service B2C API behind a shared gateway SPI ([e60db91](https://github.com/sarafrika/elimika/commit/e60db914052478df13971fa633ae8dd9b3eaae59))
+* **wallet:** withdraw to verified M-Pesa numbers with SMS confirmation, review, second approval, ledgered holds and reversals ([4381612](https://github.com/sarafrika/elimika/commit/43816121e663242ac74df2f172006d6c4a9427cc))
+
 ## [2.183.1](https://github.com/sarafrika/elimika/compare/v2.183.0...v2.183.1) (2026-10-22)
 
 
