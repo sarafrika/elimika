@@ -18,6 +18,8 @@ public enum WalletAuditEventType {
     PAYOUT_APPROVER_REMOVED,
     WITHDRAWAL_REQUESTED,
     WITHDRAWAL_CONFIRMED,
+    /** The money leaving the balance for a confirmed withdrawal. */
+    WITHDRAWAL_HELD,
     WITHDRAWAL_SECOND_APPROVED,
     WITHDRAWAL_APPROVED,
     WITHDRAWAL_REJECTED,
@@ -36,7 +38,7 @@ public enum WalletAuditEventType {
             case TRANSFER_OUT -> TRANSFER_SENT;
             case TRANSFER_IN -> TRANSFER_RECEIVED;
             case SALE_REVERSAL -> SALE_SHARE_REVERSED;
-            case WITHDRAWAL -> WITHDRAWAL_CONFIRMED;
+            case WITHDRAWAL -> WITHDRAWAL_HELD;
             case WITHDRAWAL_REVERSAL -> WITHDRAWAL_REVERSED;
             case PAYOUT_FEE -> PAYOUT_FEE_CHARGED;
         };
