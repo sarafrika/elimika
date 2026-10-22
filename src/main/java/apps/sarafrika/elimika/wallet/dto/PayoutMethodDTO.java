@@ -16,10 +16,8 @@ public record PayoutMethodDTO(
         @JsonProperty("uuid") UUID uuid,
         @Schema(description = "**[READ-ONLY]** Payout rail.", example = "MPESA", accessMode = Schema.AccessMode.READ_ONLY)
         @JsonProperty("method_type") PayoutMethodType methodType,
-        @Schema(description = "**[READ-ONLY]** The number, written out (owner only).", example = "+254 712 345 678",
-                accessMode = Schema.AccessMode.READ_ONLY)
-        @JsonProperty("msisdn") String msisdn,
-        @Schema(description = "**[READ-ONLY]** The number with most digits hidden.", example = "+254 7•• ••• 678",
+        @Schema(description = "**[READ-ONLY]** The number with most digits hidden; the full number never leaves the server.",
+                example = "+254 7•• ••• 678",
                 accessMode = Schema.AccessMode.READ_ONLY)
         @JsonProperty("masked_msisdn") String maskedMsisdn,
         @Schema(description = "**[READ-ONLY]** Owner's nickname for it.", example = "Personal", accessMode = Schema.AccessMode.READ_ONLY)
@@ -42,8 +40,7 @@ public record PayoutMethodDTO(
     public static PayoutMethodDTO from(PayoutMethod method) {
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         boolean onHold = method.getStatus() == PayoutMethodStatus.VERIFIED && !method.isUsable(now);
-        return new PayoutMethodDTO(method.getUuid(), method.getMethodType(), Msisdn.pretty(method.getMsisdn()),
-                Msisdn.mask(method.getMsisdn()), method.getLabel(), method.getStatus(), method.isDefaultMethod(),
+        return new PayoutMethodDTO(method.getUuid(), method.getMethodType(), Msisdn.mask(method.getMsisdn()), method.getLabel(), method.getStatus(), method.isDefaultMethod(),
                 method.getVerifiedAt(), method.getUnlockAt(), onHold, method.getMpesaRegisteredName());
     }
 }
