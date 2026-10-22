@@ -1,3 +1,10 @@
+## [2.183.1](https://github.com/sarafrika/elimika/compare/v2.183.0...v2.183.1) (2026-10-22)
+
+
+### Bug Fixes
+
+* **wallet:** send payout numbers to the UI masked only ([e550041](https://github.com/sarafrika/elimika/commit/e55004162b07cc7111300920ea0d9f910dcafcfc))
+
 # [2.183.0](https://github.com/sarafrika/elimika/compare/v2.182.0...v2.183.0) (2026-10-22)
 
 
