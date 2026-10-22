@@ -17,6 +17,7 @@ import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import apps.sarafrika.elimika.wallet.entity.PayoutMethod;
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
 import apps.sarafrika.elimika.wallet.entity.Withdrawal;
+import apps.sarafrika.elimika.wallet.enums.PayoutFeePayer;
 import apps.sarafrika.elimika.wallet.enums.PayoutMethodStatus;
 import apps.sarafrika.elimika.wallet.enums.PayoutMethodType;
 import apps.sarafrika.elimika.wallet.enums.WalletTransactionType;
@@ -153,6 +154,8 @@ class WithdrawalsIntegrationTest {
     private WithdrawalRepository withdrawalRepository;
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private PayoutSettingsService settingsService;
 
     @MockitoBean
     private CurrencyService currencyService;
@@ -326,6 +329,35 @@ class WithdrawalsIntegrationTest {
                 LocalDateTime.now(ZoneOffset.UTC).minusHours(1), stale.getUuid());
         withdrawals.expire(stale.getUuid());
         assertThat(reload(stale).getStatus()).isEqualTo(WithdrawalStatus.EXPIRED);
+    }
+
+    @Test
+    @DisplayName("admins change the rules, inconsistent rules are refused, and new withdrawals follow them")
+    void settings() {
+        assertThatThrownBy(() -> settingsService.update(new BigDecimal("500"), new BigDecimal("100"),
+                new BigDecimal("1000"), new BigDecimal("50"), new BigDecimal("50"), PayoutFeePayer.PLATFORM,
+                BigDecimal.ZERO, "admin")).isInstanceOf(IllegalArgumentException.class);
+        try {
+            settingsService.update(new BigDecimal("100"), new BigDecimal("150000"), new BigDecimal("300000"),
+                    new BigDecimal("800"), new BigDecimal("100000"), PayoutFeePayer.EARNER, new BigDecimal("30"), "admin");
+            WalletOwner earner = WalletOwner.user(user());
+            fund(earner, "5000");
+            PayoutMethod method = method(earner, "254712345678", true);
+
+            UUID uuid = confirm(earner, method, "1000", "rules-1");
+
+            Withdrawal withdrawal = withdrawalRepository.findByUuid(uuid).orElseThrow();
+            assertThat(withdrawal.getStatus()).isEqualTo(WithdrawalStatus.NEEDS_REVIEW);
+            assertThat(withdrawal.getReviewFlags()).contains("ABOVE_REVIEW_LIMIT");
+            assertThat(withdrawal.getNetAmount()).isEqualByComparingTo("970");
+            assertThat(balance(earner)).isEqualByComparingTo("4000");
+            withdrawals.adminReject(uuid, "Testing the earner fee path end to end.");
+            assertThat(balance(earner)).isEqualByComparingTo("5000");
+            assertThat(reconciliationJob.runOnce().isClean()).isTrue();
+        } finally {
+            settingsService.update(new BigDecimal("100"), new BigDecimal("150000"), new BigDecimal("300000"),
+                    new BigDecimal("50000"), new BigDecimal("100000"), PayoutFeePayer.PLATFORM, BigDecimal.ZERO, "admin");
+        }
     }
 
     private UUID confirm(WalletOwner owner, PayoutMethod method, String amount, String key) {

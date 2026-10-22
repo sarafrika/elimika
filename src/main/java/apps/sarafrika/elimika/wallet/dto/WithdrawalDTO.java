@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.wallet.dto;
 import apps.sarafrika.elimika.shared.sms.Msisdn;
 import apps.sarafrika.elimika.wallet.entity.Withdrawal;
 import apps.sarafrika.elimika.wallet.enums.WithdrawalStatus;
+import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -14,6 +15,8 @@ import java.util.UUID;
 @Schema(name = "Withdrawal", description = "Money leaving a wallet for an M-Pesa number")
 public record WithdrawalDTO(
         @JsonProperty("uuid") UUID uuid,
+        @JsonProperty("owner_type") WalletOwnerType ownerType,
+        @JsonProperty("owner_uuid") UUID ownerUuid,
         @Schema(example = "WD-2026-000042") @JsonProperty("reference") String reference,
         @JsonProperty("status") WithdrawalStatus status,
         @Schema(description = "Taken from the wallet") @JsonProperty("amount") BigDecimal amount,
@@ -25,6 +28,8 @@ public record WithdrawalDTO(
         @Schema(description = "The number, masked; the full number never leaves the server", example = "+254 7•• ••• 678")
         @JsonProperty("masked_msisdn") String maskedMsisdn,
         @JsonProperty("requested_by_user_uuid") UUID requestedByUserUuid,
+        @Schema(description = "Name of the person who asked, as on their account")
+        @JsonProperty("requester_name") String requesterName,
         @Schema(description = "Why it waits for an admin, e.g. ABOVE_REVIEW_LIMIT, FIRST_PAYOUT_TO_NUMBER, NAME_MISMATCH")
         @JsonProperty("review_flags") List<String> reviewFlags,
         @JsonProperty("second_approver_user_uuid") UUID secondApproverUserUuid,
@@ -39,9 +44,9 @@ public record WithdrawalDTO(
 ) {
 
     public static WithdrawalDTO from(Withdrawal w) {
-        return new WithdrawalDTO(w.getUuid(), w.getReference(), w.getStatus(), w.getAmount(), w.getFeeAmount(),
+        return new WithdrawalDTO(w.getUuid(), w.getOwnerType(), w.getOwnerUuid(), w.getReference(), w.getStatus(), w.getAmount(), w.getFeeAmount(),
                 w.getNetAmount(), w.getCurrencyCode(), w.getPayoutMethodUuid(), Msisdn.mask(w.getMsisdn()),
-                w.getRequestedByUserUuid(), w.reviewFlagList(), w.getSecondApproverUserUuid(), w.getRejectionReason(),
+                w.getRequestedByUserUuid(), w.getRequesterName(), w.reviewFlagList(), w.getSecondApproverUserUuid(), w.getRejectionReason(),
                 w.getFailureReason(), w.getMpesaReceipt(), w.getMpesaRecipientName(), w.getCreatedDate(),
                 w.getConfirmedAt(), w.getSentAt(), w.getCompletedAt());
     }
