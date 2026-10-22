@@ -1,3 +1,11 @@
+# [2.183.0](https://github.com/sarafrika/elimika/compare/v2.182.0...v2.183.0) (2026-10-22)
+
+
+### Features
+
+* **shared:** send transactional SMS through Celcom Africa and issue hashed, throttled one-time codes ([9e1b2f7](https://github.com/sarafrika/elimika/commit/9e1b2f7b5ddfaf60d301f039083688bba2d32a4b))
+* **wallet:** let earners and organisation payout approvers add, verify by SMS code, default and remove M-Pesa payout numbers ([2df3500](https://github.com/sarafrika/elimika/commit/2df350079367f732b5a309c815bd5d63ec7c712a))
+
 # [2.182.0](https://github.com/sarafrika/elimika/compare/v2.181.2...v2.182.0) (2026-10-22)
 
 
