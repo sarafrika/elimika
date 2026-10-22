@@ -40,8 +40,8 @@ public interface UserWalletTransactionRepository extends JpaRepository<UserWalle
                    coalesce(sum(greatest(t.balance_after - t.balance_before, 0)), 0) as moneyIn,
                    coalesce(sum(greatest(t.balance_before - t.balance_after, 0)), 0) as moneyOut,
                    count(*) as transactionCount,
-                   (array_agg(t.balance_before order by t.id))[1] as openingBalance,
-                   (array_agg(t.balance_after order by t.id desc))[1] as closingBalance
+                   (array_agg(t.balance_before order by t.created_date, t.id))[1] as openingBalance,
+                   (array_agg(t.balance_after order by t.created_date desc, t.id desc))[1] as closingBalance
             from user_wallet_transactions t
             where t.wallet_id = :walletId
             group by 1
