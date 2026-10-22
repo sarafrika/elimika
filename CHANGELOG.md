@@ -1,3 +1,16 @@
+# [2.185.0](https://github.com/sarafrika/elimika/compare/v2.184.0...v2.185.0) (2026-10-22)
+
+
+### Bug Fixes
+
+* **wallet:** record a withdrawal's money leaving the balance as its own audit event ([c2636b4](https://github.com/sarafrika/elimika/commit/c2636b46b1b76eea396bb0d96a5d83189fcede4b))
+
+
+### Features
+
+* **wallet:** add the admin payouts queue, approve, reject and check endpoints, summary and payout rules ([c71e3b0](https://github.com/sarafrika/elimika/commit/c71e3b014ea250e51249f760ebc7205b84a852c7))
+* **wallet:** let earners read the withdrawal rules ([88b9e27](https://github.com/sarafrika/elimika/commit/88b9e2757fe7d18fb241fb04fa5956cb28f3782c))
+
 # [2.184.0](https://github.com/sarafrika/elimika/compare/v2.183.1...v2.184.0) (2026-10-22)
 
 
