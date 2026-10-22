@@ -82,3 +82,8 @@ course:
 commerce:
   capture:
     auto-on-complete: true
+
+# Local stack: nothing reaches a phone, so the log shows the SMS text (the one-time code) to sign in with.
+sms:
+  log:
+    reveal-content: true

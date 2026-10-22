@@ -217,6 +217,25 @@ commerce:
     # capture is driven only by confirmed M-Pesa payments (COMMERCE_CAPTURE_AUTO_ON_COMPLETE=false).
     auto-on-complete: ${COMMERCE_CAPTURE_AUTO_ON_COMPLETE:true}
 
+# Transactional SMS. `log` (default) sends nothing and logs a masked recipient; `celcom` sends through
+# Celcom Africa and needs the API key, partner ID and registered sender ID from its dashboard.
+sms:
+  provider: ${SMS_PROVIDER:log}
+  celcom:
+    base-url: ${SMS_CELCOM_BASE_URL:https://isms.celcomafrica.com}
+    api-key: ${SMS_CELCOM_API_KEY:}
+    partner-id: ${SMS_CELCOM_PARTNER_ID:}
+    shortcode: ${SMS_CELCOM_SHORTCODE:}
+
+# One-time codes (payout number verification, withdrawal confirmation). Set OTP_HMAC_SECRET to a long
+# random value in every deployed environment; without it codes stop working after a restart.
+otp:
+  hmac-secret: ${OTP_HMAC_SECRET:}
+  ttl: ${OTP_TTL:PT10M}
+  max-attempts: ${OTP_MAX_ATTEMPTS:5}
+  resend-cooldown: ${OTP_RESEND_COOLDOWN:PT60S}
+  max-per-hour: ${OTP_MAX_PER_HOUR:5}
+
 wallet:
   # M-Pesa withdrawals by instructors, course creators and organisations. Off until the payout
   # rail is live; while off every balance reports can_withdraw=false.
