@@ -1,3 +1,10 @@
+# [2.186.0](https://github.com/sarafrika/elimika/compare/v2.185.0...v2.186.0) (2026-10-23)
+
+
+### Features
+
+* **wallet:** tell earners in the payout rules whether withdrawals are switched on ([1ce24e5](https://github.com/sarafrika/elimika/commit/1ce24e53818b3fdbd582b1a8202cf54dd863ce07))
+
 # [2.185.0](https://github.com/sarafrika/elimika/compare/v2.184.0...v2.185.0) (2026-10-22)
 
 
