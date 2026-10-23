@@ -15,11 +15,13 @@ public record PayoutRulesDTO(
         @Schema(description = "Taken from each withdrawal when the earner pays the M-Pesa charge")
         @JsonProperty("earner_fee") BigDecimal earnerFee,
         @Schema(description = "Hours a newly added number is held before it can receive money")
-        @JsonProperty("new_number_hold_hours") long newNumberHoldHours
+        @JsonProperty("new_number_hold_hours") long newNumberHoldHours,
+        @Schema(description = "False while withdrawals are switched off for everyone")
+        @JsonProperty("withdrawals_enabled") boolean withdrawalsEnabled
 ) {
 
-    public static PayoutRulesDTO from(PayoutSettings s, long holdHours) {
+    public static PayoutRulesDTO from(PayoutSettings s, long holdHours, boolean enabled) {
         return new PayoutRulesDTO(s.getMinAmount(), s.getMaxAmount(), s.getDailyLimit(), s.getFeePayer(),
-                s.getFeePayer() == PayoutFeePayer.EARNER ? s.getEarnerFee() : BigDecimal.ZERO, holdHours);
+                s.getFeePayer() == PayoutFeePayer.EARNER ? s.getEarnerFee() : BigDecimal.ZERO, holdHours, enabled);
     }
 }

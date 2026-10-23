@@ -23,10 +23,13 @@ public class PayoutRulesController {
     @Value("${wallet.payout-methods.hold:PT24H}")
     private Duration hold;
 
+    @Value("${wallet.withdrawals.enabled:false}")
+    private boolean enabled;
+
     @GetMapping("/api/v1/wallets/payout-rules")
     @Operation(operationId = "getPayoutRules", summary = "Withdrawal limits, the M-Pesa charge and the new-number hold")
     public ResponseEntity<ApiResponse<PayoutRulesDTO>> rules() {
-        return ResponseEntity.ok(ApiResponse.success(PayoutRulesDTO.from(settingsService.current(), hold.toHours()),
+        return ResponseEntity.ok(ApiResponse.success(PayoutRulesDTO.from(settingsService.current(), hold.toHours(), enabled),
                 "Payout rules retrieved successfully"));
     }
 }
