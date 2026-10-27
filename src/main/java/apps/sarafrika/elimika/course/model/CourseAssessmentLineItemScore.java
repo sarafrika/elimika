@@ -44,4 +44,7 @@ public class CourseAssessmentLineItemScore extends BaseEntity {
 
     @Column(name = "graded_by_uuid")
     private UUID gradedByUuid;
+
+    @Column(name = "excused")
+    private Boolean excused = Boolean.FALSE;
 }

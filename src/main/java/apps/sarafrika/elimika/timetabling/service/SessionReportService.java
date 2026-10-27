@@ -67,7 +67,7 @@ public class SessionReportService {
 
     public static final Duration DUE_AFTER_END = Duration.ofHours(24);
     private static final Set<EnrollmentStatus> ROSTER =
-            EnumSet.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.ATTENDED, EnrollmentStatus.ABSENT);
+            EnumSet.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.ATTENDED, EnrollmentStatus.ABSENT, EnrollmentStatus.EXCUSED);
     private static final String BLOCKER = "blocker";
     private static final String INFO = "info";
 
@@ -442,7 +442,8 @@ public class SessionReportService {
 
     private static RowDTO row(Enrollment enrollment, StudentLesson lesson) {
         String attendance = enrollment.getStatus() == EnrollmentStatus.ATTENDED ? "ATTENDED"
-                : enrollment.getStatus() == EnrollmentStatus.ABSENT ? "ABSENT" : "NOT_MARKED";
+                : enrollment.getStatus() == EnrollmentStatus.ABSENT ? "ABSENT"
+                : enrollment.getStatus() == EnrollmentStatus.EXCUSED ? "EXCUSED" : "NOT_MARKED";
         List<SessionReportDTO.PickDTO> picks = lesson == null ? List.of() : lesson.picks().stream()
                 .map(p -> new SessionReportDTO.PickDTO(p.criteriaUuid(), p.criteriaName(), p.levelName(), p.points()))
                 .toList();
@@ -500,7 +501,8 @@ public class SessionReportService {
     private static AggregatesDTO aggregates(List<RowDTO> rows, LessonPerformance performance) {
         int present = (int) rows.stream().filter(r -> "ATTENDED".equals(r.attendance())).count();
         int absent = (int) rows.stream().filter(r -> "ABSENT".equals(r.attendance())).count();
-        int notMarked = rows.size() - present - absent;
+        int excused = (int) rows.stream().filter(r -> "EXCUSED".equals(r.attendance())).count();
+        int notMarked = rows.size() - present - absent - excused;
         BigDecimal rate = present + absent == 0 ? null
                 : BigDecimal.valueOf(present * 100L).divide(BigDecimal.valueOf(present + absent), 2, RoundingMode.HALF_UP);
         int criteriaCount = performance == null ? 0 : performance.criteria().size();

@@ -132,6 +132,7 @@ public class CourseEnrollmentSyncService {
             case "WAITLISTED" -> EnrollmentStatus.SUSPENDED;
             case "ATTENDED" -> EnrollmentStatus.COMPLETED;
             case "ABSENT" -> EnrollmentStatus.DROPPED;
+            case "EXCUSED" -> EnrollmentStatus.ACTIVE;
             case "CANCELLED" -> EnrollmentStatus.DROPPED;
             default -> {
                 log.warn("Unhandled class enrollment status '{}' while syncing course enrollment", status);

@@ -62,7 +62,7 @@ public interface SessionReportRepository extends JpaRepository<SessionReport, Lo
             + "AND COALESCE(si.concluded_at, si.end_time) > :since AND COALESCE(si.concluded_at, si.end_time) <= :now "
             + "AND (sr.uuid IS NULL OR (sr.reminded_at IS NULL AND LOWER(sr.status) = 'draft')) "
             + "AND EXISTS (SELECT 1 FROM class_enrollments ce WHERE ce.scheduled_instance_uuid = si.uuid "
-            + "AND UPPER(ce.status) IN ('ENROLLED', 'ATTENDED', 'ABSENT'))",
+            + "AND UPPER(ce.status) IN ('ENROLLED', 'ATTENDED', 'ABSENT', 'EXCUSED'))",
             nativeQuery = true)
     List<UUID> findEndedSessionsAwaitingReminder(@Param("since") LocalDateTime since, @Param("now") LocalDateTime now);
 
@@ -72,7 +72,7 @@ public interface SessionReportRepository extends JpaRepository<SessionReport, Lo
             + "AND COALESCE(si.concluded_at, si.end_time) >= :trackFrom AND COALESCE(si.concluded_at, si.end_time) <= :before "
             + "AND NOT EXISTS (SELECT 1 FROM session_reports sr WHERE sr.scheduled_instance_uuid = si.uuid) "
             + "AND EXISTS (SELECT 1 FROM class_enrollments ce WHERE ce.scheduled_instance_uuid = si.uuid "
-            + "AND UPPER(ce.status) IN ('ENROLLED', 'ATTENDED', 'ABSENT'))",
+            + "AND UPPER(ce.status) IN ('ENROLLED', 'ATTENDED', 'ABSENT', 'EXCUSED'))",
             nativeQuery = true)
     List<UUID> findEndedSessionsWithoutReport(@Param("trackFrom") LocalDateTime trackFrom, @Param("before") LocalDateTime before);
 }

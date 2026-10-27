@@ -7,7 +7,8 @@ import java.util.Locale;
 
 public enum CourseAttendanceStatus {
     ATTENDED("attended"),
-    ABSENT("absent");
+    ABSENT("absent"),
+    EXCUSED("excused");
 
     private final String value;
 

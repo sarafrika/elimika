@@ -26,7 +26,7 @@ import org.springframework.transaction.annotation.Transactional;
 @Transactional
 public class CourseReviewServiceImpl implements CourseReviewService {
 
-    private static final Set<String> REVIEW_ELIGIBLE_STATUSES = Set.of("ENROLLED", "ATTENDED", "ABSENT");
+    private static final Set<String> REVIEW_ELIGIBLE_STATUSES = Set.of("ENROLLED", "ATTENDED", "ABSENT", "EXCUSED");
 
     private final CourseReviewRepository courseReviewRepository;
     private final CourseRepository courseRepository;

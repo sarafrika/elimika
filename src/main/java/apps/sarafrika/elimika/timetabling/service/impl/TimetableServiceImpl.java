@@ -94,7 +94,7 @@ import java.util.stream.Collectors;
 public class TimetableServiceImpl implements TimetableService {
 
     private static final Set<EnrollmentStatus> MARKABLE_STATUSES =
-            EnumSet.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.ATTENDED, EnrollmentStatus.ABSENT);
+            EnumSet.of(EnrollmentStatus.ENROLLED, EnrollmentStatus.ATTENDED, EnrollmentStatus.ABSENT, EnrollmentStatus.EXCUSED);
 
     private final ScheduledInstanceRepository scheduledInstanceRepository;
     private final EnrollmentRepository enrollmentRepository;
@@ -671,7 +671,17 @@ public class TimetableServiceImpl implements TimetableService {
     @Override
     public void markAttendance(UUID enrollmentUuid, boolean attended, InstrumentCondition instrumentCondition,
                                String comment) {
-        log.debug("Marking attendance for enrollment: {} as: {}", enrollmentUuid, attended ? "ATTENDED" : "ABSENT");
+        markAttendance(enrollmentUuid, attended ? EnrollmentStatus.ATTENDED : EnrollmentStatus.ABSENT,
+                instrumentCondition, comment);
+    }
+
+    @Override
+    public void markAttendance(UUID enrollmentUuid, EnrollmentStatus status, InstrumentCondition instrumentCondition,
+                               String comment) {
+        log.debug("Marking attendance for enrollment: {} as: {}", enrollmentUuid, status);
+        if (status != EnrollmentStatus.ATTENDED && status != EnrollmentStatus.ABSENT && status != EnrollmentStatus.EXCUSED) {
+            throw new IllegalArgumentException("Attendance must be ATTENDED, ABSENT or EXCUSED");
+        }
 
         if (enrollmentUuid == null) {
             throw new IllegalArgumentException("Enrollment UUID cannot be null");
@@ -688,7 +698,7 @@ public class TimetableServiceImpl implements TimetableService {
                     + entity.getStatus().getValue().toLowerCase(Locale.ROOT));
         }
 
-        entity.setStatus(attended ? EnrollmentStatus.ATTENDED : EnrollmentStatus.ABSENT);
+        entity.setStatus(status);
         entity.setAttendanceMarkedAt(LocalDateTime.now(ZoneOffset.UTC));
         entity.setInstrumentCondition(instrumentCondition);
         entity.setAttendanceComment(comment == null || comment.isBlank() ? null : comment.trim());

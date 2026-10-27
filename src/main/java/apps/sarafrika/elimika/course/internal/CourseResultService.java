@@ -123,7 +123,7 @@ public class CourseResultService {
         }
         Set<UUID> graded = lineItemScoreRepository.findByEnrollmentUuidAndLineItemUuidIn(enrollmentUuid, requiredItems)
                 .stream()
-                .filter(score -> score.getPercentage() != null)
+                .filter(score -> score.getPercentage() != null || Boolean.TRUE.equals(score.getExcused()))
                 .map(CourseAssessmentLineItemScore::getLineItemUuid)
                 .collect(Collectors.toSet());
         rubricEvaluationRepository.findByEnrollmentUuidAndLineItemUuidIn(enrollmentUuid, requiredItems).stream()

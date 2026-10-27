@@ -170,6 +170,9 @@ public interface TimetableService {
     /** Marks or corrects attendance, with the instrument's condition and a comment as on the register. */
     void markAttendance(UUID enrollmentUuid, boolean attended, InstrumentCondition instrumentCondition, String comment);
 
+    /** Marks a seat ATTENDED, ABSENT or EXCUSED; excused sessions are left out of attendance. */
+    void markAttendance(UUID enrollmentUuid, EnrollmentStatus status, InstrumentCondition instrumentCondition, String comment);
+
     /** What was taught in a session: its recorded topic, remarks and duration. */
     SessionRecordDTO getSessionRecord(UUID instanceUuid);
 

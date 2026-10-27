@@ -467,7 +467,7 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
                        COUNT(*) FILTER (WHERE ce.status = 'ATTENDED') AS attended,
                        COUNT(*) FILTER (WHERE ce.status IN ('ATTENDED', 'ABSENT')) AS recorded,
                        CASE
-                           WHEN COUNT(*) FILTER (WHERE ce.status IN ('ENROLLED', 'ATTENDED', 'ABSENT')) > 0 THEN 'ENROLLED'
+                           WHEN COUNT(*) FILTER (WHERE ce.status IN ('ENROLLED', 'ATTENDED', 'ABSENT', 'EXCUSED')) > 0 THEN 'ENROLLED'
                            WHEN COUNT(*) FILTER (WHERE ce.status = 'RESERVED') > 0 THEN 'RESERVED'
                            WHEN COUNT(*) FILTER (WHERE ce.status = 'WAITLISTED') > 0 THEN 'WAITLISTED'
                            ELSE 'CANCELLED'

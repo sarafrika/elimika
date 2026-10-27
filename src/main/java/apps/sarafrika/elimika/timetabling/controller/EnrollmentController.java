@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.timetabling.controller;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
 import apps.sarafrika.elimika.timetabling.dto.AttendanceRequest;
+import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import apps.sarafrika.elimika.timetabling.spi.OrganisationStudentPerformanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrolmentTrendPointDTO;
 import apps.sarafrika.elimika.timetabling.spi.TodayGrowthPointDTO;
@@ -187,16 +188,18 @@ public class EnrollmentController {
     public ResponseEntity<ApiResponse<Void>> markAttendance(
             @Parameter(description = "UUID of the enrollment")
             @PathVariable UUID enrollmentUuid,
-            @Parameter(description = "Whether the student attended (true) or was absent (false)")
-            @RequestParam boolean attended,
+            @Parameter(description = "Whether the student attended (true) or was absent (false); ignored when attendance_status is set")
+            @RequestParam(required = false) Boolean attended,
+            @Parameter(description = "ATTENDED, ABSENT or EXCUSED; excused sessions are left out of attendance")
+            @RequestParam(name = "attendance_status", required = false) String attendanceStatus,
             @Parameter(description = "Condition of the learner's instrument: GOOD, NEEDS_REPAIR or NO_EQUIPMENT")
             @RequestParam(name = "instrument_condition", required = false) String instrumentCondition,
             @Parameter(description = "The instructor's comment on this learner for the session")
             @RequestParam(required = false) String comment) {
-        log.debug("REST request to mark attendance for enrollment: {} as: {}",
-            enrollmentUuid, attended ? "ATTENDED" : "ABSENT");
+        EnrollmentStatus status = new AttendanceRequest(attended, attendanceStatus, instrumentCondition, comment).resolvedStatus();
+        log.debug("REST request to mark attendance for enrollment: {} as: {}", enrollmentUuid, status);
 
-        timetableService.markAttendance(enrollmentUuid, attended, InstrumentCondition.fromValue(instrumentCondition),
+        timetableService.markAttendance(enrollmentUuid, status, InstrumentCondition.fromValue(instrumentCondition),
                 comment);
         return ResponseEntity.ok(ApiResponse.success(null, "Attendance marked successfully"));
     }
@@ -210,7 +213,7 @@ public class EnrollmentController {
     public ResponseEntity<ApiResponse<Void>> recordAttendance(
             @PathVariable UUID enrollmentUuid,
             @Valid @RequestBody AttendanceRequest request) {
-        timetableService.markAttendance(enrollmentUuid, request.attended(),
+        timetableService.markAttendance(enrollmentUuid, request.resolvedStatus(),
                 InstrumentCondition.fromValue(request.instrumentCondition()), request.comment());
         return ResponseEntity.ok(ApiResponse.success(null, "Attendance recorded"));
     }

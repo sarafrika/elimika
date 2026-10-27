@@ -32,7 +32,7 @@ import java.util.UUID;
 @Transactional
 public class ClassReviewServiceImpl implements ClassReviewService {
 
-    private static final Set<String> REVIEW_ELIGIBLE_STATUSES = Set.of("ENROLLED", "ATTENDED", "ABSENT");
+    private static final Set<String> REVIEW_ELIGIBLE_STATUSES = Set.of("ENROLLED", "ATTENDED", "ABSENT", "EXCUSED");
     /** Reviews sort by what the page shows; the reviewer's identity is never an ordering key. */
     private static final Set<String> REVIEW_SORTABLE_PROPERTIES = Set.of("createdDate", "lastModifiedDate", "rating");
 

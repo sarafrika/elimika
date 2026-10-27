@@ -130,6 +130,7 @@ public class CourseProgressReportBuilder {
         String attendance = session == null ? null : switch (Optional.ofNullable(session.attendanceStatus()).orElse("")) {
             case "ATTENDED", "attended" -> "ATTENDED";
             case "ABSENT", "absent" -> "ABSENT";
+            case "EXCUSED", "excused" -> "EXCUSED";
             default -> null;
         };
         Long minutes = session != null && session.startTime() != null && session.endTime() != null

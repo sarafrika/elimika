@@ -602,8 +602,8 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
             if (attendanceLineItem == null) {
                 return;
             }
-            // Attending any session of a lesson counts, so a later absence never undoes it.
-            if (attendanceStatus == CourseAttendanceStatus.ABSENT && attendedLesson(attendanceLineItem, enrollment.getUuid())) {
+            // Attending any session of a lesson counts, so a later absence or excusal never undoes it.
+            if (attendanceStatus != CourseAttendanceStatus.ATTENDED && attendedLesson(attendanceLineItem, enrollment.getUuid())) {
                 return;
             }
         } else {
@@ -613,6 +613,13 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
                     classTitle,
                     markedAt
             );
+        }
+
+        if (attendanceStatus == CourseAttendanceStatus.EXCUSED) {
+            markExcused(attendanceLineItem, enrollment.getUuid(), markedAt);
+            recalculateAssessmentForEnrollment(enrollment.getUuid(), attendanceAssessment);
+            recalculateCourseFinalGrade(courseUuid, enrollment.getUuid());
+            return;
         }
 
         UUID effectiveRubricUuid = resolveEffectiveRubricUuid(attendanceAssessment, attendanceLineItem);
@@ -684,6 +691,26 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         recalculateCourseFinalGrade(enrollment.getCourseUuid(), enrollment.getUuid());
     }
 
+    /** Settles the cell without a score: excused sessions are left out of the average, never scored zero. */
+    private void markExcused(CourseAssessmentLineItem lineItem, UUID enrollmentUuid, LocalDateTime markedAt) {
+        rubricEvaluationRepository.findByLineItemUuidAndEnrollmentUuid(lineItem.getUuid(), enrollmentUuid)
+                .filter(evaluation -> evaluation.getStatus() != CourseAssessmentLineItemRubricEvaluationStatus.COMPLETED)
+                .ifPresent(rubricEvaluationRepository::delete);
+        CourseAssessmentLineItemScore score = lineItemScoreRepository
+                .findByLineItemUuidAndEnrollmentUuid(lineItem.getUuid(), enrollmentUuid)
+                .orElseGet(CourseAssessmentLineItemScore::new);
+        score.setLineItemUuid(lineItem.getUuid());
+        score.setEnrollmentUuid(enrollmentUuid);
+        score.setScore(null);
+        score.setMaxScore(null);
+        score.setPercentage(null);
+        score.setExcused(Boolean.TRUE);
+        score.setComments("Excused: not counted toward attendance");
+        score.setGradedAt(markedAt != null ? markedAt : LocalDateTime.now(ZoneOffset.UTC));
+        score.setGradedByUuid(null);
+        lineItemScoreRepository.save(score);
+    }
+
     private CourseAssessmentLineItemScore saveLineItemScore(
             CourseAssessmentLineItem lineItem,
             UUID enrollmentUuid,
@@ -703,6 +730,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         score.setComments(comments);
         score.setGradedAt(gradedAt != null ? gradedAt : LocalDateTime.now(ZoneOffset.UTC));
         score.setGradedByUuid(gradedByUuid);
+        score.setExcused(Boolean.FALSE);
         applyScoreValues(score, scoreValue, maxScoreValue, lineItem.getMaxScore());
         CourseAssessmentLineItemScore saved = lineItemScoreRepository.save(score);
         gradeRevisionRecorder.record(lineItem, saved, criteria);

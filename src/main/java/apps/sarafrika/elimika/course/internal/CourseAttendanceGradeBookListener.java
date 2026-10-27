@@ -42,6 +42,7 @@ public class CourseAttendanceGradeBookListener {
         return switch (enrollmentStatus.toUpperCase(Locale.ROOT)) {
             case "ATTENDED" -> CourseAttendanceStatus.ATTENDED;
             case "ABSENT" -> CourseAttendanceStatus.ABSENT;
+            case "EXCUSED" -> CourseAttendanceStatus.EXCUSED;
             default -> null;
         };
     }

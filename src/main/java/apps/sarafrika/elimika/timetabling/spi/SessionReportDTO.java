@@ -53,7 +53,7 @@ public record SessionReportDTO(
             @JsonProperty("student_uuid") UUID studentUuid,
             @JsonProperty("class_enrollment_uuid") UUID classEnrollmentUuid,
             @JsonProperty("course_enrollment_uuid") UUID courseEnrollmentUuid,
-            @Schema(description = "ATTENDED, ABSENT or NOT_MARKED")
+            @Schema(description = "ATTENDED, ABSENT, EXCUSED or NOT_MARKED")
             @JsonProperty("attendance") String attendance,
             @JsonProperty("instrument_condition") String instrumentCondition,
             @JsonProperty("attendance_comment") String attendanceComment,

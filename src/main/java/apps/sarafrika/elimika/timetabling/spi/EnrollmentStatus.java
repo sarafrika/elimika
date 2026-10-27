@@ -23,6 +23,7 @@ public enum EnrollmentStatus {
     WAITLISTED("WAITLISTED", "Student is on the waitlist"),
     ATTENDED("ATTENDED", "Student attended the class"),
     ABSENT("ABSENT", "Student was absent"),
+    EXCUSED("EXCUSED", "Student was excused; the session is left out of attendance"),
     CANCELLED("CANCELLED", "Enrollment was cancelled");
     
     private final String value;
