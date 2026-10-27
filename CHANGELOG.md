@@ -1,3 +1,18 @@
+# [2.187.0](https://github.com/sarafrika/elimika/compare/v2.186.0...v2.187.0) (2026-10-27)
+
+
+### Features
+
+* **course:** add live programme reports, instructor remarks and class programme progress ([66389a8](https://github.com/sarafrika/elimika/commit/66389a88ed3563de16e39902487f074457f27864))
+* **course:** let programme creators set target skills and link rubric criteria to them ([1490b66](https://github.com/sarafrika/elimika/commit/1490b666d7fcb4666fb97b5acd0a4c491da84424))
+* **course:** list the programmes whose report the caller may open for a learner ([0768d72](https://github.com/sarafrika/elimika/commit/0768d722d5a646b47ed5441b881281f477ca1aa1))
+* **course:** record append-only skill evidence from graded rubric criteria and level learners on the latest ([433a831](https://github.com/sarafrika/elimika/commit/433a8319eecd3c67d746846a9147a065df37a1ac))
+* **course:** tell report readers whether they may add a programme remark ([24be3c9](https://github.com/sarafrika/elimika/commit/24be3c9fbbcc8b82f07a7b1d82de701c4e1c3463))
+* **course:** weight mandatory programme courses and pass programmes on mark plus all mandatory passed ([1af8e0c](https://github.com/sarafrika/elimika/commit/1af8e0c3a6307635112245219a488b88e5d6c110))
+* **profile:** add achieved programme skills to the learner's wallet as verified ([9788f6f](https://github.com/sarafrika/elimika/commit/9788f6fc51ef6f6d76e673a75165d69a3a31c964))
+* **skills:** add the admin-edited platform skill level scale ([f2c7ba5](https://github.com/sarafrika/elimika/commit/f2c7ba5410721168526109794df07d9a44273d0f))
+* **timetabling:** add excused attendance that is left out of the gradebook attendance average ([d6cbcc7](https://github.com/sarafrika/elimika/commit/d6cbcc71b6a09496442f18e04554a72b722d7cf0))
+
 # [2.186.0](https://github.com/sarafrika/elimika/compare/v2.185.0...v2.186.0) (2026-10-23)
 
 
