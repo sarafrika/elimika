@@ -21,7 +21,6 @@ public interface CourseAssessmentRepository extends JpaRepository<CourseAssessme
 
     List<CourseAssessment> findByCourseUuidOrderByCreatedDateAsc(UUID courseUuid);
 
-    List<CourseAssessment> findByProgramAssessmentUuidAndActiveTrue(UUID programAssessmentUuid);
 
     List<CourseAssessment> findByCourseUuidAndSyncClassAttendanceTrueOrderByCreatedDateAsc(UUID courseUuid);
 

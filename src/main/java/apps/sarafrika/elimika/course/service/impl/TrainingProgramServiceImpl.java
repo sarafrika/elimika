@@ -5,7 +5,6 @@ import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.dto.TrainingProgramDTO;
 import apps.sarafrika.elimika.course.factory.CourseFactory;
-import apps.sarafrika.elimika.course.service.ProgramAssessmentService;
 import apps.sarafrika.elimika.course.factory.TrainingProgramFactory;
 import apps.sarafrika.elimika.course.internal.search.CatalogueSearchRouter;
 import apps.sarafrika.elimika.course.internal.search.CatalogueSearchScopes;
@@ -66,7 +65,6 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     private final CourseSecuritySpi courseSecurityService;
     private final CatalogueSearchRouter catalogueSearchRouter;
     private final MediaStorageService mediaStorageService;
-    private final ProgramAssessmentService programAssessmentService;
     private final StorageProperties storageProperties;
 
     /** How program list params map onto the {@code programs} index. */
@@ -416,7 +414,6 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     @Override
     public TrainingProgramDTO publishProgram(UUID programUuid) {
         TrainingProgram program = findProgram(programUuid);
-        programAssessmentService.enforceFullWeight(programUuid);
 
         program.setStatus(ContentStatus.PUBLISHED);
         program.setIsPublished(true);

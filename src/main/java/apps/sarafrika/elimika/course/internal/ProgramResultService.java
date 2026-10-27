@@ -1,15 +1,9 @@
 package apps.sarafrika.elimika.course.internal;
 
-import apps.sarafrika.elimika.course.model.CourseAssessment;
-import apps.sarafrika.elimika.course.model.CourseAssessmentScore;
 import apps.sarafrika.elimika.course.model.CourseEnrollment;
-import apps.sarafrika.elimika.course.model.ProgramAssessment;
 import apps.sarafrika.elimika.course.model.ProgramCourse;
 import apps.sarafrika.elimika.course.model.ProgramEnrollment;
-import apps.sarafrika.elimika.course.repository.CourseAssessmentRepository;
-import apps.sarafrika.elimika.course.repository.CourseAssessmentScoreRepository;
 import apps.sarafrika.elimika.course.repository.CourseEnrollmentRepository;
-import apps.sarafrika.elimika.course.repository.ProgramAssessmentRepository;
 import apps.sarafrika.elimika.course.repository.ProgramCourseRepository;
 import apps.sarafrika.elimika.course.repository.ProgramEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
@@ -40,11 +34,8 @@ public class ProgramResultService {
 
     private final ProgramCourseRepository programCourseRepository;
     private final ProgramEnrollmentRepository programEnrollmentRepository;
-    private final ProgramAssessmentRepository programAssessmentRepository;
     private final TrainingProgramRepository programRepository;
     private final CourseEnrollmentRepository courseEnrollmentRepository;
-    private final CourseAssessmentRepository courseAssessmentRepository;
-    private final CourseAssessmentScoreRepository courseAssessmentScoreRepository;
 
     @EventListener
     public void onCourseGradeRecalculated(CourseGradeRecalculatedEvent event) {
@@ -72,36 +63,9 @@ public class ProgramResultService {
         programEnrollmentRepository.save(enrollment);
     }
 
-    /** Program components average their linked course scores; without components, course final grades are averaged. */
+    /** Interim until weighted programme courses land: the average of decided course final grades. */
     private BigDecimal finalGrade(UUID programUuid, Map<UUID, CourseEnrollment> courseEnrollments) {
-        List<ProgramAssessment> components = programAssessmentRepository.findByProgramUuidOrderByCreatedDateAsc(programUuid)
-                .stream().filter(component -> !Boolean.FALSE.equals(component.getActive())).toList();
-        if (components.isEmpty()) {
-            return average(courseEnrollments.values().stream().map(CourseEnrollment::getFinalGrade).toList());
-        }
-        BigDecimal weighted = BigDecimal.ZERO;
-        BigDecimal weights = BigDecimal.ZERO;
-        for (ProgramAssessment component : components) {
-            BigDecimal score = average(courseAssessmentRepository.findByProgramAssessmentUuidAndActiveTrue(component.getUuid())
-                    .stream()
-                    .map(linked -> linkedScore(linked, courseEnrollments))
-                    .toList());
-            if (score != null) {
-                weighted = weighted.add(score.multiply(component.getWeightPercentage()));
-                weights = weights.add(component.getWeightPercentage());
-            }
-        }
-        return weights.signum() == 0 ? null : weighted.divide(weights, SCALE, RoundingMode.HALF_UP);
-    }
-
-    private BigDecimal linkedScore(CourseAssessment linked, Map<UUID, CourseEnrollment> courseEnrollments) {
-        CourseEnrollment courseEnrollment = courseEnrollments.get(linked.getCourseUuid());
-        if (courseEnrollment == null) {
-            return null;
-        }
-        return courseAssessmentScoreRepository.findByEnrollmentUuidAndAssessmentUuid(courseEnrollment.getUuid(), linked.getUuid())
-                .map(CourseAssessmentScore::getPercentage)
-                .orElse(null);
+        return average(courseEnrollments.values().stream().map(CourseEnrollment::getFinalGrade).toList());
     }
 
     private CourseResultStatus programResult(ProgramEnrollment enrollment, List<ProgramCourse> required,
