@@ -57,6 +57,7 @@ public class TrainingProgramController {
 
     private final TrainingProgramService trainingProgramService;
     private final ProgramCourseService programCourseService;
+    private final apps.sarafrika.elimika.course.service.ProgramSkillService programSkillService;
     private final ProgramEnrollmentService programEnrollmentService;
     private final ProgramRequirementService programRequirementService;
     private final CertificateService certificateService;
@@ -390,6 +391,36 @@ public class TrainingProgramController {
             @Valid @RequestBody List<@Valid ProgramCourseWeightDTO> weights) {
         return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
                 programCourseService.updateCourseWeights(programUuid, weights), "Programme course weights saved"));
+    }
+
+    @Operation(operationId = "getProgramSkills", summary = "List a programme's target skills and their linked evidence")
+    @GetMapping("/{programUuid}/skills")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<ProgramTargetSkillDTO>>> getProgramSkills(
+            @PathVariable UUID programUuid) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                programSkillService.getSkills(programUuid), "Programme skills retrieved"));
+    }
+
+    @Operation(operationId = "replaceProgramSkills", summary = "Set a programme's target skills",
+            description = "Replaces the target skills in display order. A removed skill loses its linked evidence.")
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#programUuid) or @domainSecurityService.isPlatformAdmin()")
+    @PutMapping("/{programUuid}/skills")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<ProgramTargetSkillDTO>>> replaceProgramSkills(
+            @PathVariable UUID programUuid, @Valid @RequestBody ProgramTargetSkillsRequest request) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                programSkillService.replaceTargetSkills(programUuid, request.skillUuids()), "Programme skills saved"));
+    }
+
+    @Operation(operationId = "replaceProgramSkillMappings", summary = "Link graded evidence to a programme skill",
+            description = "Replaces the skill's links. Each link is a programme course's assessment, optionally narrowed "
+                    + "to one rubric criterion; shares for one assessment total 100%.")
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#programUuid) or @domainSecurityService.isPlatformAdmin()")
+    @PutMapping("/{programUuid}/skills/{skillUuid}/mappings")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<ProgramTargetSkillDTO>> replaceProgramSkillMappings(
+            @PathVariable UUID programUuid, @PathVariable UUID skillUuid,
+            @Valid @RequestBody List<@Valid ProgramSkillMappingDTO> mappings) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                programSkillService.replaceMappings(programUuid, skillUuid, mappings), "Skill evidence links saved"));
     }
 
     @Operation(

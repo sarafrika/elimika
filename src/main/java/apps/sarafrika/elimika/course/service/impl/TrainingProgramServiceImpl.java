@@ -16,6 +16,7 @@ import apps.sarafrika.elimika.course.repository.ProgramEnrollmentRepository;
 import apps.sarafrika.elimika.course.repository.TrainingProgramRepository;
 import apps.sarafrika.elimika.course.service.ContentModerationHistoryService;
 import apps.sarafrika.elimika.course.service.ProgramCourseService;
+import apps.sarafrika.elimika.course.service.ProgramSkillService;
 import apps.sarafrika.elimika.course.service.TrainingProgramService;
 import apps.sarafrika.elimika.course.spi.CourseSecuritySpi;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
@@ -59,6 +60,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     private final ProgramEnrollmentRepository programEnrollmentRepository;
     private final ProgramCourseRepository programCourseRepository;
     private final ProgramCourseService programCourseService;
+    private final ProgramSkillService programSkillService;
     private final CourseRepository courseRepository;
     private final ApplicationEventPublisher eventPublisher;
     private final CourseCreatorLookupService courseCreatorLookupService;
@@ -417,6 +419,7 @@ public class TrainingProgramServiceImpl implements TrainingProgramService {
     public TrainingProgramDTO publishProgram(UUID programUuid) {
         TrainingProgram program = findProgram(programUuid);
         programCourseService.enforceCompleteWeights(programUuid);
+        programSkillService.enforceSkillsMapped(programUuid);
 
         program.setStatus(ContentStatus.PUBLISHED);
         program.setIsPublished(true);

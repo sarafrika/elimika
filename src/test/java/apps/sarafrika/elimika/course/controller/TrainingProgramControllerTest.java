@@ -58,6 +58,8 @@ class TrainingProgramControllerTest {
     private apps.sarafrika.elimika.course.service.ProgramTrainingRateUpdateService programTrainingRateUpdateService;
     @Mock
     private ProgramReviewService programReviewService;
+    @Mock
+    private apps.sarafrika.elimika.course.service.ProgramSkillService programSkillService;
 
     private MockMvc mockMvc;
     private ObjectMapper objectMapper;
@@ -67,6 +69,7 @@ class TrainingProgramControllerTest {
         TrainingProgramController controller = new TrainingProgramController(
                 trainingProgramService,
                 programCourseService,
+                programSkillService,
                 programEnrollmentService,
                 programRequirementService,
                 certificateService,
