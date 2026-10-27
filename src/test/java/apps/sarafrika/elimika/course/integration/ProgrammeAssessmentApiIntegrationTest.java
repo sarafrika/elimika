@@ -182,6 +182,20 @@ class ProgrammeAssessmentApiIntegrationTest {
     }
 
     @Test
+    @DisplayName("a learner's programme list shows only programmes whose report the caller may open")
+    void programmeListFollowsReadRules() throws Exception {
+        for (String reader : new String[]{STUDENT, PARENT, TEACHER}) {
+            mockMvc.perform(get("/api/v1/programs/students/" + studentUuid + "/reports").with(jwt(reader)))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.length()").value(1))
+                    .andExpect(jsonPath("$.data[0].program_title").value("Foundation Music Certificate"));
+        }
+        mockMvc.perform(get("/api/v1/programs/students/" + studentUuid + "/reports").with(jwt(OUTSIDER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.length()").value(0));
+    }
+
+    @Test
     @DisplayName("only the class's default instructor writes remarks, and the learner reads them")
     void remarksAreWrittenByTheDefaultInstructor() throws Exception {
         String remark = "{\"strengths\":\"<p>Strong left hand</p>\",\"recommendations\":\"<p>Metronome daily</p>\",\"next_review_date\":\"2026-11-30\"}";

@@ -3,6 +3,8 @@ package apps.sarafrika.elimika.course.controller;
 import apps.sarafrika.elimika.course.dto.ClassProgrammeProgressDTO;
 import apps.sarafrika.elimika.course.dto.ProgramRemarkDTO;
 import apps.sarafrika.elimika.course.dto.ProgramReportDTO;
+import apps.sarafrika.elimika.course.dto.ProgramReportSummaryDTO;
+import apps.sarafrika.elimika.course.internal.ProgramReportAccess;
 import apps.sarafrika.elimika.course.service.ProgramReportService;
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
@@ -36,6 +38,19 @@ public class ProgramReportController {
 
     private final ProgramReportService programReportService;
     private final DomainSecurityService domainSecurityService;
+    private final ProgramReportAccess programReportAccess;
+
+    @Operation(operationId = "listStudentProgramReports", summary = "List the programmes whose reports the caller may open for a learner",
+            description = "One row per programme the learner is enrolled in, limited to programmes whose report the caller can read.")
+    @PreAuthorize("isAuthenticated()")
+    @GetMapping("/api/v1/programs/students/{studentUuid}/reports")
+    public ResponseEntity<ApiResponse<List<ProgramReportSummaryDTO>>> listForStudent(@PathVariable UUID studentUuid) {
+        boolean admin = domainSecurityService.isPlatformAdmin();
+        List<ProgramReportSummaryDTO> readable = programReportService.listForStudent(studentUuid).stream()
+                .filter(summary -> admin || programReportAccess.canRead(summary.programUuid(), studentUuid))
+                .toList();
+        return ResponseEntity.ok(ApiResponse.success(readable, "Programme reports listed"));
+    }
 
     @Operation(operationId = "getProgramReport", summary = "Get a learner's programme report",
             description = "Programme mark (provisional until every mandatory course is decided), pass checks, course rows with "

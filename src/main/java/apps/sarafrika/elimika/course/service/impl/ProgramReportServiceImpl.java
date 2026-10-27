@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.course.service.impl;
 import apps.sarafrika.elimika.course.dto.ClassProgrammeProgressDTO;
 import apps.sarafrika.elimika.course.dto.ProgramRemarkDTO;
 import apps.sarafrika.elimika.course.dto.ProgramReportDTO;
+import apps.sarafrika.elimika.course.dto.ProgramReportSummaryDTO;
 import apps.sarafrika.elimika.course.dto.ProgramTargetSkillDTO;
 import apps.sarafrika.elimika.course.internal.GradeBands;
 import apps.sarafrika.elimika.course.model.Course;
@@ -71,6 +72,19 @@ public class ProgramReportServiceImpl implements ProgramReportService {
     private final ProgramSkillService programSkillService;
     private final EnrollmentLookupService enrollmentLookupService;
     private final ClassDefinitionLookupService classDefinitionLookupService;
+
+    @Override
+    public List<ProgramReportSummaryDTO> listForStudent(UUID studentUuid) {
+        Set<UUID> seen = new java.util.HashSet<>();
+        return programEnrollmentRepository.findByStudentUuidOrderByCreatedDateDesc(studentUuid).stream()
+                .filter(enrollment -> seen.add(enrollment.getProgramUuid()))
+                .map(enrollment -> new ProgramReportSummaryDTO(enrollment.getProgramUuid(),
+                        programRepository.findByUuid(enrollment.getProgramUuid()).map(TrainingProgram::getTitle).orElse(null),
+                        enrollment.getUuid(), enrollment.getFinalGrade(),
+                        !Boolean.FALSE.equals(enrollment.getFinalGradeProvisional()),
+                        enrollment.getResultStatus() == null ? CourseResultStatus.IN_PROGRESS.name() : enrollment.getResultStatus().name()))
+                .toList();
+    }
 
     @Override
     public ProgramReportDTO getReport(UUID programUuid, UUID studentUuid, LocalDate from, LocalDate to) {
