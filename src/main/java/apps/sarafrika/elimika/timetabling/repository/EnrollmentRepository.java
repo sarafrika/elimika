@@ -175,6 +175,13 @@ public interface EnrollmentRepository extends JpaRepository<Enrollment, Long>, J
            nativeQuery = true)
     List<UUID> findDistinctStudentUuidsTaughtByInstructor(@Param("instructorUuid") UUID instructorUuid);
 
+    @Query(value = "SELECT DISTINCT ce.student_uuid FROM class_enrollments ce " +
+                   "JOIN scheduled_instances si ON ce.scheduled_instance_uuid = si.uuid " +
+                   "WHERE si.class_definition_uuid = :classDefinitionUuid " +
+                   "AND UPPER(ce.status) NOT IN ('CANCELLED', 'WAITLISTED')",
+           nativeQuery = true)
+    List<UUID> findDistinctStudentUuidsOfClassDefinition(@Param("classDefinitionUuid") UUID classDefinitionUuid);
+
     /** The learner's live seats on classes that teach this course, directly or through a programme. */
     String LEARNER_CLASSES_FOR_COURSE =
             "FROM class_enrollments ce " +

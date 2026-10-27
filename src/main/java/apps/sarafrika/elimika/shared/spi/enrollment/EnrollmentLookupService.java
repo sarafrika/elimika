@@ -154,4 +154,7 @@ public interface EnrollmentLookupService {
 
     /** The learner's sessions for this course, oldest first, with the session record and their attendance. */
     List<LearnerSessionSnapshot> findSessionsOfStudentForCourse(UUID studentUuid, UUID courseUuid);
+
+    /** Learners holding a live (not cancelled or waitlisted) seat on any session of the class. */
+    Set<UUID> findStudentUuidsOfClassDefinition(UUID classDefinitionUuid);
 }

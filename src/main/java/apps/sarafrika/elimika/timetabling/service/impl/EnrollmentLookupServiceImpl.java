@@ -131,6 +131,14 @@ public class EnrollmentLookupServiceImpl implements EnrollmentLookupService {
     }
 
     @Override
+    public Set<UUID> findStudentUuidsOfClassDefinition(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            return Set.of();
+        }
+        return new LinkedHashSet<>(enrollmentRepository.findDistinctStudentUuidsOfClassDefinition(classDefinitionUuid));
+    }
+
+    @Override
     public boolean isDefaultInstructorOfStudentForCourse(UUID instructorUuid, UUID studentUuid, UUID courseUuid) {
         if (instructorUuid == null || studentUuid == null || courseUuid == null) {
             return false;
