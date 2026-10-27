@@ -196,7 +196,7 @@ public abstract class ProfileSectionSupport<E extends UserOwnedEntity, D> implem
         return item;
     }
 
-    private void publish(UUID userUuid) {
+    protected void publish(UUID userUuid) {
         eventPublisher.publishEvent(new ProfessionalProfileChangedEvent(userUuid, section, null));
     }
 

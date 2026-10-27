@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.profile.spi;
 
+import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;
 import java.time.LocalDate;
 import java.util.Collection;
 import java.util.Map;
@@ -23,6 +24,10 @@ public interface ProfessionalProfileService {
     ProfileSummaryDTO getSummary(UUID userUuid);
 
     ProfileSectionService<UserSkillDTO> skills();
+
+    /** Adds or verifies a wallet skill earned through programme grading; the learner's own entry is kept and verified. */
+    void recordVerifiedSkill(UUID userUuid, UUID skillUuid, String skillName, ProficiencyLevel level,
+                             String evidence, UUID sourceProgramUuid);
 
     ProfileSectionService<UserEducationDTO> education();
 

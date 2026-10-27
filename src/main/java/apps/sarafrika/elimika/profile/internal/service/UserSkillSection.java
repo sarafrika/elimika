@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.profile.internal.model.UserSkill;
 import apps.sarafrika.elimika.profile.internal.repository.UserSkillRepository;
 import apps.sarafrika.elimika.profile.spi.ProfileSection;
 import apps.sarafrika.elimika.profile.spi.UserSkillDTO;
+import apps.sarafrika.elimika.profile.spi.WalletVerificationStatus;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;
 import apps.sarafrika.elimika.skills.spi.SkillLookupService;
@@ -60,6 +61,32 @@ public class UserSkillSection extends ProfileSectionSupport<UserSkill, UserSkill
                 skill.getProficiencyLevel(), skill.getEvidence(), skill.getLastAssessedOn(),
                 skill.getVerificationStatus(), skill.getVerifiedAt(), skill.getVerificationNotes(),
                 skill.getCreatedDate(), skill.getCreatedBy(), skill.getLastModifiedDate(), skill.getLastModifiedBy());
+    }
+
+    /** Upserts the user's entry for this taxonomy skill and verifies it, naming the programme as its source. */
+    public void recordVerified(java.util.UUID userUuid, java.util.UUID skillUuid, String skillName, ProficiencyLevel level,
+                               String evidence, java.util.UUID sourceProgramUuid) {
+        String nameKey = key(skillName);
+        UserSkill skill = repository.findByUserUuidOrderByIdAsc(userUuid).stream()
+                .filter(existing -> skillUuid.equals(existing.getSkillUuid()) || nameKey.equals(naturalKeyOf(existing)))
+                .findFirst()
+                .orElseGet(() -> {
+                    UserSkill created = newEntity();
+                    created.setUserUuid(userUuid);
+                    created.setSkillName(skillName);
+                    return created;
+                });
+        skill.setSkillUuid(skillUuid);
+        if (skill.getProficiencyLevel() == null || skill.getProficiencyLevel().ordinal() < level.ordinal()) {
+            skill.setProficiencyLevel(level);
+        }
+        skill.setEvidence(evidence);
+        skill.setLastAssessedOn(java.time.LocalDate.now(java.time.ZoneOffset.UTC));
+        skill.setSourceProgramUuid(sourceProgramUuid);
+        recordVerdict(skill, WalletVerificationStatus.VERIFIED, "Verified by programme grading", null,
+                java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
+        repository.save(skill);
+        publish(userUuid);
     }
 
     private java.util.UUID resolveTaxonomy(String name) {

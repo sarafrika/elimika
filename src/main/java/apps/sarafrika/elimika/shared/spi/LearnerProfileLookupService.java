@@ -15,6 +15,9 @@ public interface LearnerProfileLookupService {
     /** The student profile of a user, if they have one. */
     Optional<UUID> findStudentUuidByUserUuid(UUID userUuid);
 
+    /** The account behind a student profile. */
+    Optional<UUID> findUserUuidByStudentUuid(UUID studentUuid);
+
     /**
      * The learner's age in whole years on {@code asOf}. Empty when the student is unknown or has no date
      * of birth on record. Only the age is returned; the date of birth stays in tenancy.

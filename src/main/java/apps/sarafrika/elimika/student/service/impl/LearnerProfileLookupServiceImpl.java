@@ -44,6 +44,14 @@ public class LearnerProfileLookupServiceImpl implements LearnerProfileLookupServ
     }
 
     @Override
+    public Optional<UUID> findUserUuidByStudentUuid(UUID studentUuid) {
+        if (studentUuid == null) {
+            return Optional.empty();
+        }
+        return studentRepository.findByUuid(studentUuid).map(Student::getUserUuid);
+    }
+
+    @Override
     public OptionalInt findLearnerAge(UUID studentUuid, LocalDate asOf) {
         if (studentUuid == null || asOf == null) {
             return OptionalInt.empty();

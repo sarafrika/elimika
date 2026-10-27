@@ -53,4 +53,7 @@ public class UserSkill extends UserOwnedEntity implements VerifiableItem {
 
     @Column(name = "verification_notes")
     private String verificationNotes;
+
+    @Column(name = "source_program_uuid")
+    private UUID sourceProgramUuid;
 }

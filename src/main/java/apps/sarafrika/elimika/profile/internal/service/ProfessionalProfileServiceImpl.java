@@ -28,6 +28,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
+import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
@@ -127,6 +128,13 @@ public class ProfessionalProfileServiceImpl implements ProfessionalProfileServic
         int completed = (basics.isBasicsComplete() ? 1 : 0)
                 + (int) counts.values().stream().filter(count -> count > 0).count();
         return new ProfileSummaryDTO(userUuid, basics, counts, verified, completed, total, completed * 100 / total);
+    }
+
+    @Override
+    @Transactional
+    public void recordVerifiedSkill(UUID userUuid, UUID skillUuid, String skillName, ProficiencyLevel level,
+                                    String evidence, UUID sourceProgramUuid) {
+        skillSection.recordVerified(userUuid, skillUuid, skillName, level, evidence, sourceProgramUuid);
     }
 
     @Override

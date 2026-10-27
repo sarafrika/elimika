@@ -186,6 +186,7 @@ public class ProgramSkillEvidenceRecorder {
 
     private void apply(LearnerSkillLevel level, SkillLevelSummary summary, LocalDateTime gradedAt) {
         boolean wasAchieved = Boolean.TRUE.equals(level.getCountsAsAchieved());
+        Integer previousRank = level.getLevelRank();
         level.setLevelName(summary.name());
         level.setLevelRank(summary.rank());
         level.setCountsAsAchieved(summary.countsAsAchieved());
@@ -194,7 +195,7 @@ public class ProgramSkillEvidenceRecorder {
             level.setFirstAchievedAt(gradedAt);
         }
         LearnerSkillLevel saved = levelRepository.save(level);
-        if (summary.countsAsAchieved() && !wasAchieved) {
+        if (summary.countsAsAchieved() && (!wasAchieved || !Integer.valueOf(summary.rank()).equals(previousRank))) {
             log.info("Learner {} achieved skill {} in programme {}", saved.getStudentUuid(), saved.getSkillUuid(), saved.getProgramUuid());
             eventPublisher.publishEvent(new LearnerSkillAchievedEvent(saved.getStudentUuid(), saved.getProgramUuid(),
                     saved.getSkillUuid(), saved.getLevelName(), saved.getLevelRank(), saved.getEvidenceUuid()));
