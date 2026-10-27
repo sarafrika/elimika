@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.course.service.impl;
 
 import apps.sarafrika.elimika.course.dto.CourseEnrollmentFeedbackDTO;
 import apps.sarafrika.elimika.course.dto.CourseGradeBandDTO;
+import apps.sarafrika.elimika.course.internal.LineItemGradedEvent;
 import apps.sarafrika.elimika.course.internal.GradeBands;
 import apps.sarafrika.elimika.course.model.CourseEnrollmentFeedback;
 import apps.sarafrika.elimika.course.model.CourseGradeBand;
@@ -118,6 +119,7 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
     private final CourseGradeBandRepository gradeBandRepository;
     private final CourseEnrollmentFeedbackRepository enrollmentFeedbackRepository;
     private final ObjectProvider<SessionReportLockLookup> sessionReportLocks;
+    private final org.springframework.context.ApplicationEventPublisher eventPublisher;
 
     @Override
     public CourseAssessmentLineItemDTO createLineItem(UUID courseUuid, UUID assessmentUuid, CourseAssessmentLineItemDTO lineItemDTO) {
@@ -734,6 +736,10 @@ public class CourseGradeBookServiceImpl implements CourseGradeBookService {
         applyScoreValues(score, scoreValue, maxScoreValue, lineItem.getMaxScore());
         CourseAssessmentLineItemScore saved = lineItemScoreRepository.save(score);
         gradeRevisionRecorder.record(lineItem, saved, criteria);
+        if (saved.getPercentage() != null) {
+            eventPublisher.publishEvent(new LineItemGradedEvent(enrollmentUuid, lineItem.getUuid(),
+                    lineItem.getCourseAssessmentUuid(), saved.getGradedAt()));
+        }
         return saved;
     }
 

@@ -153,7 +153,8 @@ class CourseGradeBookServiceImplTest {
                 gradeRevisionRepository,
                 gradeBandRepository,
                 enrollmentFeedbackRepository,
-                noSessionReportLocks()
+                noSessionReportLocks(),
+                event -> { }
         );
     }
 
