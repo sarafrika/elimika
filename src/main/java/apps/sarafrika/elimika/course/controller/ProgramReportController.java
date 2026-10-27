@@ -62,8 +62,9 @@ public class ProgramReportController {
             @PathVariable UUID programUuid, @PathVariable UUID studentUuid,
             @Parameter(description = "First day of the period (UTC)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @Parameter(description = "Last day of the period (UTC)") @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
-        return ResponseEntity.ok(ApiResponse.success(programReportService.getReport(programUuid, studentUuid, from, to),
-                "Programme report retrieved"));
+        ProgramReportDTO report = programReportService.getReport(programUuid, studentUuid, from, to)
+                .withCanAddRemarks(programReportAccess.canWriteRemarks(programUuid, studentUuid));
+        return ResponseEntity.ok(ApiResponse.success(report, "Programme report retrieved"));
     }
 
     @Operation(operationId = "getProgramRemarks", summary = "List a learner's programme remarks", description = "Newest first.")

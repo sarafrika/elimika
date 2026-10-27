@@ -100,7 +100,8 @@ public class ProgramReportServiceImpl implements ProgramReportService {
         return new ProgramReportDTO(programUuid, program.getTitle(), program.getProgramCode(), enrollment.getUuid(), studentUuid,
                 enrollment.getFinalGrade(), !Boolean.FALSE.equals(enrollment.getFinalGradeProvisional()), program.getPassMark(),
                 enrollment.getResultStatus() == null ? CourseResultStatus.IN_PROGRESS.name() : enrollment.getResultStatus().name(),
-                required.size(), passed, from, to, courses, skillRows(programUuid, studentUuid), getRemarks(programUuid, studentUuid));
+                required.size(), passed, from, to, courses, skillRows(programUuid, studentUuid), getRemarks(programUuid, studentUuid),
+                false);
     }
 
     @Override

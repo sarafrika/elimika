@@ -203,6 +203,8 @@ class ProgrammeAssessmentApiIntegrationTest {
             mockMvc.perform(post(remarksUrl()).with(jwt(writer)).contentType(MediaType.APPLICATION_JSON).content(remark))
                     .andExpect(status().isForbidden());
         }
+        mockMvc.perform(get(reportUrl()).with(jwt(TEACHER))).andExpect(jsonPath("$.data.can_add_remarks").value(true));
+        mockMvc.perform(get(reportUrl()).with(jwt(SUBSTITUTE))).andExpect(jsonPath("$.data.can_add_remarks").value(false));
         mockMvc.perform(post(remarksUrl()).with(jwt(TEACHER)).contentType(MediaType.APPLICATION_JSON).content("{\"strengths\":\" \"}"))
                 .andExpect(status().isBadRequest());
         mockMvc.perform(post(remarksUrl()).with(jwt(TEACHER)).contentType(MediaType.APPLICATION_JSON).content(remark))

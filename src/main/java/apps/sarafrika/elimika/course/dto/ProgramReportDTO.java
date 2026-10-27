@@ -30,8 +30,16 @@ public record ProgramReportDTO(
         @JsonProperty("to") LocalDate to,
         @JsonProperty("courses") List<CourseRow> courses,
         @JsonProperty("skills") List<SkillRow> skills,
-        @JsonProperty("remarks") List<ProgramRemarkDTO> remarks
+        @JsonProperty("remarks") List<ProgramRemarkDTO> remarks,
+        @Schema(description = "True when the caller may add a progress remark")
+        @JsonProperty("can_add_remarks") boolean canAddRemarks
 ) {
+
+    public ProgramReportDTO withCanAddRemarks(boolean canAdd) {
+        return new ProgramReportDTO(programUuid, programTitle, programCode, programEnrollmentUuid, studentUuid, finalGrade,
+                finalGradeProvisional, passMark, resultStatus, mandatoryTotal, mandatoryPassed, from, to, courses, skills,
+                remarks, canAdd);
+    }
 
     @Schema(name = "ProgramReportCourse")
     public record CourseRow(
