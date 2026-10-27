@@ -61,4 +61,6 @@ public interface ProgramEnrollmentRepository extends JpaRepository<ProgramEnroll
     List<UUID> findDistinctStudentUuidsByCourseCreatorUuid(@Param("courseCreatorUuid") UUID courseCreatorUuid);
 
     Optional<ProgramEnrollment> findFirstByStudentUuidAndProgramUuidOrderByCreatedDateDesc(UUID studentUuid, UUID programUuid);
+
+    List<ProgramEnrollment> findByProgramUuid(UUID programUuid);
 }

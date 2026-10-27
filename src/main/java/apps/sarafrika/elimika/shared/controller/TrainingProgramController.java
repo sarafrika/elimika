@@ -373,6 +373,26 @@ public class TrainingProgramController {
     }
 
     @Operation(
+            operationId = "updateProgramCourseWeights",
+            summary = "Set programme course weights",
+            description = "Replaces every course's mandatory flag and share of the programme mark in one go. "
+                    + "Mandatory weights must total exactly 100%; optional courses carry no weight.",
+            responses = {
+                    @ApiResponse(responseCode = "200", description = "Weights saved and programme marks recomputed"),
+                    @ApiResponse(responseCode = "400", description = "Rows missing, or mandatory weights don't total 100%"),
+                    @ApiResponse(responseCode = "403", description = "Caller does not own the program")
+            }
+    )
+    @PreAuthorize("@courseSecurityService.isProgramOwner(#programUuid) or @domainSecurityService.isPlatformAdmin()")
+    @PutMapping("/{programUuid}/course-weights")
+    public ResponseEntity<apps.sarafrika.elimika.shared.dto.ApiResponse<List<ProgramCourseDTO>>> updateProgramCourseWeights(
+            @PathVariable UUID programUuid,
+            @Valid @RequestBody List<@Valid ProgramCourseWeightDTO> weights) {
+        return ResponseEntity.ok(apps.sarafrika.elimika.shared.dto.ApiResponse.success(
+                programCourseService.updateCourseWeights(programUuid, weights), "Programme course weights saved"));
+    }
+
+    @Operation(
             summary = "Remove course from program",
             description = "Removes the association between a course and program. "
                     + "Restricted to the program's creator and platform admins.",

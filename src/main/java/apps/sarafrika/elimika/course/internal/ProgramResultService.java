@@ -24,7 +24,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
-/** Recomputes a learner's program grade and result whenever one of the program's courses is regraded. */
+/** Recomputes a learner's programme mark and result whenever a programme course is regraded or reweighted. */
 @Component
 @RequiredArgsConstructor
 @Slf4j
@@ -46,6 +46,11 @@ public class ProgramResultService {
         }
     }
 
+    @EventListener
+    public void onProgramWeightsChanged(ProgramWeightsChangedEvent event) {
+        programEnrollmentRepository.findByProgramUuid(event.programUuid()).forEach(this::recompute);
+    }
+
     public void recompute(ProgramEnrollment enrollment) {
         List<ProgramCourse> members = programCourseRepository.findByProgramUuidOrderBySequenceOrderAsc(enrollment.getProgramUuid());
         Map<UUID, CourseEnrollment> courseEnrollments = new HashMap<>();
@@ -54,36 +59,55 @@ public class ProgramResultService {
                     .ifPresent(courseEnrollment -> courseEnrollments.put(member.getCourseUuid(), courseEnrollment));
         }
 
-        enrollment.setFinalGrade(finalGrade(enrollment.getProgramUuid(), courseEnrollments));
         List<ProgramCourse> required = members.stream().filter(member -> !Boolean.FALSE.equals(member.getIsRequired())).toList();
+        List<ProgramCourse> decided = required.stream().filter(member -> isDecided(courseEnrollments, member)).toList();
+        enrollment.setFinalGrade(weightedFinal(required, decided, courseEnrollments));
+        enrollment.setFinalGradeProvisional(required.isEmpty() || decided.size() < required.size());
         long passed = required.stream().filter(member -> result(courseEnrollments, member) == CourseResultStatus.PASSED).count();
         enrollment.setProgressPercentage(required.isEmpty() ? null
                 : BigDecimal.valueOf(passed * 100).divide(BigDecimal.valueOf(required.size()), SCALE, RoundingMode.HALF_UP));
-        applyResult(enrollment, programResult(enrollment, required, courseEnrollments));
+        applyResult(enrollment, programResult(enrollment, required, decided, courseEnrollments));
         programEnrollmentRepository.save(enrollment);
     }
 
-    /** Interim until weighted programme courses land: the average of decided course final grades. */
-    private BigDecimal finalGrade(UUID programUuid, Map<UUID, CourseEnrollment> courseEnrollments) {
-        return average(courseEnrollments.values().stream().map(CourseEnrollment::getFinalGrade).toList());
+    /**
+     * Weighted mean of decided mandatory course finals, re-normalised over the decided weight so undecided
+     * courses are left out rather than counted as zero. Unweighted programmes weigh their courses equally.
+     */
+    private BigDecimal weightedFinal(List<ProgramCourse> required, List<ProgramCourse> decided,
+                                     Map<UUID, CourseEnrollment> courseEnrollments) {
+        boolean weighted = !required.isEmpty() && required.stream().allMatch(member -> member.getWeightPercentage() != null);
+        BigDecimal sum = BigDecimal.ZERO;
+        BigDecimal weights = BigDecimal.ZERO;
+        for (ProgramCourse member : decided) {
+            BigDecimal weight = weighted ? member.getWeightPercentage() : BigDecimal.ONE;
+            sum = sum.add(courseEnrollments.get(member.getCourseUuid()).getFinalGrade().multiply(weight));
+            weights = weights.add(weight);
+        }
+        return weights.signum() == 0 ? null : sum.divide(weights, SCALE, RoundingMode.HALF_UP);
     }
 
+    /** Passes once every mandatory course is decided and passed and the mark reaches the programme pass mark. */
     private CourseResultStatus programResult(ProgramEnrollment enrollment, List<ProgramCourse> required,
-                                             Map<UUID, CourseEnrollment> courseEnrollments) {
-        if (required.isEmpty() || required.stream().anyMatch(member -> {
-            CourseResultStatus result = result(courseEnrollments, member);
-            return result == null || result == CourseResultStatus.IN_PROGRESS;
-        })) {
+                                             List<ProgramCourse> decided, Map<UUID, CourseEnrollment> courseEnrollments) {
+        if (required.isEmpty() || decided.size() < required.size()) {
             return CourseResultStatus.IN_PROGRESS;
         }
+        boolean allPassed = required.stream().allMatch(member -> result(courseEnrollments, member) == CourseResultStatus.PASSED);
         BigDecimal passMark = programRepository.findByUuid(enrollment.getProgramUuid())
                 .map(program -> program.getPassMark()).orElse(null);
-        if (passMark == null) {
-            boolean allPassed = required.stream().allMatch(member -> result(courseEnrollments, member) == CourseResultStatus.PASSED);
-            return allPassed ? CourseResultStatus.PASSED : CourseResultStatus.FAILED;
-        }
         BigDecimal finalGrade = enrollment.getFinalGrade();
-        return finalGrade != null && finalGrade.compareTo(passMark) >= 0 ? CourseResultStatus.PASSED : CourseResultStatus.FAILED;
+        boolean markReached = passMark == null || (finalGrade != null && finalGrade.compareTo(passMark) >= 0);
+        return allPassed && markReached ? CourseResultStatus.PASSED : CourseResultStatus.FAILED;
+    }
+
+    private static boolean isDecided(Map<UUID, CourseEnrollment> courseEnrollments, ProgramCourse member) {
+        CourseEnrollment courseEnrollment = courseEnrollments.get(member.getCourseUuid());
+        if (courseEnrollment == null || courseEnrollment.getFinalGrade() == null) {
+            return false;
+        }
+        CourseResultStatus result = courseEnrollment.getResultStatus();
+        return result == CourseResultStatus.PASSED || result == CourseResultStatus.FAILED;
     }
 
     private void applyResult(ProgramEnrollment enrollment, CourseResultStatus result) {
@@ -108,14 +132,5 @@ public class ProgramResultService {
     private static CourseResultStatus result(Map<UUID, CourseEnrollment> courseEnrollments, ProgramCourse member) {
         return Optional.ofNullable(courseEnrollments.get(member.getCourseUuid()))
                 .map(CourseEnrollment::getResultStatus).orElse(null);
-    }
-
-    private static BigDecimal average(List<BigDecimal> values) {
-        List<BigDecimal> present = values.stream().filter(java.util.Objects::nonNull).toList();
-        if (present.isEmpty()) {
-            return null;
-        }
-        return present.stream().reduce(BigDecimal.ZERO, BigDecimal::add)
-                .divide(BigDecimal.valueOf(present.size()), SCALE, RoundingMode.HALF_UP);
     }
 }

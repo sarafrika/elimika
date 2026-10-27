@@ -5,6 +5,7 @@ import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Min;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -133,7 +134,16 @@ public record ProgramCourseDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty(value = "updated_by", access = JsonProperty.Access.READ_ONLY)
-        String updatedBy
+        String updatedBy,
+
+        @Schema(
+                description = "**[READ-ONLY]** Share of the programme mark this mandatory course carries. Set with the course weights endpoint; null for optional courses.",
+                example = "25.00",
+                accessMode = Schema.AccessMode.READ_ONLY,
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty(value = "weight_percentage", access = JsonProperty.Access.READ_ONLY)
+        BigDecimal weightPercentage
 
 ) {
 

@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.Filterable;
 import jakarta.persistence.*;
 import lombok.*;
+import java.math.BigDecimal;
 import java.util.UUID;
 
 @Getter
@@ -32,4 +33,7 @@ public class ProgramCourse extends BaseEntity {
 
     @Column(name = "prerequisite_course_uuid")
     private UUID prerequisiteCourseUuid;
+
+    @Column(name = "weight_percentage")
+    private BigDecimal weightPercentage;
 }

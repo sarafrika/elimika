@@ -58,4 +58,7 @@ public class ProgramEnrollment extends BaseEntity {
 
     @Column(name = "final_grade")
     private BigDecimal finalGrade;
+
+    @Column(name = "final_grade_provisional")
+    private Boolean finalGradeProvisional = Boolean.TRUE;
 }

@@ -23,7 +23,8 @@ public class ProgramCourseFactory {
                 programCourse.getCreatedDate(),
                 programCourse.getCreatedBy(),
                 programCourse.getLastModifiedDate(),
-                programCourse.getLastModifiedBy()
+                programCourse.getLastModifiedBy(),
+                programCourse.getWeightPercentage()
         );
     }
 
