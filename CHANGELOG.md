@@ -1,3 +1,11 @@
+# [2.188.0](https://github.com/sarafrika/elimika/compare/v2.187.0...v2.188.0) (2026-10-28)
+
+
+### Features
+
+* **course:** add attendance %, remark authors, evidence graders and a programme picker to programme reports ([88ec90b](https://github.com/sarafrika/elimika/commit/88ec90b9067c5f1325980af5c0c6ece085fbe55f))
+* **profile:** name the source programme on programme-verified wallet skills ([d78ac90](https://github.com/sarafrika/elimika/commit/d78ac9018c2acfa7144e227ce5a2e2131d70a810))
+
 # [2.187.0](https://github.com/sarafrika/elimika/compare/v2.186.0...v2.187.0) (2026-10-27)
 
 
