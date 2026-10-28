@@ -92,6 +92,7 @@ class SharedProfileAcrossDomainsIntegrationTest {
     }
 
     @MockitoBean private SkillLookupService skillLookupService;
+    @MockitoBean private apps.sarafrika.elimika.shared.spi.ProgramTitleLookupService programTitleLookupService;
     @MockitoBean private MediaStorageService mediaStorageService;
     @MockitoBean private DomainSecurityService domainSecurityService;
 
