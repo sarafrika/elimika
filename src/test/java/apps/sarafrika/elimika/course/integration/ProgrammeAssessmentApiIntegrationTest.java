@@ -74,10 +74,16 @@ class ProgrammeAssessmentApiIntegrationTest {
     private UUID classUuid;
     private UUID otherClassUuid;
     private UUID skillUuid;
+    private UUID courseUuid;
+    private UUID creatorUuid;
+    private UUID teacherUuid;
+    private UUID teacherUserUuid;
+    private UUID studentUserUuid;
+    private UUID courseEnrollmentUuid;
 
     @BeforeEach
     void seed() {
-        jdbc.execute("TRUNCATE program_enrollment_remarks, learner_skill_levels, learner_skill_evidence, program_skill_mappings, "
+        jdbc.execute("TRUNCATE user_skills, program_enrollment_remarks, learner_skill_levels, learner_skill_evidence, program_skill_mappings, "
                 + "program_target_skills, program_enrollments, program_courses, training_programs, student_guardian_links, "
                 + "course_enrollments, class_enrollments, scheduled_instances, class_definitions, courses, course_creators, "
                 + "instructors, students, user_domain_mapping, users RESTART IDENTITY CASCADE");
@@ -85,10 +91,12 @@ class ProgrammeAssessmentApiIntegrationTest {
         UUID creatorUser = user(CREATOR);
         grantDomain(creatorUser, "course_creator");
         UUID creator = courseCreator(creatorUser);
+        creatorUuid = creator;
         grantDomain(user(OTHER_CREATOR), "course_creator");
         courseCreator(jdbc.queryForObject("SELECT uuid FROM users WHERE keycloak_id = ?", UUID.class, OTHER_CREATOR));
 
         UUID course = UUID.randomUUID();
+        courseUuid = course;
         jdbc.update("INSERT INTO courses (uuid, name, course_creator_uuid, status, active, created_by) VALUES (?, 'Introduction to Piano', ?, 'published', true, 'test')",
                 course, creator);
         programUuid = UUID.randomUUID();
@@ -102,6 +110,9 @@ class ProgrammeAssessmentApiIntegrationTest {
                 skillUuid, "performance-technique-" + Long.toHexString(System.nanoTime()));
 
         UUID teacher = instructorUser(TEACHER);
+        teacherUuid = teacher;
+        teacherUserUuid = jdbc.queryForObject("SELECT uuid FROM users WHERE keycloak_id = ?", UUID.class, TEACHER);
+        jdbc.update("UPDATE users SET first_name = 'Grace', last_name = 'Njeri' WHERE uuid = ?", teacherUserUuid);
         UUID substitute = instructorUser(SUBSTITUTE);
         UUID otherTeacher = instructorUser(OTHER_TEACHER);
         classUuid = classDefinition(course, teacher, "Piano 2B");
@@ -111,9 +122,11 @@ class ProgrammeAssessmentApiIntegrationTest {
         UUID otherSession = session(otherClassUuid, otherTeacher);
 
         studentUuid = student(STUDENT);
+        studentUserUuid = jdbc.queryForObject("SELECT user_uuid FROM students WHERE uuid = ?", UUID.class, studentUuid);
+        courseEnrollmentUuid = UUID.randomUUID();
         seat(session, studentUuid);
         jdbc.update("INSERT INTO course_enrollments (uuid, student_uuid, course_uuid, status, final_grade, result_status, created_by) "
-                + "VALUES (?, ?, ?, 'active', 72.5, 'passed', 'test')", UUID.randomUUID(), studentUuid, course);
+                + "VALUES (?, ?, ?, 'active', 72.5, 'passed', 'test')", courseEnrollmentUuid, studentUuid, course);
         jdbc.update("INSERT INTO program_enrollments (uuid, student_uuid, program_uuid, status, final_grade, created_by) "
                 + "VALUES (?, ?, ?, 'active', 72.5, 'test')", UUID.randomUUID(), studentUuid, programUuid);
 
@@ -228,6 +241,126 @@ class ProgrammeAssessmentApiIntegrationTest {
         mockMvc.perform(get("/api/v1/classes/" + otherClassUuid + "/programme-progress").with(jwt(OTHER_TEACHER)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.learners.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("report attendance leaves excused sessions out of the percentage, per course and overall")
+    void reportAttendanceExcludesExcused() throws Exception {
+        for (String attendance : new String[]{"ATTENDED", "ATTENDED", "ATTENDED", "ABSENT", "EXCUSED"}) {
+            jdbc.update("INSERT INTO class_enrollments (uuid, scheduled_instance_uuid, student_uuid, status, created_by) "
+                    + "VALUES (?, ?, ?, ?, 'test')", UUID.randomUUID(), session(classUuid, teacherUuid), studentUuid, attendance);
+        }
+        mockMvc.perform(get(reportUrl()).with(jwt(STUDENT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.courses[0].sessions_attended").value(3))
+                .andExpect(jsonPath("$.data.courses[0].sessions_counted").value(4))
+                .andExpect(jsonPath("$.data.courses[0].sessions_excused").value(1))
+                .andExpect(jsonPath("$.data.courses[0].sessions_total").value(5))
+                .andExpect(jsonPath("$.data.courses[0].attendance_percentage").value(75.0))
+                .andExpect(jsonPath("$.data.attendance.sessions_attended").value(3))
+                .andExpect(jsonPath("$.data.attendance.sessions_counted").value(4))
+                .andExpect(jsonPath("$.data.attendance.sessions_excused").value(1))
+                .andExpect(jsonPath("$.data.attendance.sessions_total").value(5))
+                .andExpect(jsonPath("$.data.attendance.attendance_percentage").value(75.0));
+    }
+
+    @Test
+    @DisplayName("remarks name their author, and skill history names the grader, course and assessment")
+    void reportNamesAuthorsGradersAndSources() throws Exception {
+        mockMvc.perform(post(remarksUrl()).with(jwt(TEACHER)).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"strengths\":\"<p>Steady tempo</p>\"}"))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.data.author_name").value("Grace Njeri"));
+
+        UUID assessment = UUID.randomUUID();
+        jdbc.update("INSERT INTO course_assessments (uuid, course_uuid, assessment_type, title, created_by) "
+                + "VALUES (?, ?, 'performance', 'Solo performance', 'test')", assessment, courseUuid);
+        jdbc.update("INSERT INTO program_target_skills (program_uuid, skill_uuid, display_order, created_by) VALUES (?, ?, 1, 'test')",
+                programUuid, skillUuid);
+        UUID lineItem = UUID.randomUUID();
+        evidence(assessment, lineItem, "55.00", "Developing", "2026-09-18 10:00:00", true);
+        evidence(assessment, lineItem, "85.00", "Achieved", "2026-10-14 10:00:00", false);
+
+        mockMvc.perform(get(reportUrl()).with(jwt(STUDENT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.remarks[0].author_name").value("Grace Njeri"))
+                .andExpect(jsonPath("$.data.remarks[0].author_user_uuid").value(teacherUserUuid.toString()))
+                .andExpect(jsonPath("$.data.skills[0].history.length()").value(2))
+                .andExpect(jsonPath("$.data.skills[0].history[0].score").value(85.0))
+                .andExpect(jsonPath("$.data.skills[0].history[0].superseded").value(false))
+                .andExpect(jsonPath("$.data.skills[0].history[0].course_uuid").value(courseUuid.toString()))
+                .andExpect(jsonPath("$.data.skills[0].history[0].course_title").value("Introduction to Piano"))
+                .andExpect(jsonPath("$.data.skills[0].history[0].assessment_title").value("Solo performance"))
+                .andExpect(jsonPath("$.data.skills[0].history[0].graded_by_uuid").value(teacherUserUuid.toString()))
+                .andExpect(jsonPath("$.data.skills[0].history[0].graded_by_name").value("Grace Njeri"))
+                .andExpect(jsonPath("$.data.skills[0].history[0].graded_at").value("2026-10-14T10:00:00Z"))
+                .andExpect(jsonPath("$.data.skills[0].history[1].superseded").value(true))
+                .andExpect(jsonPath("$.data.skills[0].history[1].score").value(55.0));
+    }
+
+    @Test
+    @DisplayName("class progress tells 'no programme' and 'pick a programme' apart, and rows link user and student")
+    void classProgressResolvesTheProgramme() throws Exception {
+        String url = "/api/v1/classes/" + classUuid + "/programme-progress";
+        mockMvc.perform(get(url).with(jwt(TEACHER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("READY"))
+                .andExpect(jsonPath("$.data.programmes.length()").value(1))
+                .andExpect(jsonPath("$.data.learners[0].student_uuid").value(studentUuid.toString()))
+                .andExpect(jsonPath("$.data.learners[0].user_uuid").value(studentUserUuid.toString()));
+
+        UUID second = UUID.randomUUID();
+        jdbc.update("INSERT INTO training_programs (uuid, title, course_creator_uuid, status, pass_mark, created_by) "
+                + "VALUES (?, 'Advanced Keyboard Diploma', ?, 'draft', 50, 'test')", second, creatorUuid);
+        jdbc.update("INSERT INTO program_courses (uuid, program_uuid, course_uuid, sequence_order, is_required, weight_percentage, created_by) "
+                + "VALUES (?, ?, ?, 1, true, 100, 'test')", UUID.randomUUID(), second, courseUuid);
+        mockMvc.perform(get(url).with(jwt(TEACHER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("PROGRAMME_CHOICE_REQUIRED"))
+                .andExpect(jsonPath("$.data.program_uuid").doesNotExist())
+                .andExpect(jsonPath("$.data.programmes.length()").value(2))
+                .andExpect(jsonPath("$.data.programmes[?(@.program_uuid == '" + second + "')].title").value("Advanced Keyboard Diploma"))
+                .andExpect(jsonPath("$.data.learners.length()").value(0));
+        mockMvc.perform(get(url).param("program_uuid", second.toString()).with(jwt(TEACHER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("READY"))
+                .andExpect(jsonPath("$.data.program_title").value("Advanced Keyboard Diploma"));
+        mockMvc.perform(get(url).param("program_uuid", UUID.randomUUID().toString()).with(jwt(TEACHER)))
+                .andExpect(status().isBadRequest());
+
+        UUID loneCourse = UUID.randomUUID();
+        jdbc.update("INSERT INTO courses (uuid, name, course_creator_uuid, status, active, created_by) VALUES (?, 'Music Theory', ?, 'published', true, 'test')",
+                loneCourse, creatorUuid);
+        UUID loneClass = classDefinition(loneCourse, teacherUuid, "Theory 1A");
+        mockMvc.perform(get("/api/v1/classes/" + loneClass + "/programme-progress").with(jwt(TEACHER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.status").value("NO_PROGRAMME"))
+                .andExpect(jsonPath("$.data.programmes.length()").value(0));
+    }
+
+    @Test
+    @DisplayName("the learner's wallet skills name the programme that verified them")
+    void walletSkillsNameTheirProgramme() throws Exception {
+        jdbc.update("INSERT INTO user_skills (user_uuid, skill_name, skill_uuid, proficiency_level, evidence, verification_status, "
+                + "verified_at, source_program_uuid, created_by) VALUES (?, 'Performance technique', ?, 'INTERMEDIATE', "
+                + "'Achieved in Foundation Music Certificate', 'VERIFIED', now(), ?, 'test')", studentUserUuid, skillUuid, programUuid);
+        jdbc.update("INSERT INTO user_skills (user_uuid, skill_name, proficiency_level, created_by) VALUES (?, 'Sight reading', 'BEGINNER', 'test')",
+                studentUserUuid);
+        mockMvc.perform(get("/api/v1/me/profile/skills").with(jwt(STUDENT)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data[?(@.skill_name == 'Performance technique')].verification_status").value("VERIFIED"))
+                .andExpect(jsonPath("$.data[?(@.skill_name == 'Performance technique')].source_program_uuid").value(programUuid.toString()))
+                .andExpect(jsonPath("$.data[?(@.skill_name == 'Performance technique')].source_program_title")
+                        .value("Foundation Music Certificate"))
+                .andExpect(jsonPath("$.data[?(@.skill_name == 'Sight reading')].verification_status").value("PENDING"));
+    }
+
+    private void evidence(UUID assessment, UUID lineItem, String score, String level, String gradedAt, boolean superseded) {
+        jdbc.update("INSERT INTO learner_skill_evidence (student_uuid, program_uuid, skill_uuid, course_enrollment_uuid, "
+                        + "course_assessment_uuid, line_item_uuid, score, level_name, counts_as_achieved, graded_at, superseded, "
+                        + "graded_by_uuid, created_by) VALUES (?, ?, ?, ?, ?, ?, ?::numeric, ?, ?, ?::timestamp, ?, ?, 'test')",
+                studentUuid, programUuid, skillUuid, courseEnrollmentUuid, assessment, lineItem, score, level,
+                "Achieved".equals(level), gradedAt, superseded, teacherUserUuid);
     }
 
     private String programUrl() {

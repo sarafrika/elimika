@@ -124,10 +124,12 @@ class SkillEvidenceIntegrationTest {
     private RubricCriteria techniqueCriterion;
     private RubricCriteria toneCriterion;
     private final List<RubricScoringLevel> levels = new ArrayList<>();
+    private UUID graderUuid;
 
     @BeforeEach
     void seed() {
         levels.clear();
+        graderUuid = user("grader");
         creatorUuid = UUID.randomUUID();
         jdbc.update("INSERT INTO course_creators (uuid, user_uuid, full_name, admin_verified, created_by) VALUES (?, ?, 'Creator', true, 'test')",
                 creatorUuid, user("creator"));
@@ -218,6 +220,7 @@ class SkillEvidenceIntegrationTest {
         assertThat(history).hasSize(2);
         assertThat(history).filteredOn(LearnerSkillEvidence::getSuperseded).hasSize(1);
         assertThat(history.getFirst().getSupersedesUuid()).isEqualTo(history.get(1).getUuid());
+        assertThat(history).extracting(LearnerSkillEvidence::getGradedByUuid).containsOnly(graderUuid);
     }
 
     @Test
@@ -247,7 +250,7 @@ class SkillEvidenceIntegrationTest {
 
     private void grade(CourseEnrollment enrollment, int technique, int tone) {
         CourseAssessmentLineItemRubricEvaluationDTO dto = new CourseAssessmentLineItemRubricEvaluationDTO(
-                null, null, null, null, null, null, null, null, null, null, LocalDateTime.now(), null,
+                null, null, null, null, null, null, null, null, null, null, LocalDateTime.now(), graderUuid,
                 List.of(row(techniqueCriterion, technique), row(toneCriterion, tone)));
         gradeBookService.upsertLineItemRubricEvaluation(courseUuid, performance.getUuid(), recital.getUuid(), enrollment.getUuid(), dto);
     }

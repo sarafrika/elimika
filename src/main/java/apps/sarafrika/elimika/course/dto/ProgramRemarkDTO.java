@@ -34,12 +34,17 @@ public record ProgramRemarkDTO(
         @JsonProperty(value = "author_user_uuid", access = JsonProperty.Access.READ_ONLY)
         UUID authorUserUuid,
 
+        @Schema(accessMode = Schema.AccessMode.READ_ONLY, description = "Display name of the remark's author")
+        @JsonProperty(value = "author_name", access = JsonProperty.Access.READ_ONLY)
+        String authorName,
+
         @Schema(accessMode = Schema.AccessMode.READ_ONLY)
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY)
         LocalDateTime createdDate
 ) {
-    public static ProgramRemarkDTO from(ProgramEnrollmentRemark remark) {
+    public static ProgramRemarkDTO from(ProgramEnrollmentRemark remark, String authorName) {
         return new ProgramRemarkDTO(remark.getUuid(), remark.getStrengths(), remark.getImprovements(),
-                remark.getRecommendations(), remark.getNextReviewDate(), remark.getAuthorUserUuid(), remark.getCreatedDate());
+                remark.getRecommendations(), remark.getNextReviewDate(), remark.getAuthorUserUuid(), authorName,
+                remark.getCreatedDate());
     }
 }

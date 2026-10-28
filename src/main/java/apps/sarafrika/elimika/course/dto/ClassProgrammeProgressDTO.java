@@ -9,12 +9,32 @@ import java.util.UUID;
 
 @Schema(name = "ClassProgrammeProgress", description = "Programme marks and skill levels for the learners of one programme class")
 public record ClassProgrammeProgressDTO(
+        @Schema(description = "READY with data; NO_PROGRAMME or PROGRAMME_CHOICE_REQUIRED with empty skills and learners")
+        @JsonProperty("status") Status status,
         @JsonProperty("class_definition_uuid") UUID classDefinitionUuid,
+        @Schema(description = "Null unless status is READY")
         @JsonProperty("program_uuid") UUID programUuid,
         @JsonProperty("program_title") String programTitle,
+        @Schema(description = "Every programme the class's course belongs to; pick one and resend as program_uuid")
+        @JsonProperty("programmes") List<ProgrammeOption> programmes,
         @JsonProperty("skills") List<SkillSummary> skills,
         @JsonProperty("learners") List<Learner> learners
 ) {
+
+    @Schema(name = "ClassProgrammeProgressStatus")
+    public enum Status { READY, NO_PROGRAMME, PROGRAMME_CHOICE_REQUIRED }
+
+    public static ClassProgrammeProgressDTO unresolved(UUID classDefinitionUuid, List<ProgrammeOption> programmes) {
+        return new ClassProgrammeProgressDTO(programmes.isEmpty() ? Status.NO_PROGRAMME : Status.PROGRAMME_CHOICE_REQUIRED,
+                classDefinitionUuid, null, null, programmes, List.of(), List.of());
+    }
+
+    @Schema(name = "ClassProgrammeOption")
+    public record ProgrammeOption(
+            @JsonProperty("program_uuid") UUID programUuid,
+            @JsonProperty("title") String title
+    ) {
+    }
 
     @Schema(name = "ClassProgrammeSkill")
     public record SkillSummary(
@@ -33,6 +53,8 @@ public record ClassProgrammeProgressDTO(
     @Schema(name = "ClassProgrammeLearner")
     public record Learner(
             @JsonProperty("student_uuid") UUID studentUuid,
+            @Schema(description = "The learner's account; the instructor student page is /students/{user_uuid}?sId={student_uuid}")
+            @JsonProperty("user_uuid") UUID userUuid,
             @JsonProperty("program_enrollment_uuid") UUID programEnrollmentUuid,
             @JsonProperty("final_grade") BigDecimal finalGrade,
             @JsonProperty("final_grade_provisional") boolean finalGradeProvisional,

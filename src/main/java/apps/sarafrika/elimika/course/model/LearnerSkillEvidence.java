@@ -50,6 +50,9 @@ public class LearnerSkillEvidence extends BaseEntity {
     @Column(name = "graded_at")
     private LocalDateTime gradedAt;
 
+    @Column(name = "graded_by_uuid")
+    private UUID gradedByUuid;
+
     @Column(name = "supersedes_uuid")
     private UUID supersedesUuid;
 

@@ -88,11 +88,13 @@ public class ProgramReportController {
 
     @Operation(operationId = "getClassProgrammeProgress", summary = "Get a class's programme progress",
             description = "Programme marks and skill levels for the class's learners, with per-skill attainment counts. "
-                    + "Pass program_uuid when the class's course sits in more than one programme.")
+                    + "status is NO_PROGRAMME or PROGRAMME_CHOICE_REQUIRED (with programmes to pick from) instead of an "
+                    + "error; resend with program_uuid. A program_uuid the class's course isn't in is a 400.")
     @PreAuthorize("@programReportAccess.canReadClass(#classUuid) or @domainSecurityService.isPlatformAdmin()")
     @GetMapping("/api/v1/classes/{classUuid}/programme-progress")
     public ResponseEntity<ApiResponse<ClassProgrammeProgressDTO>> getClassProgress(
             @PathVariable UUID classUuid,
+            @Parameter(description = "Programme to report on; needed when the class's course is in several")
             @RequestParam(name = "program_uuid", required = false) UUID programUuid) {
         return ResponseEntity.ok(ApiResponse.success(programReportService.getClassProgress(classUuid, programUuid),
                 "Class programme progress retrieved"));

@@ -29,6 +29,8 @@ public record ProgramReportDTO(
         @JsonProperty("from") LocalDate from,
         @JsonProperty("to") LocalDate to,
         @JsonProperty("courses") List<CourseRow> courses,
+        @Schema(description = "Attendance over every programme course in the period")
+        @JsonProperty("attendance") Attendance attendance,
         @JsonProperty("skills") List<SkillRow> skills,
         @JsonProperty("remarks") List<ProgramRemarkDTO> remarks,
         @Schema(description = "True when the caller may add a progress remark")
@@ -37,7 +39,7 @@ public record ProgramReportDTO(
 
     public ProgramReportDTO withCanAddRemarks(boolean canAdd) {
         return new ProgramReportDTO(programUuid, programTitle, programCode, programEnrollmentUuid, studentUuid, finalGrade,
-                finalGradeProvisional, passMark, resultStatus, mandatoryTotal, mandatoryPassed, from, to, courses, skills,
+                finalGradeProvisional, passMark, resultStatus, mandatoryTotal, mandatoryPassed, from, to, courses, attendance, skills,
                 remarks, canAdd);
     }
 
@@ -58,7 +60,23 @@ public record ProgramReportDTO(
             @JsonProperty("sessions_attended") int sessionsAttended,
             @Schema(description = "Attended plus absent in the period; excused sessions are left out")
             @JsonProperty("sessions_counted") int sessionsCounted,
-            @JsonProperty("sessions_excused") int sessionsExcused
+            @JsonProperty("sessions_excused") int sessionsExcused,
+            @Schema(description = "Attended, absent and excused sessions in the period")
+            @JsonProperty("sessions_total") int sessionsTotal,
+            @Schema(description = "Attended ÷ counted × 100; excused left out; null when nothing is counted")
+            @JsonProperty("attendance_percentage") BigDecimal attendancePercentage
+    ) {
+    }
+
+    @Schema(name = "ProgramReportAttendance")
+    public record Attendance(
+            @JsonProperty("sessions_attended") int sessionsAttended,
+            @Schema(description = "Attended plus absent; excused sessions are left out")
+            @JsonProperty("sessions_counted") int sessionsCounted,
+            @JsonProperty("sessions_excused") int sessionsExcused,
+            @JsonProperty("sessions_total") int sessionsTotal,
+            @Schema(description = "Attended ÷ counted × 100; null when nothing is counted")
+            @JsonProperty("attendance_percentage") BigDecimal attendancePercentage
     ) {
     }
 
@@ -78,13 +96,19 @@ public record ProgramReportDTO(
     @Schema(name = "ProgramReportEvidence")
     public record Evidence(
             @JsonProperty("course_uuid") UUID courseUuid,
+            @JsonProperty("course_title") String courseTitle,
             @JsonProperty("course_assessment_uuid") UUID courseAssessmentUuid,
+            @JsonProperty("assessment_title") String assessmentTitle,
+            @Schema(description = "Assessment and line item, e.g. \"Lesson 3 · Solo performance\"")
             @JsonProperty("source_title") String sourceTitle,
             @JsonProperty("score") BigDecimal score,
             @JsonProperty("level_name") String levelName,
             @JsonProperty("graded_at") LocalDateTime gradedAt,
             @Schema(description = "True when a later regrade of the same work replaced it")
-            @JsonProperty("superseded") boolean superseded
+            @JsonProperty("superseded") boolean superseded,
+            @Schema(description = "User who graded the work; null for older or system grades")
+            @JsonProperty("graded_by_uuid") UUID gradedByUuid,
+            @JsonProperty("graded_by_name") String gradedByName
     ) {
     }
 }

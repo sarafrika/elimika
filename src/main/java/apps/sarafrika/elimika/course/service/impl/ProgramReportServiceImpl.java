@@ -32,7 +32,9 @@ import apps.sarafrika.elimika.course.service.ProgramSkillService;
 import apps.sarafrika.elimika.course.util.enums.CourseResultStatus;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
+import apps.sarafrika.elimika.shared.spi.LearnerProfileLookupService;
 import apps.sarafrika.elimika.shared.spi.enrollment.EnrollmentLookupService;
+import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -43,6 +45,7 @@ import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
@@ -72,6 +75,8 @@ public class ProgramReportServiceImpl implements ProgramReportService {
     private final ProgramSkillService programSkillService;
     private final EnrollmentLookupService enrollmentLookupService;
     private final ClassDefinitionLookupService classDefinitionLookupService;
+    private final LearnerProfileLookupService learnerProfileLookupService;
+    private final UserLookupService userLookupService;
 
     @Override
     public List<ProgramReportSummaryDTO> listForStudent(UUID studentUuid) {
@@ -96,19 +101,26 @@ public class ProgramReportServiceImpl implements ProgramReportService {
         List<ProgramReportDTO.CourseRow> courses = programCourseRepository.findByProgramUuidOrderBySequenceOrderAsc(programUuid)
                 .stream().map(member -> courseRow(member, studentUuid, from, to)).toList();
         List<ProgramReportDTO.CourseRow> required = courses.stream().filter(ProgramReportDTO.CourseRow::isRequired).toList();
+        int attended = courses.stream().mapToInt(ProgramReportDTO.CourseRow::sessionsAttended).sum();
+        int counted = courses.stream().mapToInt(ProgramReportDTO.CourseRow::sessionsCounted).sum();
+        int excused = courses.stream().mapToInt(ProgramReportDTO.CourseRow::sessionsExcused).sum();
+        ProgramReportDTO.Attendance attendance = new ProgramReportDTO.Attendance(attended, counted, excused,
+                counted + excused, percentage(attended, counted));
         int passed = (int) required.stream().filter(row -> CourseResultStatus.PASSED.name().equals(row.resultStatus())).count();
         return new ProgramReportDTO(programUuid, program.getTitle(), program.getProgramCode(), enrollment.getUuid(), studentUuid,
                 enrollment.getFinalGrade(), !Boolean.FALSE.equals(enrollment.getFinalGradeProvisional()), program.getPassMark(),
                 enrollment.getResultStatus() == null ? CourseResultStatus.IN_PROGRESS.name() : enrollment.getResultStatus().name(),
-                required.size(), passed, from, to, courses, skillRows(programUuid, studentUuid), getRemarks(programUuid, studentUuid),
+                required.size(), passed, from, to, courses, attendance, skillRows(programUuid, studentUuid),
+                getRemarks(programUuid, studentUuid),
                 false);
     }
 
     @Override
     public List<ProgramRemarkDTO> getRemarks(UUID programUuid, UUID studentUuid) {
         ProgramEnrollment enrollment = enrollment(programUuid, studentUuid);
+        Map<UUID, String> names = new HashMap<>();
         return remarkRepository.findByProgramEnrollmentUuidOrderByCreatedDateDescIdDesc(enrollment.getUuid()).stream()
-                .map(ProgramRemarkDTO::from).toList();
+                .map(remark -> ProgramRemarkDTO.from(remark, userName(names, remark.getAuthorUserUuid()))).toList();
     }
 
     @Override
@@ -128,14 +140,21 @@ public class ProgramReportServiceImpl implements ProgramReportService {
         saved.setRecommendations(recommendations);
         saved.setNextReviewDate(remark.nextReviewDate());
         saved.setAuthorUserUuid(authorUserUuid);
-        return ProgramRemarkDTO.from(remarkRepository.save(saved));
+        return ProgramRemarkDTO.from(remarkRepository.save(saved), userName(new HashMap<>(), authorUserUuid));
     }
 
     @Override
     public ClassProgrammeProgressDTO getClassProgress(UUID classDefinitionUuid, UUID programUuid) {
         ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot = classDefinitionLookupService.findByUuid(classDefinitionUuid)
                 .orElseThrow(() -> new ResourceNotFoundException("Class not found: " + classDefinitionUuid));
-        UUID resolved = resolveProgramme(snapshot, programUuid);
+        List<ClassProgrammeProgressDTO.ProgrammeOption> options = programmesOf(snapshot);
+        UUID resolved = programUuid != null ? programUuid : options.size() == 1 ? options.getFirst().programUuid() : null;
+        if (resolved == null) {
+            return ClassProgrammeProgressDTO.unresolved(classDefinitionUuid, options);
+        }
+        if (options.stream().noneMatch(option -> option.programUuid().equals(resolved))) {
+            throw new IllegalArgumentException("This class's course is not part of programme " + resolved);
+        }
         TrainingProgram program = program(resolved);
         List<ProgramTargetSkillDTO> targets = programSkillService.getSkills(resolved);
         List<ProgramCourse> required = programCourseRepository.findByProgramUuidOrderBySequenceOrderAsc(resolved).stream()
@@ -166,7 +185,8 @@ public class ProgramReportServiceImpl implements ProgramReportService {
                             .orElse(new ClassProgrammeProgressDTO.SkillLevel(target.skillUuid(), null, false)))
                     .toList();
             ProgramEnrollment found = enrollment.get();
-            learners.add(new ClassProgrammeProgressDTO.Learner(student, found.getUuid(), found.getFinalGrade(),
+            learners.add(new ClassProgrammeProgressDTO.Learner(student,
+                    learnerProfileLookupService.findUserUuidByStudentUuid(student).orElse(null), found.getUuid(), found.getFinalGrade(),
                     !Boolean.FALSE.equals(found.getFinalGradeProvisional()),
                     found.getResultStatus() == null ? CourseResultStatus.IN_PROGRESS.name() : found.getResultStatus().name(),
                     required.size(), passed, skillLevels));
@@ -192,7 +212,8 @@ public class ProgramReportServiceImpl implements ProgramReportService {
             }
             return new ClassProgrammeProgressDTO.SkillSummary(target.skillUuid(), target.skillName(), achieved, developing, notAchieved, none);
         }).toList();
-        return new ClassProgrammeProgressDTO(classDefinitionUuid, resolved, program.getTitle(), skills, learners);
+        return new ClassProgrammeProgressDTO(ClassProgrammeProgressDTO.Status.READY, classDefinitionUuid, resolved,
+                program.getTitle(), options, skills, learners);
     }
 
     private ProgramReportDTO.CourseRow courseRow(ProgramCourse member, UUID studentUuid, LocalDate from, LocalDate to) {
@@ -227,7 +248,7 @@ public class ProgramReportServiceImpl implements ProgramReportService {
         return new ProgramReportDTO.CourseRow(member.getCourseUuid(), course == null ? null : course.getName(),
                 course == null ? null : course.getCourseCode(), required, required ? member.getWeightPercentage() : null,
                 courseEnrollment == null ? null : courseEnrollment.getUuid(), finalGrade, band, result, contribution,
-                attended, attended + absent, excused);
+                attended, attended + absent, excused, attended + absent + excused, percentage(attended, attended + absent));
     }
 
     private List<ProgramReportDTO.SkillRow> skillRows(UUID programUuid, UUID studentUuid) {
@@ -237,15 +258,24 @@ public class ProgramReportServiceImpl implements ProgramReportService {
                 .findByStudentUuidAndProgramUuidOrderByGradedAtDescIdDesc(studentUuid, programUuid).stream()
                 .collect(Collectors.groupingBy(LearnerSkillEvidence::getSkillUuid));
         Map<UUID, String> titles = new HashMap<>();
-        Map<UUID, UUID> courses = new HashMap<>();
+        Map<UUID, CourseAssessment> assessments = new HashMap<>();
+        Map<UUID, String> courseTitles = new HashMap<>();
+        Map<UUID, String> graders = new HashMap<>();
         return programSkillService.getSkills(programUuid).stream().map(target -> {
             LearnerSkillLevel level = levels.get(target.skillUuid());
             List<ProgramReportDTO.Evidence> history = evidence.getOrDefault(target.skillUuid(), List.of()).stream()
-                    .map(item -> new ProgramReportDTO.Evidence(
-                            courses.computeIfAbsent(item.getCourseAssessmentUuid(), this::courseOfAssessment),
-                            item.getCourseAssessmentUuid(),
-                            titles.computeIfAbsent(item.getLineItemUuid(), lineItem -> sourceTitle(item.getCourseAssessmentUuid(), lineItem)),
-                            item.getScore(), item.getLevelName(), item.getGradedAt(), Boolean.TRUE.equals(item.getSuperseded())))
+                    .map(item -> {
+                        CourseAssessment assessment = assessments.computeIfAbsent(item.getCourseAssessmentUuid(),
+                                uuid -> courseAssessmentRepository.findByUuid(uuid).orElse(null));
+                        UUID courseUuid = assessment == null ? null : assessment.getCourseUuid();
+                        String courseTitle = courseUuid == null ? null : courseTitles.computeIfAbsent(courseUuid,
+                                uuid -> courseRepository.findByUuid(uuid).map(Course::getName).orElse(null));
+                        return new ProgramReportDTO.Evidence(courseUuid, courseTitle, item.getCourseAssessmentUuid(),
+                                assessment == null ? null : assessment.getTitle(),
+                                titles.computeIfAbsent(item.getLineItemUuid(), lineItem -> sourceTitle(assessment, lineItem)),
+                                item.getScore(), item.getLevelName(), item.getGradedAt(), Boolean.TRUE.equals(item.getSuperseded()),
+                                item.getGradedByUuid(), userName(graders, item.getGradedByUuid()));
+                    })
                     .toList();
             return new ProgramReportDTO.SkillRow(target.skillUuid(), target.skillName(),
                     level == null ? null : level.getLevelName(), level != null && Boolean.TRUE.equals(level.getCountsAsAchieved()),
@@ -253,12 +283,8 @@ public class ProgramReportServiceImpl implements ProgramReportService {
         }).toList();
     }
 
-    private UUID courseOfAssessment(UUID assessmentUuid) {
-        return courseAssessmentRepository.findByUuid(assessmentUuid).map(CourseAssessment::getCourseUuid).orElse(null);
-    }
-
-    private String sourceTitle(UUID assessmentUuid, UUID lineItemUuid) {
-        String assessment = courseAssessmentRepository.findByUuid(assessmentUuid).map(CourseAssessment::getTitle).orElse(null);
+    private String sourceTitle(CourseAssessment source, UUID lineItemUuid) {
+        String assessment = source == null ? null : source.getTitle();
         String lineItem = lineItemRepository.findByUuid(lineItemUuid).map(CourseAssessmentLineItem::getTitle).orElse(null);
         if (assessment == null || lineItem == null || assessment.equals(lineItem)) {
             return assessment != null ? assessment : lineItem;
@@ -266,21 +292,28 @@ public class ProgramReportServiceImpl implements ProgramReportService {
         return assessment + " · " + lineItem;
     }
 
-    private UUID resolveProgramme(ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot, UUID requested) {
-        if (requested != null) {
-            return requested;
-        }
+    /** The class's own programme first, then every programme its course belongs to. */
+    private List<ClassProgrammeProgressDTO.ProgrammeOption> programmesOf(ClassDefinitionLookupService.ClassDefinitionSnapshot snapshot) {
+        Set<UUID> uuids = new LinkedHashSet<>();
         if (snapshot.programUuid() != null) {
-            return snapshot.programUuid();
+            uuids.add(snapshot.programUuid());
         }
-        List<UUID> programmes = snapshot.courseUuid() == null ? List.of()
-                : programCourseRepository.findByCourseUuid(snapshot.courseUuid()).stream().map(ProgramCourse::getProgramUuid).distinct().toList();
-        if (programmes.size() != 1) {
-            throw new IllegalArgumentException(programmes.isEmpty()
-                    ? "This class's course is not part of a programme"
-                    : "This class's course is in several programmes; pass program_uuid");
+        if (snapshot.courseUuid() != null) {
+            programCourseRepository.findByCourseUuid(snapshot.courseUuid()).forEach(member -> uuids.add(member.getProgramUuid()));
         }
-        return programmes.getFirst();
+        return uuids.stream()
+                .flatMap(uuid -> programRepository.findByUuid(uuid).stream())
+                .map(program -> new ClassProgrammeProgressDTO.ProgrammeOption(program.getUuid(), program.getTitle()))
+                .toList();
+    }
+
+    private String userName(Map<UUID, String> cache, UUID userUuid) {
+        return userUuid == null ? null
+                : cache.computeIfAbsent(userUuid, uuid -> userLookupService.getUserFullName(uuid).orElse(null));
+    }
+
+    private static BigDecimal percentage(int part, int whole) {
+        return whole == 0 ? null : BigDecimal.valueOf(part).multiply(HUNDRED).divide(BigDecimal.valueOf(whole), 2, RoundingMode.HALF_UP);
     }
 
     private TrainingProgram program(UUID programUuid) {

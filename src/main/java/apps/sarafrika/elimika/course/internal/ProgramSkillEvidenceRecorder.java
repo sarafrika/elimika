@@ -157,6 +157,7 @@ public class ProgramSkillEvidenceRecorder {
         evidence.setLevelName(level.name());
         evidence.setCountsAsAchieved(level.countsAsAchieved());
         evidence.setGradedAt(gradedAt != null ? gradedAt : LocalDateTime.now(java.time.ZoneOffset.UTC));
+        evidence.setGradedByUuid(grader(lineItem.getUuid(), enrollment.getUuid()));
         previous.ifPresent(old -> {
             old.setSuperseded(Boolean.TRUE);
             evidenceRepository.save(old);
@@ -164,6 +165,15 @@ public class ProgramSkillEvidenceRecorder {
         });
         evidenceRepository.save(evidence);
         refreshLevel(student, mapping.getProgramUuid(), mapping.getSkillUuid());
+    }
+
+    /** The cell's grader, falling back to the rubric evaluation's grader. */
+    private UUID grader(UUID lineItemUuid, UUID enrollmentUuid) {
+        return lineItemScoreRepository.findByLineItemUuidAndEnrollmentUuid(lineItemUuid, enrollmentUuid)
+                .map(CourseAssessmentLineItemScore::getGradedByUuid)
+                .or(() -> evaluationRepository.findByLineItemUuidAndEnrollmentUuid(lineItemUuid, enrollmentUuid)
+                        .map(CourseAssessmentLineItemRubricEvaluation::getGradedByUuid))
+                .orElse(null);
     }
 
     private void refreshLevel(UUID student, UUID program, UUID skill) {
