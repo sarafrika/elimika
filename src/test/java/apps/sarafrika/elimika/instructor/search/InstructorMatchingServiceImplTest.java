@@ -102,7 +102,7 @@ class InstructorMatchingServiceImplTest {
 
     private static UserSkillDTO skill(UUID userUuid, String name, UUID skillUuid, ProficiencyLevel level) {
         return new UserSkillDTO(UUID.randomUUID(), userUuid, name, skillUuid, level, null, null, null, null, null,
-                null, null, null, null);
+                null, null, null, null, null, null);
     }
 
     private static Instructor instructor(boolean optedIn, boolean verified) {

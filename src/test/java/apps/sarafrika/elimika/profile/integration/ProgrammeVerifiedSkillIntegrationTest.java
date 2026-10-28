@@ -26,6 +26,8 @@ import org.testcontainers.containers.PostgreSQLContainer;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 
+import apps.sarafrika.elimika.course.spi.ProgramTitleLookupServiceImpl;
+
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -37,7 +39,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
-@Import({UserSkillSection.class, SkillLookupServiceImpl.class, GenericSpecificationBuilder.class,
+@Import({UserSkillSection.class, SkillLookupServiceImpl.class, GenericSpecificationBuilder.class, ProgramTitleLookupServiceImpl.class,
         ProgrammeVerifiedSkillIntegrationTest.TestConfig.class})
 @DisplayName("Programme-verified wallet skills")
 class ProgrammeVerifiedSkillIntegrationTest {
@@ -97,13 +99,15 @@ class ProgrammeVerifiedSkillIntegrationTest {
         assertThat(skills.getFirst().proficiencyLevel()).isEqualTo(ProficiencyLevel.ADVANCED);
         assertThat(jdbc.queryForObject("SELECT source_program_uuid FROM user_skills WHERE user_uuid = ?", UUID.class, userUuid))
                 .isEqualTo(programUuid);
+        assertThat(skills.getFirst().sourceProgramUuid()).isEqualTo(programUuid);
+        assertThat(skills.getFirst().sourceProgramTitle()).isEqualTo("FMC");
     }
 
     @Test
     @DisplayName("verifies the learner's own entry for the same skill and never lowers its proficiency")
     void verifiesSelfEnteredSkill() {
         section.create(userUuid, new UserSkillDTO(null, null, "performance  Technique", null, ProficiencyLevel.EXPERT,
-                "My own claim", null, null, null, null, null, null, null, null));
+                "My own claim", null, null, null, null, null, null, null, null, null, null));
 
         section.recordVerified(userUuid, skillUuid, "Performance technique", ProficiencyLevel.INTERMEDIATE, "Achieved in FMC", programUuid);
 

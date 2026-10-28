@@ -246,6 +246,6 @@ class ApplyCatalogueSearchServiceTest {
 
     private static UserSkillDTO skill(UUID skillUuid) {
         return new UserSkillDTO(UUID.randomUUID(), USER, "Skill", skillUuid, null, null, null, null, null, null,
-                null, null, null, null);
+                null, null, null, null, null, null);
     }
 }

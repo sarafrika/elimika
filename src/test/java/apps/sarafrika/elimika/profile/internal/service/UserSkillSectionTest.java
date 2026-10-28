@@ -40,7 +40,8 @@ class UserSkillSectionTest {
     private final org.springframework.context.ApplicationEventPublisher events =
             mock(org.springframework.context.ApplicationEventPublisher.class);
     private final SkillLookupService skillLookupService = mock(SkillLookupService.class);
-    private final UserSkillSection section = new UserSkillSection(repository, specs, events, skillLookupService);
+    private final UserSkillSection section = new UserSkillSection(repository, specs, events, skillLookupService,
+            mock(apps.sarafrika.elimika.shared.spi.ProgramTitleLookupService.class));
 
     private final UUID userUuid = UUID.randomUUID();
     private UserSkill verifiedJava;

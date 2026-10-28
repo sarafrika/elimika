@@ -26,6 +26,10 @@ public record UserSkillDTO(
         WalletVerificationStatus verificationStatus,
         @JsonProperty(value = "verified_at", access = JsonProperty.Access.READ_ONLY) LocalDateTime verifiedAt,
         @JsonProperty(value = "verification_notes", access = JsonProperty.Access.READ_ONLY) String verificationNotes,
+        @Schema(description = "Programme whose grading verified this skill; null when the user added it")
+        @JsonProperty(value = "source_program_uuid", access = JsonProperty.Access.READ_ONLY) UUID sourceProgramUuid,
+        @Schema(description = "Title of the source programme, for \"Verified · from <programme>\"")
+        @JsonProperty(value = "source_program_title", access = JsonProperty.Access.READ_ONLY) String sourceProgramTitle,
         @JsonProperty(value = "created_date", access = JsonProperty.Access.READ_ONLY) LocalDateTime createdDate,
         @JsonProperty(value = "created_by", access = JsonProperty.Access.READ_ONLY) String createdBy,
         @JsonProperty(value = "updated_date", access = JsonProperty.Access.READ_ONLY) LocalDateTime updatedDate,
@@ -36,6 +40,6 @@ public record UserSkillDTO(
     public static UserSkillDTO claim(String skillName, ProficiencyLevel proficiencyLevel, String evidence,
                                      LocalDate lastAssessedOn) {
         return new UserSkillDTO(null, null, skillName, null, proficiencyLevel, evidence, lastAssessedOn,
-                null, null, null, null, null, null, null);
+                null, null, null, null, null, null, null, null, null);
     }
 }

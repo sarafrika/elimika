@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.profile.internal.repository.UserSkillRepository;
 import apps.sarafrika.elimika.profile.spi.ProfileSection;
 import apps.sarafrika.elimika.profile.spi.UserSkillDTO;
 import apps.sarafrika.elimika.profile.spi.WalletVerificationStatus;
+import apps.sarafrika.elimika.shared.spi.ProgramTitleLookupService;
 import apps.sarafrika.elimika.shared.utils.GenericSpecificationBuilder;
 import apps.sarafrika.elimika.shared.utils.enums.ProficiencyLevel;
 import apps.sarafrika.elimika.skills.spi.SkillLookupService;
@@ -18,11 +19,14 @@ import java.util.List;
 public class UserSkillSection extends ProfileSectionSupport<UserSkill, UserSkillDTO> {
 
     private final SkillLookupService skillLookupService;
+    private final ProgramTitleLookupService programTitles;
 
     public UserSkillSection(UserSkillRepository repository, GenericSpecificationBuilder<UserSkill> specificationBuilder,
-                            ApplicationEventPublisher eventPublisher, SkillLookupService skillLookupService) {
+                            ApplicationEventPublisher eventPublisher, SkillLookupService skillLookupService,
+                            ProgramTitleLookupService programTitles) {
         super(UserSkill.class, ProfileSection.SKILLS, repository, specificationBuilder, eventPublisher);
         this.skillLookupService = skillLookupService;
+        this.programTitles = programTitles;
     }
 
     @Override
@@ -60,6 +64,8 @@ public class UserSkillSection extends ProfileSectionSupport<UserSkill, UserSkill
         return new UserSkillDTO(skill.getUuid(), skill.getUserUuid(), skill.getSkillName(), skill.getSkillUuid(),
                 skill.getProficiencyLevel(), skill.getEvidence(), skill.getLastAssessedOn(),
                 skill.getVerificationStatus(), skill.getVerifiedAt(), skill.getVerificationNotes(),
+                skill.getSourceProgramUuid(), skill.getSourceProgramUuid() == null ? null
+                        : programTitles.findTitles(List.of(skill.getSourceProgramUuid())).get(skill.getSourceProgramUuid()),
                 skill.getCreatedDate(), skill.getCreatedBy(), skill.getLastModifiedDate(), skill.getLastModifiedBy());
     }
 
