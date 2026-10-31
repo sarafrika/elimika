@@ -26,11 +26,18 @@ jobs:
           EVENT_NAME: ${{ github.event_name }}
           DEPLOYMENT_REASON: ${{ github.event.inputs.deployment_reason }}
           WORKFLOW_RUN_NAME: ${{ github.event.workflow_run.name }}
+          # The M-Pesa gateway (mpesa-service on the same Docker network); blank values leave .env as it is.
+          MPESA_SERVICE_BASE_URL: ${{ vars.MPESA_SERVICE_BASE_URL }}
+          MPESA_OAUTH_TOKEN_URI: ${{ vars.MPESA_OAUTH_TOKEN_URI }}
+          MPESA_CLIENT_ID: ${{ vars.MPESA_CLIENT_ID }}
+          MPESA_CLIENT_SECRET: ${{ secrets.MPESA_CLIENT_SECRET }}
+          MPESA_SERVICE_SHORTCODE_UUID: ${{ vars.MPESA_SERVICE_SHORTCODE_UUID }}
+          MPESA_SERVICE_PAYOUT_SHORTCODE_UUID: ${{ vars.MPESA_SERVICE_PAYOUT_SHORTCODE_UUID }}
         with:
           host: ${{ secrets.STAGING_SSH_HOST }}
           username: ${{ secrets.STAGING_SSH_USERNAME }}
           password: ${{ secrets.STAGING_SSH_PASSWORD }}
-          envs: EVENT_NAME,DEPLOYMENT_REASON,WORKFLOW_RUN_NAME
+          envs: EVENT_NAME,DEPLOYMENT_REASON,WORKFLOW_RUN_NAME,MPESA_SERVICE_BASE_URL,MPESA_OAUTH_TOKEN_URI,MPESA_CLIENT_ID,MPESA_CLIENT_SECRET,MPESA_SERVICE_SHORTCODE_UUID,MPESA_SERVICE_PAYOUT_SHORTCODE_UUID
           script: |
             set -euo pipefail
             cd /opt/sarafrika/elimika
@@ -121,6 +128,17 @@ jobs:
             if [ "$MSTATUS" != "healthy" ] && grep -qiE '^SEARCH_ENABLED=true' .env; then
               echo "❌ Search is enabled but Meilisearch is not healthy"; docker logs elimika-meilisearch --tail 40; exit 1
             fi
+
+            echo "💳 Applying the M-Pesa gateway settings..."
+            # Replaces each MPESA_* line that has a value in the repo's variables or secrets; values are never printed.
+            for key in MPESA_SERVICE_BASE_URL MPESA_OAUTH_TOKEN_URI MPESA_CLIENT_ID MPESA_CLIENT_SECRET MPESA_SERVICE_SHORTCODE_UUID MPESA_SERVICE_PAYOUT_SHORTCODE_UUID; do
+              value="${!key:-}"
+              if [ -n "$value" ]; then
+                { grep -v "^$key=" .env || true; printf '%s=%s\n' "$key" "$value"; } > .env.next
+                cat .env.next > .env && rm -f .env.next
+                echo "  set $key"
+              fi
+            done
 
             echo "📥 Pulling backend image..."
             docker compose pull elimika
