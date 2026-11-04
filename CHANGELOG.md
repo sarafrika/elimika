@@ -1,3 +1,11 @@
+## [2.190.2](https://github.com/sarafrika/elimika/compare/v2.190.1...v2.190.2) (2026-11-04)
+
+
+### Bug Fixes
+
+* **commerce:** confirm M-Pesa payments every 5 seconds, capture each order once and re-check late payments ([0271d08](https://github.com/sarafrika/elimika/commit/0271d081bbed3c6faf77708a22c22cf1080aac03))
+* **commerce:** update purchase lines in place so recording a captured order no longer fails ([ff040da](https://github.com/sarafrika/elimika/commit/ff040da488aa8591db99048285925d5c5f0eb277))
+
 ## [2.190.1](https://github.com/sarafrika/elimika/compare/v2.190.0...v2.190.1) (2026-11-04)
 
 
