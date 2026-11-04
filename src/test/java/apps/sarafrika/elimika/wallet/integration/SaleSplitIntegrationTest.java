@@ -57,6 +57,8 @@ import apps.sarafrika.elimika.wallet.security.WalletSecurityService;
 import apps.sarafrika.elimika.wallet.service.SaleSplitRole;
 import apps.sarafrika.elimika.wallet.service.SaleSplitService;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
+import apps.sarafrika.elimika.wallet.service.WalletPurseBalance;
 import apps.sarafrika.elimika.wallet.service.impl.SaleSplitServiceImpl;
 import apps.sarafrika.elimika.wallet.service.impl.WalletServiceImpl;
 import java.math.BigDecimal;
@@ -128,6 +130,8 @@ class SaleSplitIntegrationTest {
     private CommercePurchaseItemRepository purchaseItemRepository;
     @Autowired
     private JdbcTemplate jdbc;
+    @Autowired
+    private WalletLedgerReconciliationJob reconciliation;
 
     @MockitoBean
     private CurrencyService currencyService;
@@ -289,11 +293,22 @@ class SaleSplitIntegrationTest {
         assertThat(walletService.balanceOf(WalletOwner.organisation(organisation), KES).balanceAmount())
                 .isEqualByComparingTo("31500.00");
         assertThat(saleSplits.salesOf(WalletOwner.user(instructor), PageRequest.of(0, 20)).getContent()).isEmpty();
+        // The organisation keeps its one purse; the creator's leg is in the creator's COURSE_CREATOR purse.
+        assertThat(walletService.pursesOf(WalletOwner.organisation(organisation), KES))
+                .extracting(WalletPurseBalance::purse).containsExactly(WalletPurse.EARNINGS);
+        assertThat(walletService.balanceOf(WalletOwner.user(creator), WalletPurse.COURSE_CREATOR, KES).balanceAmount())
+                .isEqualByComparingTo("13500.00");
+        mvc.perform(get("/api/v1/organisations/{organisationUuid}/wallet", organisation))
+                .andExpect(jsonPath("$.data.balance_amount").value(31500.0))
+                .andExpect(jsonPath("$.data.purses", hasSize(1)))
+                .andExpect(jsonPath("$.data.purses[0].purse").value("EARNINGS"))
+                .andExpect(jsonPath("$.data.purses[0].balance_amount").value(31500.0));
 
         mvc.perform(get("/api/v1/organisations/{organisationUuid}/wallet/sales", organisation))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.content", hasSize(1)))
                 .andExpect(jsonPath("$.data.content[0].your_role").value("ORGANISATION"))
+                .andExpect(jsonPath("$.data.content[0].your_purse").value("EARNINGS"))
                 .andExpect(jsonPath("$.data.content[0].your_net").value(31500.0))
                 .andExpect(jsonPath("$.data.content[0].delivery.name").value("Green Thumb Academy"))
                 .andExpect(jsonPath("$.data.content[0].creator.name").value("Wanjiru Tester"))
@@ -304,6 +319,93 @@ class SaleSplitIntegrationTest {
                 .andExpect(jsonPath("$.data.delivery.role").value("ORGANISATION"));
         mvc.perform(get("/api/v1/organisations/{organisationUuid}/wallet/transactions", organisation))
                 .andExpect(jsonPath("$.data.content[1].sale_split_uuid").value(item.getUuid().toString()));
+    }
+
+    @Test
+    @DisplayName("one person who created the course and teaches the class has two purses, each net of its own fee")
+    void creatorWhoTeachesKeepsTwoPurses() throws Exception {
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(creator));
+
+        String line = capture("50000.00");
+        UUID splitUuid = item(line).getUuid();
+        WalletOwner person = WalletOwner.user(creator);
+
+        assertThat(walletService.balanceOf(person, WalletPurse.COURSE_CREATOR, KES).balanceAmount())
+                .isEqualByComparingTo("13500.00");
+        assertThat(walletService.balanceOf(person, WalletPurse.INSTRUCTOR, KES).balanceAmount())
+                .isEqualByComparingTo("31500.00");
+        assertThat(walletService.balanceOf(person, WalletPurse.STUDENT, KES).balanceAmount()).isEqualByComparingTo("0");
+        assertThat(walletService.balanceOf(person, KES).balanceAmount()).isEqualByComparingTo("45000.00");
+        // Each purse's rows run their own balance: share, then the fee on that share.
+        assertThat(jdbc.queryForList("select w.purse || ' ' || t.transaction_type || ' ' || t.balance_after::numeric(18,2) "
+                        + "from user_wallet_transactions t join user_wallets w on w.id = t.wallet_id "
+                        + "where w.user_uuid = ? order by w.purse, t.id", String.class, creator))
+                .containsExactly("COURSE_CREATOR SALE 15000.00", "COURSE_CREATOR PLATFORM_FEE 13500.00",
+                        "INSTRUCTOR SALE 35000.00", "INSTRUCTOR PLATFORM_FEE 31500.00");
+
+        mvc.perform(get("/api/v1/wallets/{userUuid}", creator))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.balance_amount").value(45000.0))
+                .andExpect(jsonPath("$.data.account_balance").value(45000.0))
+                .andExpect(jsonPath("$.data.purse").value(nullValue()))
+                .andExpect(jsonPath("$.data.purses", hasSize(3)))
+                .andExpect(jsonPath("$.data.purses[0].purse").value("COURSE_CREATOR"))
+                .andExpect(jsonPath("$.data.purses[0].balance_amount").value(13500.0))
+                .andExpect(jsonPath("$.data.purses[0].available_amount").value(13500.0))
+                .andExpect(jsonPath("$.data.purses[0].held_amount").value(0))
+                .andExpect(jsonPath("$.data.purses[0].platform_fees_total").value(1500.0))
+                .andExpect(jsonPath("$.data.purses[1].purse").value("INSTRUCTOR"))
+                .andExpect(jsonPath("$.data.purses[1].account_balance").value(31500.0))
+                .andExpect(jsonPath("$.data.purses[1].shares_total").value(35000.0))
+                .andExpect(jsonPath("$.data.purses[2].purse").value("STUDENT"))
+                .andExpect(jsonPath("$.data.purses[2].wallet_uuid").value(nullValue()))
+                .andExpect(jsonPath("$.data.purses[2].balance_amount").value(0));
+        mvc.perform(get("/api/v1/wallets/{userUuid}/transactions", creator).param("purse", "INSTRUCTOR"))
+                .andExpect(jsonPath("$.data.content", hasSize(2)))
+                .andExpect(jsonPath("$.data.content[0].purse").value("INSTRUCTOR"))
+                .andExpect(jsonPath("$.data.content[1].purse").value("INSTRUCTOR"));
+        mvc.perform(get("/api/v1/wallets/{userUuid}/statements", creator).param("purse", "COURSE_CREATOR"))
+                .andExpect(jsonPath("$.data[0].closing_balance").value(13500.0));
+
+        // The sales read through a purse names that purse's leg only.
+        mvc.perform(get("/api/v1/wallets/{userUuid}/sales", creator).param("purse", "INSTRUCTOR"))
+                .andExpect(jsonPath("$.data.content", hasSize(1)))
+                .andExpect(jsonPath("$.data.content[0].your_role").value("INSTRUCTOR"))
+                .andExpect(jsonPath("$.data.content[0].your_purse").value("INSTRUCTOR"))
+                .andExpect(jsonPath("$.data.content[0].your_net").value(31500.0))
+                .andExpect(jsonPath("$.data.content[0].transactions", hasSize(2)))
+                .andExpect(jsonPath("$.data.content[0].transactions[0].purse").value("INSTRUCTOR"));
+        mvc.perform(get("/api/v1/wallets/{userUuid}/sales/{splitUuid}", creator, splitUuid)
+                        .param("purse", "COURSE_CREATOR"))
+                .andExpect(jsonPath("$.data.your_role").value("COURSE_CREATOR"))
+                .andExpect(jsonPath("$.data.your_purse").value("COURSE_CREATOR"))
+                .andExpect(jsonPath("$.data.your_net").value(13500.0));
+        mvc.perform(get("/api/v1/wallets/{userUuid}/sales", creator))
+                .andExpect(jsonPath("$.data.content[0].your_purse").value(nullValue()))
+                .andExpect(jsonPath("$.data.content[0].your_net").value(45000.0))
+                .andExpect(jsonPath("$.data.content[0].transactions", hasSize(4)));
+        assertThat(saleSplits.salesOf(person, WalletPurse.STUDENT, PageRequest.of(0, 20)).getContent()).isEmpty();
+        assertThat(reconciliation.runOnce().isClean()).isTrue();
+    }
+
+    @Test
+    @DisplayName("a reversed share comes off the purse it was paid into, net of its fee, and the ledger follows")
+    void reversalDebitsThePurseOfTheCredit() {
+        when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(creator));
+        String line = capture("50000.00");
+        WalletOwner person = WalletOwner.user(creator);
+
+        walletService.reverseSaleShare(orderId + ":" + line + ":creator", "Refunded to the learner");
+
+        assertThat(walletService.balanceOf(person, WalletPurse.COURSE_CREATOR, KES).balanceAmount())
+                .isEqualByComparingTo("0");
+        assertThat(walletService.balanceOf(person, WalletPurse.INSTRUCTOR, KES).balanceAmount())
+                .isEqualByComparingTo("31500.00");
+        assertThat(walletService.reverseSaleShare(orderId + ":" + line + ":creator", "Again")).isNull();
+        assertThat(jdbc.queryForObject("select w.purse from user_wallet_transactions t join user_wallets w "
+                + "on w.id = t.wallet_id where t.transaction_type = 'SALE_REVERSAL' and t.reference = ?", String.class,
+                orderId + ":" + line + ":creator:reversal")).isEqualTo("COURSE_CREATOR");
+        assertThat(reconciliation.runOnce().isClean()).isTrue();
     }
 
     @Test
@@ -376,9 +478,9 @@ class SaleSplitIntegrationTest {
     void backfill() throws Exception {
         String line = "line-" + UUID.randomUUID();
         purchase(line, "50000.00");
-        walletService.settleSaleShare(WalletOwner.user(creator), new BigDecimal("15000.00"), new BigDecimal("1500.00"),
+        walletService.settleSaleShare(WalletOwner.user(creator), WalletPurse.creatorLegOf(WalletOwner.user(creator).type()), new BigDecimal("15000.00"), new BigDecimal("1500.00"),
                 KES, orderId + ":" + line + ":creator", "Class sale share - Flower Gardening");
-        walletService.settleSaleShare(WalletOwner.user(instructor), new BigDecimal("35000.00"),
+        walletService.settleSaleShare(WalletOwner.user(instructor), WalletPurse.deliveryLegOf(WalletOwner.user(instructor).type()), new BigDecimal("35000.00"),
                 new BigDecimal("3500.00"), KES, orderId + ":" + line + ":delivery", "Class sale share - Flower Gardening");
         jdbc.update("update commerce_purchase_item set platform_fee_amount = 5000, credited_amount = 45000, "
                 + "retained_amount = 0, creator_credited_amount = 13500 where line_item_id = ?", line);
