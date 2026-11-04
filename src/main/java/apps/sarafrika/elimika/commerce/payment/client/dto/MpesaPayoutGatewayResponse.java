@@ -3,7 +3,7 @@ package apps.sarafrika.elimika.commerce.payment.client.dto;
 import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 /** A payout as mpesa-service reports it; only the fields elimika uses are mapped. */
@@ -16,7 +16,7 @@ public record MpesaPayoutGatewayResponse(
         @JsonProperty("recipient_name") String recipientName,
         @JsonProperty("charges_paid") BigDecimal chargesPaid,
         @JsonProperty("result_desc") String resultDesc,
-        @JsonProperty("timed_out_at") LocalDateTime timedOutAt,
-        @JsonProperty("processed_at") LocalDateTime processedAt
+        @JsonProperty("timed_out_at") OffsetDateTime timedOutAt,
+        @JsonProperty("processed_at") OffsetDateTime processedAt
 ) {
 }

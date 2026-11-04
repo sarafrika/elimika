@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.wallet.repository;
 
 import apps.sarafrika.elimika.wallet.entity.Withdrawal;
+import apps.sarafrika.elimika.wallet.enums.PayoutBatchStatus;
 import apps.sarafrika.elimika.wallet.enums.WithdrawalStatus;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
 import jakarta.persistence.LockModeType;
@@ -37,6 +38,37 @@ public interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
 
     @Query("select w from Withdrawal w where w.status in :statuses order by w.id desc")
     Page<Withdrawal> findByStatusIn(@Param("statuses") Collection<WithdrawalStatus> statuses, Pageable pageable);
+
+    @Query("select w from Withdrawal w where w.status in :statuses and w.payoutBatchUuid is null order by w.id desc")
+    Page<Withdrawal> findUnbatchedByStatusIn(@Param("statuses") Collection<WithdrawalStatus> statuses,
+                                             Pageable pageable);
+
+    @Query("select w from Withdrawal w where w.payoutBatchUuid = :batchUuid order by w.id")
+    List<Withdrawal> findByPayoutBatchUuid(@Param("batchUuid") UUID batchUuid);
+
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("select w from Withdrawal w where w.payoutBatchUuid = :batchUuid order by w.id")
+    List<Withdrawal> lockByPayoutBatchUuid(@Param("batchUuid") UUID batchUuid);
+
+    /** Row count and net total of a batch, as {count, sum}. */
+    @Query("select count(w), coalesce(sum(w.netAmount), 0) from Withdrawal w where w.payoutBatchUuid = :batchUuid")
+    List<Object[]> batchTotals(@Param("batchUuid") UUID batchUuid);
+
+    /** Rows per batch and status, as {batch uuid, status, count}. */
+    @Query("select w.payoutBatchUuid, w.status, count(w) from Withdrawal w where w.payoutBatchUuid in :batchUuids "
+            + "group by w.payoutBatchUuid, w.status")
+    List<Object[]> countByBatchAndStatus(@Param("batchUuids") Collection<UUID> batchUuids);
+
+    /** Withdrawals of released batches waiting to be handed to M-Pesa, oldest batch and row first. */
+    @Query("select w.uuid from Withdrawal w, PayoutBatch b where w.payoutBatchUuid = b.uuid and b.status = :batchStatus "
+            + "and w.status = :status order by b.releasedAt, b.id, w.id")
+    List<UUID> findUuidsInBatchesByStatus(@Param("batchStatus") PayoutBatchStatus batchStatus,
+                                          @Param("status") WithdrawalStatus status, Pageable pageable);
+
+    long countByStatusAndPayoutBatchUuidIsNotNull(WithdrawalStatus status);
+
+    @Query("select w.uuid from Withdrawal w where w.status = :status and w.payoutBatchUuid is null order by w.id")
+    List<UUID> findUnbatchedUuidsByStatus(@Param("status") WithdrawalStatus status);
 
     @Query("select coalesce(sum(w.amount), 0) from Withdrawal w where w.ownerType = :ownerType "
             + "and w.ownerUuid = :ownerUuid and w.currencyCode = :currency and w.status in :statuses")

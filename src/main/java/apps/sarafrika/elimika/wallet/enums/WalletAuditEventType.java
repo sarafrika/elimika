@@ -28,7 +28,16 @@ public enum WalletAuditEventType {
     WITHDRAWAL_REVERSED,
     WITHDRAWAL_CANCELLED,
     PAYOUT_FEE_CHARGED,
-    PAYOUT_SETTINGS_CHANGED;
+    PAYOUT_SETTINGS_CHANGED,
+    /** Batch events are written once per withdrawal in the batch, on that withdrawal's wallet. */
+    PAYOUT_BATCH_ROW_ADDED,
+    PAYOUT_BATCH_ROW_REMOVED,
+    PAYOUT_BATCH_SUBMITTED,
+    PAYOUT_BATCH_RETURNED_TO_DRAFT,
+    PAYOUT_BATCH_APPROVED,
+    PAYOUT_BATCH_REJECTED,
+    PAYOUT_BATCH_CANCELLED,
+    PAYOUT_BATCH_COMPLETED;
 
     public static WalletAuditEventType forTransaction(WalletTransactionType type) {
         return switch (type) {

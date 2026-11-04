@@ -249,6 +249,15 @@ wallet:
     confirmation-window: ${WALLET_WITHDRAWAL_CONFIRMATION_WINDOW:PT15M}
     # How often cleared withdrawals are handed to M-Pesa and those in flight are checked.
     process-interval: ${WALLET_WITHDRAWAL_PROCESS_INTERVAL:PT30S}
+  # Approved payout batches are paid a few rows at a time so M-Pesa and the float are not flooded.
+  payout:
+    batch:
+      # How often rows of released batches are handed to M-Pesa and finished batches closed.
+      send-interval: ${WALLET_PAYOUT_BATCH_SEND_INTERVAL:PT15S}
+      # Batch rows with M-Pesa at once; no new row is sent while this many are processing.
+      max-in-flight: ${WALLET_PAYOUT_BATCH_MAX_IN_FLIGHT:5}
+      # Most rows handed over in one run.
+      per-tick: ${WALLET_PAYOUT_BATCH_PER_TICK:10}
   # A newly verified payout number cannot receive money until this hold passes.
   payout-methods:
     hold: ${WALLET_PAYOUT_METHOD_HOLD:PT24H}

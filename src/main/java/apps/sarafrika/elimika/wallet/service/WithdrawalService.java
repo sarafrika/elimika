@@ -11,7 +11,8 @@ import org.springframework.data.domain.Pageable;
 
 /**
  * Withdrawals to M-Pesa: request, confirm by SMS code (money leaves the balance), optional second
- * approval and admin review, then paid or reversed from M-Pesa's result.
+ * approval and admin review, then paid or reversed from M-Pesa's result. Admin approval happens
+ * through {@link PayoutBatchService}.
  */
 public interface WithdrawalService {
 
@@ -32,8 +33,13 @@ public interface WithdrawalService {
 
     Page<Withdrawal> queue(Collection<WithdrawalStatus> statuses, Pageable pageable);
 
-    Withdrawal adminApprove(UUID withdrawalUuid);
+    /** The admin queue; {@code unbatched} leaves out withdrawals already in a payout batch. */
+    Page<Withdrawal> queue(Collection<WithdrawalStatus> statuses, boolean unbatched, Pageable pageable);
 
+    /**
+     * Refuses a withdrawal and returns its money. A withdrawal in a draft payout batch leaves it;
+     * one in a batch waiting for approval or released cannot be rejected on its own.
+     */
     Withdrawal adminReject(UUID withdrawalUuid, String reason);
 
     /** Hands a cleared withdrawal to M-Pesa; safe to repeat. */

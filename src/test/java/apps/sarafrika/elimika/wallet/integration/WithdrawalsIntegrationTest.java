@@ -174,6 +174,8 @@ class WithdrawalsIntegrationTest {
         Fakes.submitThrows = false;
         Fakes.submits = 0;
         actAs(UUID.randomUUID(), "Jane Wanjiru Kamau");
+        // These paths pay without an admin; PayoutBatchesIntegrationTest covers the admin-approval route.
+        jdbc.update("update wallet_payout_settings set require_admin_approval = false");
     }
 
     @Test
@@ -229,7 +231,7 @@ class WithdrawalsIntegrationTest {
     }
 
     @Test
-    @DisplayName("a first payout to a number waits for an admin; rejection refunds, approval pays")
+    @DisplayName("a first payout to a number waits for an admin, and rejection refunds it")
     void reviewRoute() {
         WalletOwner earner = WalletOwner.user(user());
         fund(earner, "9000");
@@ -243,11 +245,7 @@ class WithdrawalsIntegrationTest {
 
         withdrawals.adminReject(first, "The number is not registered to you.");
         assertThat(balance(earner)).isEqualByComparingTo("9000");
-
-        UUID second = confirm(earner, method, "1000", "key-4");
-        withdrawals.adminApprove(second);
-        assertThat(withdrawalRepository.findByUuid(second).orElseThrow().getStatus()).isEqualTo(WithdrawalStatus.PROCESSING);
-        assertThat(Fakes.submits).isEqualTo(1);
+        assertThat(Fakes.submits).isZero();
     }
 
     @Test
@@ -336,10 +334,10 @@ class WithdrawalsIntegrationTest {
     void settings() {
         assertThatThrownBy(() -> settingsService.update(new BigDecimal("500"), new BigDecimal("100"),
                 new BigDecimal("1000"), new BigDecimal("50"), new BigDecimal("50"), PayoutFeePayer.PLATFORM,
-                BigDecimal.ZERO, "admin")).isInstanceOf(IllegalArgumentException.class);
+                BigDecimal.ZERO, null, "admin")).isInstanceOf(IllegalArgumentException.class);
         try {
             settingsService.update(new BigDecimal("100"), new BigDecimal("150000"), new BigDecimal("300000"),
-                    new BigDecimal("800"), new BigDecimal("100000"), PayoutFeePayer.EARNER, new BigDecimal("30"), "admin");
+                    new BigDecimal("800"), new BigDecimal("100000"), PayoutFeePayer.EARNER, new BigDecimal("30"), null, "admin");
             WalletOwner earner = WalletOwner.user(user());
             fund(earner, "5000");
             PayoutMethod method = method(earner, "254712345678", true);
@@ -356,7 +354,7 @@ class WithdrawalsIntegrationTest {
             assertThat(reconciliationJob.runOnce().isClean()).isTrue();
         } finally {
             settingsService.update(new BigDecimal("100"), new BigDecimal("150000"), new BigDecimal("300000"),
-                    new BigDecimal("50000"), new BigDecimal("100000"), PayoutFeePayer.PLATFORM, BigDecimal.ZERO, "admin");
+                    new BigDecimal("50000"), new BigDecimal("100000"), PayoutFeePayer.PLATFORM, BigDecimal.ZERO, null, "admin");
         }
     }
 

@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.wallet.dto.RejectWithdrawalRequestDTO;
 import apps.sarafrika.elimika.wallet.dto.WithdrawalDTO;
 import apps.sarafrika.elimika.wallet.enums.WithdrawalStatus;
 import apps.sarafrika.elimika.wallet.repository.WithdrawalRepository;
+import apps.sarafrika.elimika.wallet.service.PayoutBatchService;
 import apps.sarafrika.elimika.wallet.service.PayoutSettingsService;
 import apps.sarafrika.elimika.wallet.service.WithdrawalService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -46,6 +47,7 @@ public class AdminPayoutController {
     private final WithdrawalService withdrawalService;
     private final WithdrawalRepository withdrawalRepository;
     private final PayoutSettingsService settingsService;
+    private final PayoutBatchService batchService;
     private final MobileMoneyPayoutGateway gateway;
 
     @GetMapping("/summary")
@@ -69,25 +71,33 @@ public class AdminPayoutController {
 
     @GetMapping("/withdrawals")
     @Operation(operationId = "listAdminWithdrawals", summary = "List withdrawals across all wallets",
-            description = "Newest first; filter by status, e.g. NEEDS_REVIEW.")
+            description = "Newest first; filter by status, e.g. NEEDS_REVIEW. With unbatched=true, withdrawals "
+                    + "already in a payout batch are left out, which gives the queue a new batch is built from.")
     public ResponseEntity<ApiResponse<PagedDTO<WithdrawalDTO>>> list(
-            @RequestParam(value = "status", required = false) List<WithdrawalStatus> statuses, Pageable pageable) {
-        Page<WithdrawalDTO> page = withdrawalService.queue(statuses, pageable).map(WithdrawalDTO::from);
+            @RequestParam(value = "status", required = false) List<WithdrawalStatus> statuses,
+            @RequestParam(value = "unbatched", required = false, defaultValue = "false") boolean unbatched,
+            Pageable pageable) {
+        Page<WithdrawalDTO> page = withdrawalService.queue(statuses, unbatched, pageable).map(WithdrawalDTO::from);
         return ResponseEntity.ok(ApiResponse.success(
                 PagedDTO.from(page, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()),
                 "Withdrawals retrieved successfully"));
     }
 
     @PostMapping("/withdrawals/{withdrawalUuid}/approve")
-    @Operation(operationId = "approveAdminWithdrawal", summary = "Approve a flagged withdrawal and send it")
+    @Operation(operationId = "approveAdminWithdrawal", summary = "Put one withdrawal up for approval on its own",
+            description = "Does not send money. Creates a one-row payout batch holding this withdrawal, submitted by "
+                    + "the caller and waiting for approval (AWAITING_APPROVAL), so a different admin must still approve "
+                    + "that batch before M-Pesa pays it. The withdrawal stays NEEDS_REVIEW and comes back with its "
+                    + "payout_batch_uuid set. Refused when the withdrawal is already in a batch.")
     public ResponseEntity<ApiResponse<WithdrawalDTO>> approve(@PathVariable UUID withdrawalUuid) {
-        return ResponseEntity.ok(ApiResponse.success(WithdrawalDTO.from(withdrawalService.adminApprove(withdrawalUuid)),
-                "Withdrawal approved"));
+        return ResponseEntity.ok(ApiResponse.success(WithdrawalDTO.from(batchService.submitSingle(withdrawalUuid)),
+                "Withdrawal submitted for approval in a payout batch"));
     }
 
     @PostMapping("/withdrawals/{withdrawalUuid}/reject")
     @Operation(operationId = "rejectAdminWithdrawal", summary = "Reject a withdrawal and return its money",
-            description = "The reason is shown to the earner.")
+            description = "The reason is shown to the earner. A withdrawal in a draft payout batch leaves the batch; "
+                    + "one in a batch waiting for approval or released cannot be rejected on its own (409).")
     public ResponseEntity<ApiResponse<WithdrawalDTO>> reject(@PathVariable UUID withdrawalUuid,
                                                              @Valid @RequestBody RejectWithdrawalRequestDTO request) {
         return ResponseEntity.ok(ApiResponse.success(WithdrawalDTO.from(
@@ -96,9 +106,14 @@ public class AdminPayoutController {
 
     @PostMapping("/withdrawals/{withdrawalUuid}/check")
     @Operation(operationId = "checkAdminWithdrawal", summary = "Ask M-Pesa about a withdrawal now",
-            description = "Sends a cleared withdrawal, or reads the result of one in flight.")
+            description = "Sends a cleared withdrawal outside a payout batch, or reads the result of one in flight. "
+                    + "Batch rows are sent only by the batch sender, which paces them.")
     public ResponseEntity<ApiResponse<WithdrawalDTO>> check(@PathVariable UUID withdrawalUuid) {
-        withdrawalService.send(withdrawalUuid);
+        boolean batched = withdrawalRepository.findByUuid(withdrawalUuid)
+                .map(w -> w.getPayoutBatchUuid() != null).orElse(false);
+        if (!batched) {
+            withdrawalService.send(withdrawalUuid);
+        }
         withdrawalService.refresh(withdrawalUuid);
         return ResponseEntity.ok(ApiResponse.success(WithdrawalDTO.from(withdrawalRepository.findByUuid(withdrawalUuid)
                 .orElseThrow(() -> new apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException(
@@ -119,7 +134,8 @@ public class AdminPayoutController {
                                                                          Authentication authentication) {
         return ResponseEntity.ok(ApiResponse.success(PayoutSettingsDTO.from(settingsService.update(request.minAmount(),
                 request.maxAmount(), request.dailyLimit(), request.reviewLimit(), request.secondApprovalLimit(),
-                request.feePayer(), request.earnerFee(), authentication == null ? "SYSTEM" : authentication.getName())),
+                request.feePayer(), request.earnerFee(), request.requireAdminApproval(),
+                authentication == null ? "SYSTEM" : authentication.getName())),
                 "Payout settings saved"));
     }
 }

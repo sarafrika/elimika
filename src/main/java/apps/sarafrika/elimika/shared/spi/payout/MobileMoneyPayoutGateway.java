@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.shared.spi.payout;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.util.Optional;
 
 /**
@@ -32,9 +32,9 @@ public interface MobileMoneyPayoutGateway {
      */
     record PayoutOutcome(String gatewayPayoutUuid, PayoutState state, String receipt, String recipientName,
                          BigDecimal chargesPaid, String failureReason, boolean timedOut,
-                         LocalDateTime completedAt) {
+                         OffsetDateTime completedAt) {
     }
 
-    record PayoutFloat(BigDecimal utilityAccountFunds, BigDecimal workingAccountFunds, LocalDateTime reportedAt) {
+    record PayoutFloat(BigDecimal utilityAccountFunds, BigDecimal workingAccountFunds, OffsetDateTime reportedAt) {
     }
 }

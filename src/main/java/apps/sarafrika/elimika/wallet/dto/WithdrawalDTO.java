@@ -40,7 +40,9 @@ public record WithdrawalDTO(
         @JsonProperty("created_date") LocalDateTime createdDate,
         @JsonProperty("confirmed_at") OffsetDateTime confirmedAt,
         @JsonProperty("sent_at") OffsetDateTime sentAt,
-        @JsonProperty("completed_at") OffsetDateTime completedAt
+        @JsonProperty("completed_at") OffsetDateTime completedAt,
+        @Schema(description = "The payout batch this withdrawal is in, or was paid in; null when in none")
+        @JsonProperty("payout_batch_uuid") UUID payoutBatchUuid
 ) {
 
     public static WithdrawalDTO from(Withdrawal w) {
@@ -48,6 +50,6 @@ public record WithdrawalDTO(
                 w.getNetAmount(), w.getCurrencyCode(), w.getPayoutMethodUuid(), Msisdn.mask(w.getMsisdn()),
                 w.getRequestedByUserUuid(), w.getRequesterName(), w.reviewFlagList(), w.getSecondApproverUserUuid(), w.getRejectionReason(),
                 w.getFailureReason(), w.getMpesaReceipt(), w.getMpesaRecipientName(), w.getCreatedDate(),
-                w.getConfirmedAt(), w.getSentAt(), w.getCompletedAt());
+                w.getConfirmedAt(), w.getSentAt(), w.getCompletedAt(), w.getPayoutBatchUuid());
     }
 }

@@ -22,11 +22,14 @@ public record PayoutSettingsDTO(
         @NotNull @JsonProperty("fee_payer") PayoutFeePayer feePayer,
         @Schema(description = "Charged per withdrawal when the earner pays the M-Pesa charge")
         @PositiveOrZero @JsonProperty("earner_fee") BigDecimal earnerFee,
+        @Schema(description = "When true every withdrawal waits for an admin and is paid only through an approved "
+                + "payout batch; review flags are then shown for information. Left unchanged when omitted.")
+        @JsonProperty("require_admin_approval") Boolean requireAdminApproval,
         @Schema(accessMode = Schema.AccessMode.READ_ONLY) @JsonProperty("updated_date") OffsetDateTime updatedDate
 ) {
 
     public static PayoutSettingsDTO from(PayoutSettings s) {
         return new PayoutSettingsDTO(s.getMinAmount(), s.getMaxAmount(), s.getDailyLimit(), s.getReviewLimit(),
-                s.getSecondApprovalLimit(), s.getFeePayer(), s.getEarnerFee(), s.getUpdatedDate());
+                s.getSecondApprovalLimit(), s.getFeePayer(), s.getEarnerFee(), s.isRequireAdminApproval(), s.getUpdatedDate());
     }
 }

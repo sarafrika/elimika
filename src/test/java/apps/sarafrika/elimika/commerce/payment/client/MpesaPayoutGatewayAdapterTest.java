@@ -13,6 +13,7 @@ import apps.sarafrika.elimika.commerce.payment.config.MpesaGatewayProperties;
 import apps.sarafrika.elimika.shared.spi.payout.MobileMoneyPayoutGateway.PayoutOutcome;
 import apps.sarafrika.elimika.shared.spi.payout.MobileMoneyPayoutGateway.PayoutState;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -88,5 +89,24 @@ class MpesaPayoutGatewayAdapterTest {
         assertThat(paid.receipt()).isEqualTo("TJE4K9L2QX");
         assertThat(paid.recipientName()).isEqualTo("JANE W KAMAU");
         assertThat(adapter.status("wd-5")).isEmpty();
+    }
+
+    @Test
+    void readsTheGatewaysUtcInstants() {
+        server.expect(requestTo("https://mpesa.example/api/v1/mpesa/payouts?client_reference=wd-6"))
+                .andRespond(withSuccess("""
+                        {"status":"SUCCESS","transaction_id":"TJE4K9L2QX","processed_at":"2026-11-04T07:15:30Z"}""",
+                        MediaType.APPLICATION_JSON));
+        server.expect(requestTo("https://mpesa.example/api/v1/mpesa/shortcodes/" + SHORTCODE + "/float"))
+                .andRespond(withSuccess("""
+                        {"utility_account_available_funds":250000.00,"working_account_available_funds":1200.00,
+                         "reported_at":"2026-11-04T07:00:00Z"}""", MediaType.APPLICATION_JSON));
+
+        PayoutOutcome paid = adapter.status("wd-6").orElseThrow();
+        var payoutFloat = adapter.currentFloat().orElseThrow();
+
+        assertThat(paid.completedAt()).isEqualTo(OffsetDateTime.parse("2026-11-04T07:15:30Z"));
+        assertThat(payoutFloat.utilityAccountFunds()).isEqualByComparingTo("250000");
+        assertThat(payoutFloat.reportedAt().toInstant()).isEqualTo(OffsetDateTime.parse("2026-11-04T07:00:00Z").toInstant());
     }
 }

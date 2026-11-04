@@ -14,7 +14,7 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Moves withdrawals along without anyone watching: hands cleared ones to M-Pesa, asks M-Pesa about
+ * Moves withdrawals along without anyone watching: hands cleared ones outside payout batches to M-Pesa, asks M-Pesa about
  * those in flight, and expires requests whose code was never entered. Each withdrawal is handled on
  * its own, so one failure never stops the rest.
  */
@@ -32,7 +32,8 @@ public class WithdrawalProcessor {
     @Scheduled(initialDelayString = "${wallet.withdrawals.process-initial-delay:PT1M}",
             fixedDelayString = "${wallet.withdrawals.process-interval:PT30S}")
     public void process() {
-        each(withdrawalRepository.findUuidsByStatus(WithdrawalStatus.SENDING), withdrawalService::send, "send");
+        // Rows of payout batches are sent by PayoutBatchSender, which paces them.
+        each(withdrawalRepository.findUnbatchedUuidsByStatus(WithdrawalStatus.SENDING), withdrawalService::send, "send");
         each(withdrawalRepository.findUuidsByStatus(WithdrawalStatus.PROCESSING), withdrawalService::refresh, "refresh");
         each(withdrawalRepository.findUuidsByStatusCreatedBefore(WithdrawalStatus.AWAITING_CONFIRMATION,
                 LocalDateTime.now(ZoneOffset.UTC).minus(confirmationWindow)), withdrawalService::expire, "expire");

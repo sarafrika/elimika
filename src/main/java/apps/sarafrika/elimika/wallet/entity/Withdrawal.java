@@ -118,6 +118,10 @@ public class Withdrawal extends BaseEntity {
     @Column(name = "status_checks")
     private int statusChecks;
 
+    /** The payout batch this withdrawal is in, if any; at most one at a time. */
+    @Column(name = "payout_batch_uuid")
+    private UUID payoutBatchUuid;
+
     public WalletOwner owner() {
         return new WalletOwner(ownerType, ownerUuid);
     }

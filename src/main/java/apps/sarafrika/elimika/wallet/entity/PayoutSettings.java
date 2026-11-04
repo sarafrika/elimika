@@ -50,6 +50,10 @@ public class PayoutSettings {
     @Column(name = "earner_fee")
     private BigDecimal earnerFee;
 
+    /** When true every confirmed withdrawal waits for an admin and is paid only through an approved batch. */
+    @Column(name = "require_admin_approval")
+    private boolean requireAdminApproval;
+
     @Column(name = "updated_date")
     private OffsetDateTime updatedDate;
 

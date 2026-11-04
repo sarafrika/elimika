@@ -8,14 +8,17 @@ import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.sms.Msisdn;
 import apps.sarafrika.elimika.shared.spi.payout.MobileMoneyPayoutGateway;
 import apps.sarafrika.elimika.shared.spi.payout.MobileMoneyPayoutGateway.PayoutOutcome;
+import apps.sarafrika.elimika.wallet.entity.PayoutBatch;
 import apps.sarafrika.elimika.wallet.entity.PayoutMethod;
 import apps.sarafrika.elimika.wallet.entity.PayoutSettings;
 import apps.sarafrika.elimika.wallet.entity.WalletAuditEvent;
 import apps.sarafrika.elimika.wallet.entity.Withdrawal;
+import apps.sarafrika.elimika.wallet.enums.PayoutBatchStatus;
 import apps.sarafrika.elimika.wallet.enums.PayoutFeePayer;
 import apps.sarafrika.elimika.wallet.enums.PayoutMethodStatus;
 import apps.sarafrika.elimika.wallet.enums.WalletAuditEventType;
 import apps.sarafrika.elimika.wallet.enums.WithdrawalStatus;
+import apps.sarafrika.elimika.wallet.repository.PayoutBatchRepository;
 import apps.sarafrika.elimika.wallet.repository.PayoutMethodRepository;
 import apps.sarafrika.elimika.wallet.repository.WalletAuditEventRepository;
 import apps.sarafrika.elimika.wallet.repository.WithdrawalRepository;
@@ -66,6 +69,7 @@ public class WithdrawalServiceImpl implements WithdrawalService {
     static final String FLAG_NAME_MISMATCH = "NAME_MISMATCH";
 
     private final WithdrawalRepository withdrawalRepository;
+    private final PayoutBatchRepository batchRepository;
     private final PayoutMethodRepository methodRepository;
     private final WalletAuditEventRepository auditRepository;
     private final WalletService walletService;
@@ -77,13 +81,15 @@ public class WithdrawalServiceImpl implements WithdrawalService {
     private final TransactionTemplate transactions;
     private final Duration confirmationWindow;
 
-    public WithdrawalServiceImpl(WithdrawalRepository withdrawalRepository, PayoutMethodRepository methodRepository,
+    public WithdrawalServiceImpl(WithdrawalRepository withdrawalRepository, PayoutBatchRepository batchRepository,
+                                 PayoutMethodRepository methodRepository,
                                  WalletAuditEventRepository auditRepository, WalletService walletService,
                                  PayoutSettingsService settingsService, OneTimeCodeService oneTimeCodeService,
                                  DomainSecurityService domainSecurityService, MobileMoneyPayoutGateway gateway,
                                  WithdrawalNotifier notifier, PlatformTransactionManager transactionManager,
                                  @Value("${wallet.withdrawals.confirmation-window:PT15M}") Duration confirmationWindow) {
         this.withdrawalRepository = withdrawalRepository;
+        this.batchRepository = batchRepository;
         this.methodRepository = methodRepository;
         this.auditRepository = auditRepository;
         this.walletService = walletService;
@@ -209,7 +215,7 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         boolean secondApproval = owner.type() == WalletOwnerType.ORGANISATION
                 && withdrawal.getAmount().compareTo(settings.getSecondApprovalLimit()) > 0;
         withdrawal.setStatus(secondApproval ? WithdrawalStatus.AWAITING_SECOND_APPROVAL
-                : flags.isEmpty() ? WithdrawalStatus.SENDING : WithdrawalStatus.NEEDS_REVIEW);
+                : afterApprovals(flags, settings));
         withdrawalRepository.save(withdrawal);
         audit(withdrawal, WalletAuditEventType.WITHDRAWAL_CONFIRMED, domainSecurityService.getCurrentUserUuid(),
                 "Confirmed by SMS code", Map.of("status", withdrawal.getStatus().name(), "review_flags", flags));
@@ -246,7 +252,7 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         }
         withdrawal.setSecondApproverUserUuid(actor);
         withdrawal.setSecondApprovedAt(now());
-        withdrawal.setStatus(withdrawal.reviewFlagList().isEmpty() ? WithdrawalStatus.SENDING : WithdrawalStatus.NEEDS_REVIEW);
+        withdrawal.setStatus(afterApprovals(withdrawal.reviewFlagList(), settingsService.current()));
         withdrawalRepository.save(withdrawal);
         audit(withdrawal, WalletAuditEventType.WITHDRAWAL_SECOND_APPROVED, actor, "Second approver agreed",
                 Map.of("status", withdrawal.getStatus().name()));
@@ -271,24 +277,16 @@ public class WithdrawalServiceImpl implements WithdrawalService {
     @Override
     @Transactional(readOnly = true)
     public Page<Withdrawal> queue(Collection<WithdrawalStatus> statuses, Pageable pageable) {
-        Collection<WithdrawalStatus> wanted = statuses == null || statuses.isEmpty()
-                ? Arrays.asList(WithdrawalStatus.values()) : statuses;
-        return withdrawalRepository.findByStatusIn(wanted, pageable);
+        return queue(statuses, false, pageable);
     }
 
     @Override
-    @Transactional
-    public Withdrawal adminApprove(UUID withdrawalUuid) {
-        Withdrawal withdrawal = lockedAny(withdrawalUuid);
-        requireStatus(withdrawal, WithdrawalStatus.NEEDS_REVIEW);
-        UUID actor = domainSecurityService.getCurrentUserUuid();
-        withdrawal.setReviewedByUserUuid(actor);
-        withdrawal.setReviewedAt(now());
-        withdrawal.setStatus(WithdrawalStatus.SENDING);
-        withdrawalRepository.save(withdrawal);
-        audit(withdrawal, WalletAuditEventType.WITHDRAWAL_APPROVED, actor, "Approved by an Elimika admin", Map.of());
-        sendAfterCommit(withdrawal);
-        return withdrawal;
+    @Transactional(readOnly = true)
+    public Page<Withdrawal> queue(Collection<WithdrawalStatus> statuses, boolean unbatched, Pageable pageable) {
+        Collection<WithdrawalStatus> wanted = statuses == null || statuses.isEmpty()
+                ? Arrays.asList(WithdrawalStatus.values()) : statuses;
+        return unbatched ? withdrawalRepository.findUnbatchedByStatusIn(wanted, pageable)
+                : withdrawalRepository.findByStatusIn(wanted, pageable);
     }
 
     @Override
@@ -297,19 +295,42 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         if (!StringUtils.hasText(reason) || reason.trim().length() < 10) {
             throw new IllegalArgumentException("Tell the earner why, in a sentence.");
         }
+        // Batch first, then the withdrawal: the same order the batch service locks in.
+        UUID batchUuid = withdrawalRepository.findByUuid(withdrawalUuid).map(Withdrawal::getPayoutBatchUuid).orElse(null);
+        PayoutBatch batch = batchUuid == null ? null : batchRepository.lockByUuid(batchUuid).orElse(null);
         Withdrawal withdrawal = lockedAny(withdrawalUuid);
         if (withdrawal.getStatus() != WithdrawalStatus.NEEDS_REVIEW
                 && withdrawal.getStatus() != WithdrawalStatus.AWAITING_SECOND_APPROVAL) {
             throw new IllegalArgumentException("Only a withdrawal waiting for approval can be rejected.");
         }
+        if (withdrawal.getPayoutBatchUuid() != null) {
+            if (batch == null || !batch.getUuid().equals(withdrawal.getPayoutBatchUuid())) {
+                throw new IllegalStateException("This withdrawal just moved between payout batches; try again.");
+            }
+            if (batch.getStatus() != PayoutBatchStatus.DRAFT) {
+                throw new IllegalStateException("This withdrawal is in a payout batch that is "
+                        + batch.getStatus().name().toLowerCase(Locale.ROOT).replace('_', ' ')
+                        + "; reject or return that batch to draft first.");
+            }
+        }
         UUID actor = domainSecurityService.getCurrentUserUuid();
+        UUID leftBatch = withdrawal.getPayoutBatchUuid();
+        withdrawal.setPayoutBatchUuid(null);
         withdrawal.setReviewedByUserUuid(actor);
         withdrawal.setReviewedAt(now());
         withdrawal.setRejectionReason(reason.trim());
         reverse(withdrawal, "Rejected: " + reason.trim());
         withdrawal.setStatus(WithdrawalStatus.REJECTED);
         withdrawalRepository.save(withdrawal);
-        audit(withdrawal, WalletAuditEventType.WITHDRAWAL_REJECTED, actor, reason.trim(), Map.of());
+        if (leftBatch != null) {
+            withdrawalRepository.flush();
+            Object[] totals = withdrawalRepository.batchTotals(leftBatch).getFirst();
+            batch.setRowCount(((Number) totals[0]).intValue());
+            batch.setTotalAmount(new BigDecimal(totals[1].toString()));
+            batchRepository.save(batch);
+        }
+        audit(withdrawal, WalletAuditEventType.WITHDRAWAL_REJECTED, actor, reason.trim(),
+                leftBatch == null ? Map.of() : Map.of("removed_from_batch_uuid", leftBatch.toString()));
         afterCommit(() -> notifier.rejected(withdrawal));
         return withdrawal;
     }
@@ -462,6 +483,11 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         return Arrays.stream(name.toUpperCase(Locale.ROOT).split("[^\\p{L}]+"))
                 .filter(word -> word.length() >= 2)
                 .collect(Collectors.toSet());
+    }
+
+    /** Where a confirmed withdrawal goes once any second approval is done. */
+    private static WithdrawalStatus afterApprovals(List<String> flags, PayoutSettings settings) {
+        return settings.isRequireAdminApproval() || !flags.isEmpty() ? WithdrawalStatus.NEEDS_REVIEW : WithdrawalStatus.SENDING;
     }
 
     private IssuedCode sendCode(Withdrawal withdrawal, UUID actor) {

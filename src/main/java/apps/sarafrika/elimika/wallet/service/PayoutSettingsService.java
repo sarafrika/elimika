@@ -27,7 +27,7 @@ public class PayoutSettingsService {
     @Transactional
     public PayoutSettings update(BigDecimal minAmount, BigDecimal maxAmount, BigDecimal dailyLimit, BigDecimal reviewLimit,
                                  BigDecimal secondApprovalLimit, PayoutFeePayer feePayer, BigDecimal earnerFee,
-                                 String updatedBy) {
+                                 Boolean requireAdminApproval, String updatedBy) {
         if (minAmount.signum() <= 0 || maxAmount.compareTo(minAmount) < 0 || dailyLimit.compareTo(maxAmount) < 0
                 || reviewLimit.signum() <= 0 || secondApprovalLimit.signum() <= 0) {
             throw new IllegalArgumentException("Limits must be positive, with minimum ≤ maximum ≤ daily limit.");
@@ -44,6 +44,9 @@ public class PayoutSettingsService {
         settings.setSecondApprovalLimit(secondApprovalLimit);
         settings.setFeePayer(feePayer);
         settings.setEarnerFee(fee);
+        if (requireAdminApproval != null) {
+            settings.setRequireAdminApproval(requireAdminApproval);
+        }
         settings.setUpdatedDate(OffsetDateTime.now(ZoneOffset.UTC));
         settings.setUpdatedBy(updatedBy);
         return repository.save(settings);
