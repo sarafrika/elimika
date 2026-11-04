@@ -1,3 +1,15 @@
+# [2.191.0](https://github.com/sarafrika/elimika/compare/v2.190.2...v2.191.0) (2026-11-04)
+
+
+### Bug Fixes
+
+* **commerce:** send payment receipts by SMS and email on capture instead of before payment ([0bfc85e](https://github.com/sarafrika/elimika/commit/0bfc85ed087393e3f0d2ce4942e1bd00ff6c214c))
+
+
+### Features
+
+* **wallet:** show admins a wallet check on each withdrawal and gate batch approval on wallet issues ([d4f0740](https://github.com/sarafrika/elimika/commit/d4f074084cfe0a2d5108684c6f9885d716e55e0a))
+
 ## [2.190.2](https://github.com/sarafrika/elimika/compare/v2.190.1...v2.190.2) (2026-11-04)
 
 
