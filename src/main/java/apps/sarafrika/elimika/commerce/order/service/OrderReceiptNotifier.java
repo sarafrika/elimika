@@ -9,6 +9,7 @@ import apps.sarafrika.elimika.shared.event.notification.DashboardLinks;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.sms.Msisdn;
 import apps.sarafrika.elimika.shared.sms.SmsSender;
+import apps.sarafrika.elimika.shared.sms.template.SmsTemplateKey;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import java.math.BigDecimal;
@@ -44,6 +45,10 @@ public class OrderReceiptNotifier {
     private final UserLookupService userLookupService;
     private final CommercePaymentRepository paymentRepository;
     private final SmsSender smsSender;
+    private final apps.sarafrika.elimika.shared.sms.template.SmsTemplateService smsTemplates;
+    private final apps.sarafrika.elimika.shared.spi.ClassScheduleService classScheduleService;
+
+    private static final java.time.ZoneId NAIROBI = java.time.ZoneId.of("Africa/Nairobi");
 
     public void sendReceipt(OrderResponse order) {
         if (order == null || order.getUserUuid() == null || !"CAPTURED".equalsIgnoreCase(order.getPaymentStatus())) {
@@ -54,14 +59,47 @@ public class OrderReceiptNotifier {
         String receipt = payment.map(CommercePayment::getProviderReceipt).orElse(null);
         String amount = amountLabel(order.getCurrencyCode(), order.getTotal());
         String classTitle = classTitle(order);
+        String firstSession = firstSession(order);
 
-        sendEmail(order, amount, classTitle, receipt);
+        sendEmail(order, amount, classTitle, receipt, firstSession);
         payment.map(CommercePayment::getPayerMsisdn)
                 .flatMap(Msisdn::normalise)
-                .ifPresent(msisdn -> smsSender.send(msisdn, smsText(amount, classTitle, order.getDisplayId(), receipt)));
+                .ifPresent(msisdn -> smsTemplates.render(SmsTemplateKey.PAYMENT_RECEIVED,
+                                smsValues(amount, classTitle, order.getDisplayId(), receipt, firstSession))
+                        .ifPresent(text -> smsSender.send(msisdn, text)));
     }
 
-    private void sendEmail(OrderResponse order, String amount, String classTitle, String receipt) {
+    /**
+     * The only other message a buyer gets: their seat hold ran out unpaid. Sent to the number the
+     * prompt went to; a checkout that never sent a prompt gets nothing.
+     */
+    public void sendSeatReleased(String orderNumber, String classTitle, String promptMsisdn) {
+        Msisdn.normalise(promptMsisdn).ifPresent(msisdn -> smsTemplates.render(SmsTemplateKey.SEAT_RELEASED,
+                        values("order", orderNumber, "class", shortTitle(classTitle)))
+                .ifPresent(text -> smsSender.send(msisdn, text)));
+    }
+
+    /** First non-cancelled session of the first class on the order, e.g. {@code Sat 14 Nov 09:00}. */
+    private String firstSession(OrderResponse order) {
+        List<CartItemResponse> items = order.getItems();
+        if (items == null || items.isEmpty() || items.getFirst().getMetadata() == null) {
+            return null;
+        }
+        Object classUuid = items.getFirst().getMetadata().get("class_definition_uuid");
+        if (classUuid == null) {
+            return null;
+        }
+        try {
+            return classScheduleService.findFirstSessionStart(UUID.fromString(classUuid.toString()))
+                    .map(start -> start.atZone(ZoneOffset.UTC).withZoneSameInstant(NAIROBI)
+                            .format(java.time.format.DateTimeFormatter.ofPattern("EEE d MMM HH:mm", Locale.ENGLISH)))
+                    .orElse(null);
+        } catch (IllegalArgumentException ex) {
+            return null;
+        }
+    }
+
+    private void sendEmail(OrderResponse order, String amount, String classTitle, String receipt, String firstSession) {
         UUID buyer = order.getUserUuid();
         Optional<String> email = userLookupService.getUserEmail(buyer).filter(StringUtils::hasText);
         if (email.isEmpty()) {
@@ -69,6 +107,15 @@ public class OrderReceiptNotifier {
             return;
         }
         Map<String, Object> variables = receiptVariables(order, amount, classTitle, receipt);
+        if (firstSession != null) {
+            variables.put("firstSession", firstSession);
+        }
+        variables.put("paidAt", java.time.ZonedDateTime.now(java.time.ZoneId.of("Africa/Nairobi"))
+                .format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm 'EAT'", Locale.ENGLISH)));
+        paymentRepository.findFirstByOrderUuidAndStatus(UUID.fromString(order.getId()), PaymentStatus.CAPTURED)
+                .map(CommercePayment::getPayerMsisdn)
+                .flatMap(Msisdn::normalise)
+                .ifPresent(msisdn -> variables.put("payerMasked", Msisdn.mask(msisdn)));
         eventPublisher.publishEvent(new NotificationRequestedEvent(
                 UUID.randomUUID(),
                 buyer,
@@ -88,17 +135,25 @@ public class OrderReceiptNotifier {
                 null));
     }
 
-    /** One GSM-7 segment: plain hyphen, no emoji, class title cut to {@value #SMS_CLASS_TITLE_MAX}. */
-    static String smsText(String amount, String classTitle, String orderNumber, String receipt) {
-        String title = classTitle.length() > SMS_CLASS_TITLE_MAX
-                ? classTitle.substring(0, SMS_CLASS_TITLE_MAX - 3).trim() + "..."
-                : classTitle;
-        StringBuilder text = new StringBuilder("Elimika: Paid ").append(amount).append(" for ").append(title)
-                .append(". Order ").append(orderNumber);
-        if (StringUtils.hasText(receipt)) {
-            text.append(", M-Pesa ").append(receipt);
+    /** Values for the payment SMS; the class title is cut to {@value #SMS_CLASS_TITLE_MAX} to stay in one segment. */
+    static Map<String, String> smsValues(String amount, String classTitle, String orderNumber, String receipt, String firstSession) {
+        return values("amount", amount, "class", shortTitle(classTitle), "order", orderNumber, "mpesa", receipt,
+                "first_session", firstSession);
+    }
+
+    private static Map<String, String> values(String... pairs) {
+        Map<String, String> values = new java.util.HashMap<>();
+        for (int i = 0; i + 1 < pairs.length; i += 2) {
+            if (pairs[i + 1] != null) {
+                values.put(pairs[i], pairs[i + 1]);
+            }
         }
-        return text.append(". Thank you!").toString().replace('—', '-').replace('–', '-');
+        return values;
+    }
+
+    private static String shortTitle(String classTitle) {
+        String title = StringUtils.hasText(classTitle) ? classTitle : "your class";
+        return title.length() > SMS_CLASS_TITLE_MAX ? title.substring(0, SMS_CLASS_TITLE_MAX - 3).trim() + "..." : title;
     }
 
     /** Whole shillings with thousands separators, e.g. {@code KES 10,500}. */

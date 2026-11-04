@@ -28,6 +28,17 @@ public class ClassScheduleServiceImpl implements ClassScheduleService {
 
     @Override
     @Transactional(readOnly = true)
+    public java.util.Optional<java.time.LocalDateTime> findFirstSessionStart(UUID classDefinitionUuid) {
+        if (classDefinitionUuid == null) {
+            return java.util.Optional.empty();
+        }
+        return scheduledInstanceRepository
+                .findFirstByClassDefinitionUuidAndStatusNotOrderByStartTimeAsc(classDefinitionUuid, SchedulingStatus.CANCELLED)
+                .map(instance -> instance.getStartTime());
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public ClassScheduleSummary getScheduleSummary(UUID classDefinitionUuid) {
         if (classDefinitionUuid == null) {
             return new ClassScheduleSummary(0, 0);

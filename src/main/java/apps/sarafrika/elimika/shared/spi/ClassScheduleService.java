@@ -23,6 +23,9 @@ public interface ClassScheduleService {
      */
     Map<UUID, ClassScheduleSummary> getScheduleSummaries(Collection<UUID> classDefinitionUuids);
 
+    /** When the class's first session that is not cancelled starts (UTC), if it has one. */
+    java.util.Optional<java.time.LocalDateTime> findFirstSessionStart(UUID classDefinitionUuid);
+
     /**
      * @param scheduledDays distinct calendar dates holding at least one session; two sessions on the
      *                      same day count once, which is what a per-day rate is sold as

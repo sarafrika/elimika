@@ -225,8 +225,8 @@ public class PayoutMethodServiceImpl implements PayoutMethodService {
 
     private IssuedCode sendCode(PayoutMethod method, UUID actor) {
         return oneTimeCodeService.issue(OneTimeCodePurpose.PAYOUT_METHOD_VERIFICATION, method.getUuid(), actor,
-                method.getMsisdn(), code -> "Your Elimika code to add this number for withdrawals is " + code
-                        + ". It expires in 10 minutes. Never share it with anyone.");
+                method.getMsisdn(), apps.sarafrika.elimika.shared.sms.template.SmsTemplateKey.PAYOUT_NUMBER_CODE,
+                java.util.Map.of());
     }
 
     private void audit(WalletOwner owner, WalletAuditEventType type, UUID actor, PayoutMethod method,

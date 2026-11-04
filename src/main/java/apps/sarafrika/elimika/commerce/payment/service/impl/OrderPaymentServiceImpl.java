@@ -47,7 +47,7 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
                 order.getTotal(),
                 order.getDisplayId(),
                 "Elimika order " + order.getDisplayId());
-        internalOrderService.storeCheckoutRequestId(orderId, checkoutRequestId);
+        internalOrderService.storeCheckoutRequestId(orderId, checkoutRequestId, phoneNumber);
 
         return new MpesaCheckoutResponse(checkoutRequestId, STATUS_PENDING);
     }

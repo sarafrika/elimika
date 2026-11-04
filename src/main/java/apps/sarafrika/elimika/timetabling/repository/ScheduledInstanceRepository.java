@@ -28,6 +28,9 @@ public interface ScheduledInstanceRepository extends JpaRepository<ScheduledInst
 
     List<ScheduledInstance> findByClassDefinitionUuid(UUID classDefinitionUuid);
 
+    Optional<ScheduledInstance> findFirstByClassDefinitionUuidAndStatusNotOrderByStartTimeAsc(
+            UUID classDefinitionUuid, apps.sarafrika.elimika.timetabling.spi.SchedulingStatus status);
+
     List<ScheduledInstance> findByClassDefinitionUuidIn(Collection<UUID> classDefinitionUuids);
 
     /** Schedule summary input for many classes: four columns per instance, no entity hydration. */

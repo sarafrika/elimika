@@ -63,7 +63,7 @@ class OrderPaymentServiceImplTest {
 
         assertThat(response.checkoutRequestId()).isEqualTo(CHECKOUT_ID);
         assertThat(response.status()).isEqualTo("PENDING");
-        verify(internalOrderService).storeCheckoutRequestId(ORDER_ID, CHECKOUT_ID);
+        verify(internalOrderService).storeCheckoutRequestId(ORDER_ID, CHECKOUT_ID, "254708374149");
     }
 
     @Test
@@ -74,7 +74,7 @@ class OrderPaymentServiceImplTest {
                 .isInstanceOf(IllegalStateException.class);
 
         verify(mpesaGatewayClient, never()).initiateStkPush(any(), any(), any(), any());
-        verify(internalOrderService, never()).storeCheckoutRequestId(any(), any());
+        verify(internalOrderService, never()).storeCheckoutRequestId(any(), any(), any());
     }
 
     @Test

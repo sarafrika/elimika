@@ -46,6 +46,8 @@ class MpesaPaymentReconciliationSchedulerTest {
     private StudentGuardianLookupService studentGuardianLookupService;
     @Mock
     private StudentLookupService studentLookupService;
+    @Mock
+    private apps.sarafrika.elimika.commerce.order.service.OrderReceiptNotifier receiptNotifier;
 
     private MpesaPaymentReconciliationScheduler scheduler;
 
@@ -54,7 +56,7 @@ class MpesaPaymentReconciliationSchedulerTest {
         scheduler = new MpesaPaymentReconciliationScheduler(orderRepository, orderPaymentService,
                 classEnrolmentGateService,
                 new LearnerResolver(domainSecurityService, studentGuardianLookupService, studentLookupService),
-                new ObjectMapper());
+                new ObjectMapper(), receiptNotifier);
     }
 
     @Test
@@ -68,6 +70,7 @@ class MpesaPaymentReconciliationSchedulerTest {
         assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.CANCELED);
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         verify(classEnrolmentGateService).releaseSeats(CLASS, BUYER);
+        verify(receiptNotifier).sendSeatReleased("ELM-K7Q9PX", null, "254712345678");
     }
 
     @Test
@@ -80,6 +83,7 @@ class MpesaPaymentReconciliationSchedulerTest {
 
         assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.CANCELED);
         verify(classEnrolmentGateService).releaseSeats(CLASS, BUYER);
+        verify(receiptNotifier, never()).sendSeatReleased(any(), any(), any());
     }
 
     @Test
@@ -118,6 +122,7 @@ class MpesaPaymentReconciliationSchedulerTest {
         order.setOrderNumber("ELM-K7Q9PX");
         order.setUserUuid(BUYER);
         order.setCheckoutRequestId(checkoutRequestId);
+        order.setPromptMsisdn(checkoutRequestId == null ? null : "254712345678");
         order.setPaymentStatus(PaymentStatus.AWAITING_PAYMENT);
         order.setPlacedAt(LocalDateTime.now(ZoneOffset.UTC).minusMinutes(minutesAgo));
         order.setItems(List.of(item));

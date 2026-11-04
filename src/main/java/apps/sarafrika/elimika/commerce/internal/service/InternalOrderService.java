@@ -34,6 +34,9 @@ public interface InternalOrderService {
      */
     void storeCheckoutRequestId(String orderId, String checkoutRequestId);
 
+    /** As above, also keeping the number the prompt went to for the seat-released SMS. */
+    void storeCheckoutRequestId(String orderId, String checkoutRequestId, String promptMsisdn);
+
     /**
      * Returns the M-Pesa checkout request id previously stored against the order, if any.
      */

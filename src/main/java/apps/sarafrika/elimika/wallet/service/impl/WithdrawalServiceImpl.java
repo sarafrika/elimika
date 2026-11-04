@@ -493,8 +493,8 @@ public class WithdrawalServiceImpl implements WithdrawalService {
     private IssuedCode sendCode(Withdrawal withdrawal, UUID actor) {
         String amount = kes(withdrawal.getNetAmount());
         return oneTimeCodeService.issue(OneTimeCodePurpose.WITHDRAWAL_CONFIRMATION, withdrawal.getUuid(), actor,
-                withdrawal.getMsisdn(), code -> "Your Elimika code to withdraw " + amount + " to this number is " + code
-                        + ". It expires in 10 minutes. Never share it with anyone.");
+                withdrawal.getMsisdn(), apps.sarafrika.elimika.shared.sms.template.SmsTemplateKey.WITHDRAWAL_CODE,
+                java.util.Map.of("amount", amount));
     }
 
     private PayoutMethod usableMethod(WalletOwner owner, UUID methodUuid) {

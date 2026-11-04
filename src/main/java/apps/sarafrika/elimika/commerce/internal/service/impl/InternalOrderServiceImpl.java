@@ -124,11 +124,19 @@ public class InternalOrderServiceImpl implements InternalOrderService {
 
     @Override
     public void storeCheckoutRequestId(String orderId, String checkoutRequestId) {
+        storeCheckoutRequestId(orderId, checkoutRequestId, null);
+    }
+
+    @Override
+    public void storeCheckoutRequestId(String orderId, String checkoutRequestId, String promptMsisdn) {
         // Pointing an order at a checkout decides which M-Pesa payment will be believed to have
         // paid for it, so only the buyer starting that payment may do it. The settlement token
         // reads the checkout id it was given; it never chooses one.
         CommerceOrder order = loadBuyersOrder(orderId);
         order.setCheckoutRequestId(checkoutRequestId);
+        if (promptMsisdn != null) {
+            order.setPromptMsisdn(apps.sarafrika.elimika.shared.sms.Msisdn.normalise(promptMsisdn).orElse(null));
+        }
         orderRepository.save(order);
     }
 

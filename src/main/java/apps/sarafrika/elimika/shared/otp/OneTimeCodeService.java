@@ -41,11 +41,14 @@ public class OneTimeCodeService {
     private final OneTimeCodeRepository repository;
     private final SmsSender smsSender;
     private final OneTimeCodeProperties properties;
+    private final apps.sarafrika.elimika.shared.sms.template.SmsTemplateService smsTemplates;
     private final SecureRandom random = new SecureRandom();
     private final byte[] key;
 
-    public OneTimeCodeService(OneTimeCodeRepository repository, SmsSender smsSender, OneTimeCodeProperties properties) {
+    public OneTimeCodeService(OneTimeCodeRepository repository, SmsSender smsSender, OneTimeCodeProperties properties,
+                              apps.sarafrika.elimika.shared.sms.template.SmsTemplateService smsTemplates) {
         this.repository = repository;
+        this.smsTemplates = smsTemplates;
         this.smsSender = smsSender;
         this.properties = properties;
         if (StringUtils.hasText(properties.getHmacSecret())) {
@@ -61,6 +64,20 @@ public class OneTimeCodeService {
      * Sends a new code to {@code msisdn}; {@code message} turns the code into the SMS text.
      * Any open code for the same purpose and subject stops working.
      */
+    /** Sends a new code worded by the admin-editable {@code template}; {code} and {expires} are filled here. */
+    @Transactional
+    public IssuedCode issue(OneTimeCodePurpose purpose, UUID subjectUuid, UUID requestedBy, String msisdn,
+                            apps.sarafrika.elimika.shared.sms.template.SmsTemplateKey template,
+                            java.util.Map<String, String> values) {
+        String expires = String.valueOf(Math.max(1, properties.getTtl().toMinutes()));
+        return issue(purpose, subjectUuid, requestedBy, msisdn, code -> {
+            java.util.Map<String, String> filled = new java.util.HashMap<>(values);
+            filled.put("code", code);
+            filled.put("expires", expires);
+            return smsTemplates.renderSecurity(template, filled);
+        });
+    }
+
     @Transactional
     public IssuedCode issue(OneTimeCodePurpose purpose, UUID subjectUuid, UUID requestedBy, String msisdn,
                             UnaryOperator<String> message) {

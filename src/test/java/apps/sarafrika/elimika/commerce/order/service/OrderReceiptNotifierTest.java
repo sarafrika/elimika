@@ -27,7 +27,11 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
-import org.mockito.InjectMocks;
+import apps.sarafrika.elimika.shared.sms.template.SmsTemplate;
+import apps.sarafrika.elimika.shared.sms.template.SmsTemplateKey;
+import apps.sarafrika.elimika.shared.sms.template.SmsTemplateRepository;
+import apps.sarafrika.elimika.shared.sms.template.SmsTemplateRules;
+import apps.sarafrika.elimika.shared.sms.template.SmsTemplateService;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.context.ApplicationEventPublisher;
@@ -42,12 +46,17 @@ class OrderReceiptNotifierTest {
     @Mock private UserLookupService userLookupService;
     @Mock private CommercePaymentRepository paymentRepository;
     @Mock private SmsSender smsSender;
-    @InjectMocks private OrderReceiptNotifier notifier;
+    @Mock private apps.sarafrika.elimika.shared.spi.ClassScheduleService classScheduleService;
+    @Mock private SmsTemplateRepository templateRepository;
+    private OrderReceiptNotifier notifier;
 
     private final UUID buyer = UUID.randomUUID();
 
     @BeforeEach
     void setUp() {
+        notifier = new OrderReceiptNotifier(eventPublisher, userLookupService, paymentRepository, smsSender,
+                new SmsTemplateService(templateRepository, smsSender, userLookupService), classScheduleService);
+        lenient().when(templateRepository.findByTemplateKey(anyString())).thenReturn(Optional.empty());
         lenient().when(userLookupService.getUserEmail(buyer)).thenReturn(Optional.of(EMAIL));
         lenient().when(userLookupService.getUserFullName(buyer)).thenReturn(Optional.of("Buyer"));
         lenient().when(userLookupService.getUserOrganizations(buyer)).thenReturn(List.of());
@@ -63,6 +72,19 @@ class OrderReceiptNotifierTest {
         notifier.sendReceipt(order("AWAITING_PAYMENT"));
 
         verifyNoInteractions(eventPublisher, smsSender);
+    }
+
+    @Test
+    void aMessageAnAdminSwitchedOffIsNotSent() {
+        SmsTemplate off = new SmsTemplate();
+        off.setTemplateKey("PAYMENT_RECEIVED");
+        off.setBody(SmsTemplateKey.PAYMENT_RECEIVED.defaultBody());
+        off.setEnabled(false);
+        when(templateRepository.findByTemplateKey("PAYMENT_RECEIVED")).thenReturn(Optional.of(off));
+
+        notifier.sendReceipt(order("CAPTURED"));
+
+        verify(smsSender, never()).send(anyString(), anyString());
     }
 
     @Test
@@ -83,7 +105,7 @@ class OrderReceiptNotifierTest {
         ArgumentCaptor<String> text = ArgumentCaptor.forClass(String.class);
         verify(smsSender).send(eq("254712345678"), text.capture());
         assertThat(text.getValue())
-                .isEqualTo("Elimika: Paid KES 10,500 for Flower Gardening - Sat cohort. Order ELM-K7Q9PX, M-Pesa UK42C120ZR. Thank you!")
+                .isEqualTo("Elimika: Paid KES 10,500 for Flower Gardening - Sat cohort. Order ELM-K7Q9PX, M-Pesa UK42C120ZR. See you there!")
                 .hasSizeLessThanOrEqualTo(160);
     }
 
@@ -109,8 +131,20 @@ class OrderReceiptNotifierTest {
 
     @Test
     void longClassTitlesAreCutSoTheSmsStaysOneSegment() {
-        String text = OrderReceiptNotifier.smsText("KES 100,000", "A very long class title that goes on and on forever", "ELM-K7Q9PX", "UK42C120ZR");
-        assertThat(text).hasSizeLessThanOrEqualTo(160).contains("...");
+        String text = SmsTemplateRules.fill(SmsTemplateKey.PAYMENT_RECEIVED, SmsTemplateKey.PAYMENT_RECEIVED.defaultBody(),
+                OrderReceiptNotifier.smsValues("KES 100,000", "A very long class title that goes on and on forever", "ELM-K7Q9PX", "UK42C120ZR", "Sat 14 Nov 09:00"));
+        assertThat(text).hasSizeLessThanOrEqualTo(160).contains("...").endsWith("First class Sat 14 Nov 09:00. See you there!");
+    }
+
+    @Test
+    void theSeatReleasedSmsGoesToThePromptNumberInOneSegment() {
+        notifier.sendSeatReleased("ELM-K7Q9PX", "Flower Gardening — Sat cohort", "0712345678");
+
+        ArgumentCaptor<String> text = ArgumentCaptor.forClass(String.class);
+        verify(smsSender).send(eq("254712345678"), text.capture());
+        assertThat(text.getValue())
+                .isEqualTo("Elimika: Order ELM-K7Q9PX was not paid, so your seat in Flower Gardening - Sat cohort was released. Nothing was charged.")
+                .hasSizeLessThanOrEqualTo(160);
     }
 
     private OrderResponse order(String status) {

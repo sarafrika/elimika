@@ -63,6 +63,11 @@ public class UserLookupServiceImpl implements UserLookupService {
     }
 
     @Override
+    public Optional<String> getUserPhoneNumber(UUID userUuid) {
+        return userRepository.findByUuid(userUuid).map(User::getPhoneNumber);
+    }
+
+    @Override
     public Optional<String> getUserFullName(UUID userUuid) {
         return userRepository.findByUuid(userUuid)
                 .map(user -> user.getFirstName() + " " + user.getLastName());

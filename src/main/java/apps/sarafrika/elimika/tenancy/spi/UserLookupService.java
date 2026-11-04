@@ -54,6 +54,11 @@ public interface UserLookupService {
      */
     Optional<String> getUserEmail(UUID userUuid);
 
+    /** The phone number on the user's profile, as entered. */
+    default Optional<String> getUserPhoneNumber(UUID userUuid) {
+        return Optional.empty();
+    }
+
     /**
      * Gets the full name of a user.
      *

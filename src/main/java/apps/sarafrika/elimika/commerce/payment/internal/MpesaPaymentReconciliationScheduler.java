@@ -51,6 +51,7 @@ class MpesaPaymentReconciliationScheduler {
     private final ClassEnrolmentGateService classEnrolmentGateService;
     private final LearnerResolver learnerResolver;
     private final ObjectMapper objectMapper;
+    private final apps.sarafrika.elimika.commerce.order.service.OrderReceiptNotifier receiptNotifier;
 
     @Scheduled(
             initialDelayString = "${commerce.payment.reconciliation.initial-delay:PT60S}",
@@ -121,6 +122,14 @@ class MpesaPaymentReconciliationScheduler {
         orderRepository.save(order);
         releaseHeldSeats(order);
         log.info("Abandoned unpaid order {} past the STK window and released its held seats", order.getOrderNumber());
+        // The seat-hold window ran out: one of the only two moments a buyer is messaged.
+        if (order.getPromptMsisdn() != null) {
+            try {
+                receiptNotifier.sendSeatReleased(order.getOrderNumber(), firstTitle(order), order.getPromptMsisdn());
+            } catch (Exception ex) {
+                log.warn("Seat-released SMS for order {} could not be sent: {}", order.getOrderNumber(), ex.getMessage());
+            }
+        }
     }
 
     /** Gives back every seat this order held; seats already taken by a paid enrolment are untouched. */
@@ -142,6 +151,10 @@ class MpesaPaymentReconciliationScheduler {
                         order.getOrderNumber(), item.getUuid(), ex.getMessage());
             }
         }
+    }
+
+    private static String firstTitle(CommerceOrder order) {
+        return order.getItems() == null || order.getItems().isEmpty() ? null : order.getItems().getFirst().getTitle();
     }
 
     private Map<String, Object> readMetadata(String json) throws Exception {
