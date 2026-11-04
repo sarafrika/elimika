@@ -1,3 +1,15 @@
+# [2.190.0](https://github.com/sarafrika/elimika/compare/v2.189.0...v2.190.0) (2026-11-04)
+
+
+### Bug Fixes
+
+* **commerce:** enrol only on captured orders and release seats held by abandoned ones ([6d1ca8f](https://github.com/sarafrika/elimika/commit/6d1ca8f3892c768afc22e736c1f5dc5aa0df78b7))
+
+
+### Features
+
+* **wallet:** pay withdrawals through admin-approved payout batches with maker-checker and float checks ([4f95fb6](https://github.com/sarafrika/elimika/commit/4f95fb6cb5612379a12e8643b15cd372d39054bb))
+
 # [2.189.0](https://github.com/sarafrika/elimika/compare/v2.188.0...v2.189.0) (2026-11-04)
 
 
