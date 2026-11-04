@@ -1,3 +1,12 @@
+# [2.193.0](https://github.com/sarafrika/elimika/compare/v2.192.0...v2.193.0) (2026-11-04)
+
+
+### Features
+
+* **wallet:** give each person separate course creator, instructor and student purses, split existing wallets from their history and pay, withdraw and move money per purse ([8fec60d](https://github.com/sarafrika/elimika/commit/8fec60dc7221fd19f8515865a7def5ea47e47862))
+* **wallet:** keep the STUDENT purse spend-only and order the purse migration after main's latest migration ([7bf29fd](https://github.com/sarafrika/elimika/commit/7bf29fdda3e065f0d1784657071f9d7c4dac54c2))
+* **wallet:** record each sale line's split per leg on the purchase line at capture and show earners and admins the breakdown ([ff86af6](https://github.com/sarafrika/elimika/commit/ff86af6c3ac2c06973d9c213aa6c2f64caa29813))
+
 # [2.192.0](https://github.com/sarafrika/elimika/compare/v2.191.0...v2.192.0) (2026-11-04)
 
 
