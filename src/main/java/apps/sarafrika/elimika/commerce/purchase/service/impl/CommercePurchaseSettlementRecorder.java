@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchaseItem;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseItemRepository;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseLineSettlement;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseSettlementRecorder;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleSplitDetail;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -50,6 +51,7 @@ public class CommercePurchaseSettlementRecorder implements PurchaseSettlementRec
         item.setCreditedAmount(settlement.creditedAmount());
         item.setRetainedAmount(settlement.retainedAmount());
         item.setCreatorCreditedAmount(settlement.creatorCreditedAmount());
+        stampSplit(item, settlement);
         purchaseItemRepository.saveAndFlush(item);
         rollUpPlatformFee(item.getPurchase());
 
@@ -62,5 +64,52 @@ public class CommercePurchaseSettlementRecorder implements PurchaseSettlementRec
     private void rollUpPlatformFee(CommercePurchase purchase) {
         purchase.setPlatformFeeAmount(purchaseItemRepository.sumPlatformFeeByPurchaseId(purchase.getId()));
         purchase.setPlatformFeeCurrency(purchase.getOrderCurrencyCode());
+    }
+
+    /** The per-leg split beside the line totals; a split that does not explain them is kept and flagged. */
+    private void stampSplit(CommercePurchaseItem item, PurchaseLineSettlement settlement) {
+        SaleSplitDetail split = settlement.split();
+        if (split == null) {
+            return;
+        }
+        boolean reconciles = split.reconcilesWith(settlement);
+        if (!reconciles) {
+            log.error("Split of order {} line {} does not reconcile: creator {} / {} / {}, delivery {} / {} / {}, "
+                            + "line fee {}, credited {}, creator credited {}", settlement.orderId(),
+                    settlement.lineItemId(), split.creator().gross(), split.creator().fee(), split.creator().net(),
+                    split.delivery().gross(), split.delivery().fee(), split.delivery().net(),
+                    settlement.platformFeeAmount(), settlement.creditedAmount(), settlement.creatorCreditedAmount());
+        }
+        item.setCreatorPercentage(split.creatorPercentage());
+        SaleSplitDetail.Leg creator = split.creator();
+        item.setCreatorOwnerType(creator.ownerType());
+        item.setCreatorOwnerUuid(creator.ownerUuid());
+        item.setCreatorStatus(creator.status());
+        item.setCreatorGross(creator.gross());
+        item.setCreatorFee(creator.fee());
+        SaleSplitDetail.Leg delivery = split.delivery();
+        item.setDeliveryKind(split.deliveryKind());
+        item.setDeliveryOwnerType(delivery.ownerType());
+        item.setDeliveryOwnerUuid(delivery.ownerUuid());
+        item.setDeliveryStatus(delivery.status());
+        item.setDeliveryGross(delivery.gross());
+        item.setDeliveryFee(delivery.fee());
+        item.setDeliveryNet(delivery.net());
+        SaleSplitDetail.FeeRule rule = split.feeRule();
+        item.setFeeRuleUuid(rule == null ? null : rule.ruleUuid());
+        item.setFeeRuleKey(rule == null ? null : rule.ruleKey());
+        item.setFeeMode(rule == null ? null : rule.mode());
+        item.setFeeRate(rule == null ? null : rule.rate());
+        item.setFeeRateCurrency(rule == null ? null : rule.rateCurrency());
+        item.setFeeWaived(rule == null ? null : rule.waived());
+        item.setFeeDiscountPercentage(rule == null ? null : rule.discountPercentage());
+        item.setFeeDiscountAmount(rule == null ? null : rule.discountAmount());
+        item.setFeeEvaluatedAt(rule == null ? null : rule.evaluatedAt());
+        // A replay keeps the first settlement time, so the split stays dated to the purchase.
+        if (item.getSettledAt() == null || item.isSplitBackfilled()) {
+            item.setSettledAt(split.settledAt());
+        }
+        item.setSplitReconciles(reconciles);
+        item.setSplitBackfilled(false);
     }
 }

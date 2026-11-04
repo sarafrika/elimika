@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
 import apps.sarafrika.elimika.wallet.enums.WalletTransactionType;
 import apps.sarafrika.elimika.wallet.service.WalletBalanceSummary;
 import apps.sarafrika.elimika.wallet.security.WalletSecurityService;
+import apps.sarafrika.elimika.wallet.service.SaleSplitService;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletStanding;
 import apps.sarafrika.elimika.wallet.service.WalletService;
@@ -45,11 +46,14 @@ class OrganisationWalletControllerTest {
     @Mock
     private WalletSecurityService walletSecurityService;
 
+    @Mock
+    private SaleSplitService saleSplitService;
+
     private MockMvc mockMvc;
 
     @BeforeEach
     void setUp() {
-        mockMvc = MockMvcBuilders.standaloneSetup(new OrganisationWalletController(walletService, walletSecurityService))
+        mockMvc = MockMvcBuilders.standaloneSetup(new OrganisationWalletController(walletService, walletSecurityService, saleSplitService))
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())
                 .build();
     }

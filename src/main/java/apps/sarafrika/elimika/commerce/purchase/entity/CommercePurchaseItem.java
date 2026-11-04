@@ -1,6 +1,14 @@
 package apps.sarafrika.elimika.commerce.purchase.entity;
 
 import apps.sarafrika.elimika.commerce.purchase.converter.PurchaseScopeConverter;
+import apps.sarafrika.elimika.commerce.purchase.converter.SaleDeliveryKindConverter;
+import apps.sarafrika.elimika.commerce.purchase.converter.SaleFeeModeConverter;
+import apps.sarafrika.elimika.commerce.purchase.converter.SaleLegStatusConverter;
+import apps.sarafrika.elimika.commerce.purchase.converter.SalePartyTypeConverter;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleDeliveryKind;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleFeeMode;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleLegStatus;
+import apps.sarafrika.elimika.shared.spi.revenue.SalePartyType;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseScope;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import jakarta.persistence.Column;
@@ -11,6 +19,7 @@ import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
 import jakarta.persistence.Convert;
 import java.math.BigDecimal;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -79,6 +88,88 @@ public class CommercePurchaseItem extends BaseEntity {
 
     @Column(name = "creator_credited_amount")
     private BigDecimal creatorCreditedAmount;
+
+    @Column(name = "creator_percentage")
+    private BigDecimal creatorPercentage;
+
+    @Convert(converter = SalePartyTypeConverter.class)
+    @Column(name = "creator_owner_type")
+    private SalePartyType creatorOwnerType;
+
+    @Column(name = "creator_owner_uuid")
+    private UUID creatorOwnerUuid;
+
+    @Convert(converter = SaleLegStatusConverter.class)
+    @Column(name = "creator_status")
+    private SaleLegStatus creatorStatus;
+
+    @Column(name = "creator_gross")
+    private BigDecimal creatorGross;
+
+    @Column(name = "creator_fee")
+    private BigDecimal creatorFee;
+
+    @Convert(converter = SaleDeliveryKindConverter.class)
+    @Column(name = "delivery_kind")
+    private SaleDeliveryKind deliveryKind;
+
+    @Convert(converter = SalePartyTypeConverter.class)
+    @Column(name = "delivery_owner_type")
+    private SalePartyType deliveryOwnerType;
+
+    @Column(name = "delivery_owner_uuid")
+    private UUID deliveryOwnerUuid;
+
+    @Convert(converter = SaleLegStatusConverter.class)
+    @Column(name = "delivery_status")
+    private SaleLegStatus deliveryStatus;
+
+    @Column(name = "delivery_gross")
+    private BigDecimal deliveryGross;
+
+    @Column(name = "delivery_fee")
+    private BigDecimal deliveryFee;
+
+    @Column(name = "delivery_net")
+    private BigDecimal deliveryNet;
+
+    @Column(name = "fee_rule_uuid")
+    private UUID feeRuleUuid;
+
+    @Column(name = "fee_rule_key")
+    private String feeRuleKey;
+
+    @Convert(converter = SaleFeeModeConverter.class)
+    @Column(name = "fee_mode")
+    private SaleFeeMode feeMode;
+
+    @Column(name = "fee_rate")
+    private BigDecimal feeRate;
+
+    @Column(name = "fee_rate_currency")
+    private String feeRateCurrency;
+
+    @Column(name = "fee_waived")
+    private Boolean feeWaived;
+
+    @Column(name = "fee_discount_percentage")
+    private BigDecimal feeDiscountPercentage;
+
+    @Column(name = "fee_discount_amount")
+    private BigDecimal feeDiscountAmount;
+
+    @Column(name = "fee_evaluated_at")
+    private OffsetDateTime feeEvaluatedAt;
+
+    /** When the line's split was settled into wallets (UTC). */
+    @Column(name = "settled_at")
+    private OffsetDateTime settledAt;
+
+    @Column(name = "split_reconciles")
+    private Boolean splitReconciles;
+
+    @Column(name = "split_backfilled")
+    private boolean splitBackfilled;
 
     @Column(name = "metadata_json")
     private String metadataJson;

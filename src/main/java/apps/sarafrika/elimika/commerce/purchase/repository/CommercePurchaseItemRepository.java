@@ -474,4 +474,40 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
             @Param("orderId") String orderId,
             @Param("studentUuids") List<UUID> studentUuids
     );
+
+    /** Settled lines that paid this party on either leg, newest settlement first. */
+    @Query(value = """
+            select i from CommercePurchaseItem i join fetch i.purchase p
+            where (i.creatorOwnerType = :type and i.creatorOwnerUuid = :uuid and i.creatorStatus = :paid)
+               or (i.deliveryOwnerType = :type and i.deliveryOwnerUuid = :uuid and i.deliveryStatus = :paid)
+            order by i.settledAt desc nulls last, i.id desc
+            """,
+            countQuery = """
+            select count(i) from CommercePurchaseItem i
+            where (i.creatorOwnerType = :type and i.creatorOwnerUuid = :uuid and i.creatorStatus = :paid)
+               or (i.deliveryOwnerType = :type and i.deliveryOwnerUuid = :uuid and i.deliveryStatus = :paid)
+            """)
+    Page<CommercePurchaseItem> findSplitsPaidTo(@Param("type") apps.sarafrika.elimika.shared.spi.revenue.SalePartyType type,
+                                                @Param("uuid") UUID uuid,
+                                                @Param("paid") apps.sarafrika.elimika.shared.spi.revenue.SaleLegStatus paid,
+                                                Pageable pageable);
+
+    @Query("""
+            select i from CommercePurchaseItem i join fetch i.purchase p
+            where i.uuid = :uuid and i.creatorStatus is not null
+            """)
+    Optional<CommercePurchaseItem> findSplitByUuid(@Param("uuid") UUID uuid);
+
+    @Query("""
+            select i from CommercePurchaseItem i join fetch i.purchase p
+            where p.orderId = :orderId and i.creatorStatus is not null
+            order by i.id asc
+            """)
+    List<CommercePurchaseItem> findSplitsByOrderId(@Param("orderId") String orderId);
+
+    @Query("""
+            select i from CommercePurchaseItem i join fetch i.purchase p
+            where concat(p.orderId, ':', i.lineItemId) in :references and i.creatorStatus is not null
+            """)
+    List<CommercePurchaseItem> findSplitsByLineReference(@Param("references") Collection<String> references);
 }

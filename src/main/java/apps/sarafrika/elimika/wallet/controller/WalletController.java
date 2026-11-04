@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.wallet.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.wallet.dto.SaleSplitDTO;
 import apps.sarafrika.elimika.wallet.dto.WalletCreditRequest;
 import apps.sarafrika.elimika.wallet.dto.WalletDTO;
 import apps.sarafrika.elimika.wallet.dto.WalletTransactionDTO;
@@ -11,6 +12,7 @@ import apps.sarafrika.elimika.wallet.entity.UserWallet;
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
 import apps.sarafrika.elimika.wallet.mapper.WalletMapper;
 import apps.sarafrika.elimika.wallet.security.WalletSecurityService;
+import apps.sarafrika.elimika.wallet.service.SaleSplitService;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import apps.sarafrika.elimika.wallet.service.WalletStanding;
@@ -24,6 +26,7 @@ import apps.sarafrika.elimika.wallet.service.WalletTransactionFilter;
 import apps.sarafrika.elimika.wallet.util.WalletCsv;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import apps.sarafrika.elimika.wallet.dto.WalletStatementDTO;
@@ -53,6 +56,7 @@ public class WalletController {
 
     private final WalletService walletService;
     private final WalletSecurityService walletSecurityService;
+    private final SaleSplitService saleSplitService;
 
     @GetMapping("/{userUuid}")
     @PreAuthorize("@walletSecurityService.canAccessWallet(#userUuid)")
@@ -81,7 +85,8 @@ public class WalletController {
     ) {
         Page<UserWalletTransaction> transactions = walletService.statementOf(
                 WalletOwner.user(userUuid), currencyCode, WalletTransactionFilter.of(types, from, to), pageable);
-        Page<WalletTransactionDTO> payload = transactions.map(WalletMapper::toDto);
+        Map<UUID, UUID> splits = saleSplitService.splitUuidsOf(transactions.getContent());
+        Page<WalletTransactionDTO> payload = transactions.map(txn -> WalletMapper.toDto(txn, splits.get(txn.getUuid())));
         PagedDTO<WalletTransactionDTO> paged = PagedDTO.from(
                 payload,
                 ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()
@@ -132,6 +137,33 @@ public class WalletController {
         return ResponseEntity.ok(ApiResponse.success(
                 PagedDTO.from(events, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()),
                 "Wallet audit trail retrieved successfully"));
+    }
+
+    @GetMapping("/{userUuid}/sales")
+    @PreAuthorize("@walletSecurityService.canAccessWallet(#userUuid)")
+    @Operation(operationId = "listWalletSales", summary = "List the sales that paid this user, with each split",
+            description = "Newest first. Each captured class sale line this user was paid on as course creator or "
+                    + "instructor, with the creator's and the delivery party's gross, fee and net, the platform fee, "
+                    + "anything retained and the fee rule in force at purchase. The other party is named only.")
+    public ResponseEntity<ApiResponse<PagedDTO<SaleSplitDTO>>> listSales(
+            @PathVariable("userUuid") UUID userUuid,
+            Pageable pageable
+    ) {
+        Page<SaleSplitDTO> sales = saleSplitService.salesOf(WalletOwner.user(userUuid), pageable);
+        return ResponseEntity.ok(ApiResponse.success(
+                PagedDTO.from(sales, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()),
+                "Wallet sales retrieved successfully"));
+    }
+
+    @GetMapping("/{userUuid}/sales/{splitUuid}")
+    @PreAuthorize("@walletSecurityService.canAccessWallet(#userUuid)")
+    @Operation(operationId = "getWalletSale", summary = "Get one sale split this user was paid on")
+    public ResponseEntity<ApiResponse<SaleSplitDTO>> getSale(
+            @PathVariable("userUuid") UUID userUuid,
+            @PathVariable("splitUuid") UUID splitUuid
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(saleSplitService.saleOf(WalletOwner.user(userUuid), splitUuid),
+                "Wallet sale retrieved successfully"));
     }
 
     @PostMapping("/{userUuid}/deposits")

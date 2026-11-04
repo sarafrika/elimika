@@ -55,4 +55,8 @@ public interface UserWalletTransactionRepository extends JpaRepository<UserWalle
     @Query("select txn.transactionType, coalesce(sum(txn.amount), 0), count(txn) "
             + "from UserWalletTransaction txn where txn.wallet.id = :walletId group by txn.transactionType")
     List<Object[]> totalsByType(@Param("walletId") Long walletId);
+
+    @EntityGraph(attributePaths = "wallet")
+    @Query("select txn from UserWalletTransaction txn where txn.reference in :references order by txn.id asc")
+    List<UserWalletTransaction> findByReferenceInWithWallet(@Param("references") Collection<String> references);
 }

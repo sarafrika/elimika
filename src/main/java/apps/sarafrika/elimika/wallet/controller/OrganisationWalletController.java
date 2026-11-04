@@ -2,9 +2,12 @@ package apps.sarafrika.elimika.wallet.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.dto.PagedDTO;
+import apps.sarafrika.elimika.wallet.dto.SaleSplitDTO;
 import apps.sarafrika.elimika.wallet.dto.WalletTransactionDTO;
+import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
 import apps.sarafrika.elimika.wallet.mapper.WalletMapper;
 import apps.sarafrika.elimika.wallet.service.WalletBalanceSummary;
+import apps.sarafrika.elimika.wallet.service.SaleSplitService;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.security.WalletSecurityService;
 import apps.sarafrika.elimika.wallet.service.WalletService;
@@ -16,6 +19,7 @@ import apps.sarafrika.elimika.wallet.service.WalletTransactionFilter;
 import apps.sarafrika.elimika.wallet.util.WalletCsv;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Map;
 import apps.sarafrika.elimika.wallet.dto.WalletStatementDTO;
 import apps.sarafrika.elimika.wallet.dto.WalletAuditEventDTO;
 import java.util.UUID;
@@ -42,6 +46,7 @@ public class OrganisationWalletController {
 
     private final WalletService walletService;
     private final WalletSecurityService walletSecurityService;
+    private final SaleSplitService saleSplitService;
 
     @GetMapping
     @Operation(operationId = "getOrganisationWallet", summary = "Get an organisation's wallet balance")
@@ -69,13 +74,39 @@ public class OrganisationWalletController {
             @RequestParam(value = "to", required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             Pageable pageable
     ) {
-        Page<WalletTransactionDTO> payload = walletService
-                .statementOf(WalletOwner.organisation(organisationUuid), currencyCode,
-                        WalletTransactionFilter.of(types, from, to), pageable)
-                .map(WalletMapper::toDto);
+        Page<UserWalletTransaction> transactions = walletService.statementOf(WalletOwner.organisation(organisationUuid),
+                currencyCode, WalletTransactionFilter.of(types, from, to), pageable);
+        Map<UUID, UUID> splits = saleSplitService.splitUuidsOf(transactions.getContent());
+        Page<WalletTransactionDTO> payload = transactions.map(txn -> WalletMapper.toDto(txn, splits.get(txn.getUuid())));
         PagedDTO<WalletTransactionDTO> paged = PagedDTO.from(
                 payload, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString());
         return ResponseEntity.ok(ApiResponse.success(paged, "Organisation wallet transactions retrieved successfully"));
+    }
+
+    @GetMapping("/sales")
+    @Operation(operationId = "listOrganisationWalletSales", summary = "List the sales that paid an organisation, with each split",
+            description = "Newest first. Each captured class sale line the organisation was paid on as the hiring "
+                    + "organisation, with the creator's and the organisation's gross, fee and net, the platform fee, "
+                    + "anything retained and the fee rule in force at purchase. The course creator is named only.")
+    public ResponseEntity<ApiResponse<PagedDTO<SaleSplitDTO>>> listSales(
+            @PathVariable UUID organisationUuid,
+            Pageable pageable
+    ) {
+        Page<SaleSplitDTO> sales = saleSplitService.salesOf(WalletOwner.organisation(organisationUuid), pageable);
+        return ResponseEntity.ok(ApiResponse.success(
+                PagedDTO.from(sales, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()),
+                "Organisation wallet sales retrieved successfully"));
+    }
+
+    @GetMapping("/sales/{splitUuid}")
+    @Operation(operationId = "getOrganisationWalletSale", summary = "Get one sale split an organisation was paid on")
+    public ResponseEntity<ApiResponse<SaleSplitDTO>> getSale(
+            @PathVariable UUID organisationUuid,
+            @PathVariable UUID splitUuid
+    ) {
+        return ResponseEntity.ok(ApiResponse.success(
+                saleSplitService.saleOf(WalletOwner.organisation(organisationUuid), splitUuid),
+                "Organisation wallet sale retrieved successfully"));
     }
 
     @GetMapping(value = "/transactions.csv", produces = "text/csv")

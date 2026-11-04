@@ -10,11 +10,17 @@ import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService.ClassDefinitionSnapshot;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseLineSettlement;
 import apps.sarafrika.elimika.shared.spi.revenue.PurchaseSettlementRecorder;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleDeliveryKind;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleFeeMode;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleLegStatus;
+import apps.sarafrika.elimika.shared.spi.revenue.SalePartyType;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleSplitDetail;
 import apps.sarafrika.elimika.shared.utils.commerce.PlatformFeeApportionment;
 import apps.sarafrika.elimika.systemconfig.dto.PlatformFeeConfig;
 import apps.sarafrika.elimika.systemconfig.dto.RuleContext;
 import apps.sarafrika.elimika.systemconfig.service.RuleEvaluationService;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
+import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -67,12 +73,12 @@ public class OrderCaptureWalletCreditListener {
             return;
         }
 
-        UnaryOperator<BigDecimal> feeOnShare = feeRuleAt(order);
+        FeeRule feeRule = feeRuleAt(order);
         List<String> failedItems = new ArrayList<>();
         Exception firstFailure = null;
         for (CartItemResponse item : order.getItems()) {
             try {
-                settleLine(order, item, feeOnShare);
+                settleLine(order, item, feeRule);
             } catch (Exception ex) {
                 log.error("Failed to settle order {} line {}: {}", order.getId(), item.getId(), ex.getMessage(), ex);
                 failedItems.add(String.valueOf(item.getId()));
@@ -90,44 +96,48 @@ public class OrderCaptureWalletCreditListener {
         }
     }
 
-    private void settleLine(OrderResponse order, CartItemResponse item, UnaryOperator<BigDecimal> feeOnShare) {
+    private void settleLine(OrderResponse order, CartItemResponse item, FeeRule feeRule) {
         BigDecimal gross = item.getTotal();
         if (gross == null || gross.signum() <= 0) {
             return;
         }
+        OffsetDateTime settledAt = OffsetDateTime.now(ZoneOffset.UTC);
         Parties parties = resolveParties(item);
         if (parties == null) {
-            record(order, item, gross, NO_MONEY, NO_MONEY);
+            SaleSplitDetail.Leg notSplit = SaleSplitDetail.Leg.unpaid(null, null, SaleLegStatus.NOT_SPLIT);
+            record(order, item, gross, NO_MONEY, NO_MONEY, NO_MONEY,
+                    new SaleSplitDetail(null, notSplit, null, notSplit, feeRule.snapshot(), settledAt));
             return;
         }
 
-        RevenueSplit split = RevenueSplit.of(gross, parties.creatorPercentage(), feeOnShare);
+        RevenueSplit split = RevenueSplit.of(gross, parties.creatorPercentage(), feeRule.feeOnShare());
         String reference = reference(order, item);
-        BigDecimal fee = NO_MONEY;
-        BigDecimal credited = NO_MONEY;
-        BigDecimal creatorNet = NO_MONEY;
-        if (pay(parties.creator(), split.creator(), order, reference + ":creator", parties.description())) {
-            fee = fee.add(split.creator().platformFee());
-            creatorNet = split.creator().net();
-            credited = credited.add(creatorNet);
-        }
-        if (pay(parties.delivery(), split.delivery(), order, reference + ":delivery", parties.description())) {
-            fee = fee.add(split.delivery().platformFee());
-            credited = credited.add(split.delivery().net());
-        }
-        record(order, item, gross, fee, credited, creatorNet);
+        SaleSplitDetail.Leg creator = pay(parties.creator(), split.creator(), order, reference + ":creator",
+                parties.description());
+        SaleSplitDetail.Leg delivery = pay(parties.delivery(), split.delivery(), order, reference + ":delivery",
+                parties.description());
+        BigDecimal fee = creator.fee().add(delivery.fee());
+        BigDecimal credited = creator.net().add(delivery.net());
+        record(order, item, gross, fee, credited, creator.net(), new SaleSplitDetail(parties.creatorPercentage(),
+                creator, parties.deliveryKind(), delivery, feeRule.snapshot(), settledAt));
     }
 
-    /** Settles one leg; false when there is nobody to pay or nothing to pay, so the leg is retained. */
-    private boolean pay(WalletOwner owner, RevenueSplit.Leg leg, OrderResponse order, String reference, String description) {
-        if (owner == null || !leg.earnsAnything()) {
-            return false;
+    /** Settles one leg; an unpaid leg (nobody, or nothing, to pay) is retained and says why. */
+    private SaleSplitDetail.Leg pay(WalletOwner owner, RevenueSplit.Leg leg, OrderResponse order, String reference,
+                                    String description) {
+        if (owner == null) {
+            return SaleSplitDetail.Leg.unpaid(null, null, SaleLegStatus.NO_EARNER);
+        }
+        SalePartyType ownerType = SalePartyType.valueOf(owner.type().name());
+        if (!leg.earnsAnything()) {
+            return SaleSplitDetail.Leg.unpaid(ownerType, owner.uuid(), SaleLegStatus.NO_SHARE);
         }
         boolean settledNow = walletService.settleSaleShare(
                 owner, leg.gross(), leg.platformFee(), order.getCurrencyCode(), reference, description);
         log.info("{} {} {} share {} for {} (fee {}) on order {}", settledNow ? "Settled" : "Already settled",
                 order.getCurrencyCode(), leg.gross(), reference, owner, leg.platformFee(), order.getId());
-        return true;
+        return new SaleSplitDetail.Leg(ownerType, owner.uuid(), SaleLegStatus.PAID, leg.gross(), leg.platformFee(),
+                leg.net());
     }
 
     private Parties resolveParties(CartItemResponse item) {
@@ -158,15 +168,19 @@ public class OrderCaptureWalletCreditListener {
                     program ? programUuid : courseUuid, item.getId());
             return null;
         }
+        SaleDeliveryKind deliveryKind = null;
         if (classUuid != null) {
             delivery = resolveDelivery(classUuid);
+            deliveryKind = delivery != null && delivery.type() == WalletOwnerType.ORGANISATION
+                    ? SaleDeliveryKind.ORGANISATION : SaleDeliveryKind.INSTRUCTOR;
         }
         WalletOwner creator = (program
                 ? courseInfoService.getTrainingProgramCreatorUserUuid(programUuid)
                 : courseInfoService.getCourseCreatorUserUuid(courseUuid))
                 .map(WalletOwner::user)
                 .orElse(null);
-        return new Parties(creatorPercentage, creator, delivery, "Class sale share - " + (title == null ? "class" : title));
+        return new Parties(creatorPercentage, creator, delivery, deliveryKind,
+                "Class sale share - " + (title == null ? "class" : title));
     }
 
     private WalletOwner resolveDelivery(UUID classUuid) {
@@ -181,21 +195,38 @@ public class OrderCaptureWalletCreditListener {
     }
 
     /** The fee rule as it stood when the order was placed, so a retry charges what the first attempt would have. */
-    private UnaryOperator<BigDecimal> feeRuleAt(OrderResponse order) {
+    private FeeRule feeRuleAt(OrderResponse order) {
         OffsetDateTime at = order.getCreatedAt() == null ? OffsetDateTime.now(ZoneOffset.UTC) : order.getCreatedAt();
-        Optional<PlatformFeeConfig> rule = ruleEvaluationService.resolvePlatformFee(
-                RuleContext.builder().evaluationInstant(at).build());
-        return share -> rule.map(config -> config.feeOn(share, at)).orElse(NO_MONEY);
+        Optional<RuleEvaluationService.RuleMatch<PlatformFeeConfig>> match = ruleEvaluationService
+                .resolvePlatformFeeMatch(RuleContext.builder().evaluationInstant(at).build());
+        Optional<PlatformFeeConfig> rule = match.map(RuleEvaluationService.RuleMatch::payload);
+        UnaryOperator<BigDecimal> feeOnShare = share -> rule.map(config -> config.feeOn(share, at)).orElse(NO_MONEY);
+        return new FeeRule(feeOnShare, snapshot(match.orElse(null), at));
     }
 
-    private void record(OrderResponse order, CartItemResponse item, BigDecimal gross, BigDecimal fee, BigDecimal credited) {
-        record(order, item, gross, fee, credited, NO_MONEY);
+    private static SaleSplitDetail.FeeRule snapshot(RuleEvaluationService.RuleMatch<PlatformFeeConfig> match,
+                                                    OffsetDateTime at) {
+        PlatformFeeConfig config = match == null ? null : match.payload();
+        if (config == null) {
+            return new SaleSplitDetail.FeeRule(null, null, null, null, null, null, null, null, at);
+        }
+        boolean discounted = config.discountActive(at);
+        return new SaleSplitDetail.FeeRule(
+                match.rule() == null ? null : match.rule().getUuid(),
+                match.rule() == null ? null : match.rule().getKey(),
+                config.mode() == null ? null : SaleFeeMode.valueOf(config.mode().name()),
+                config.amount(),
+                config.currency(),
+                config.waiverActive(at),
+                discounted ? config.discount().percentage() : null,
+                discounted && config.discount().percentage() == null ? config.discount().amount() : null,
+                at);
     }
 
     private void record(OrderResponse order, CartItemResponse item, BigDecimal gross, BigDecimal fee, BigDecimal credited,
-                        BigDecimal creatorNet) {
-        purchaseSettlementRecorder.recordLineSettlement(new PurchaseLineSettlement(
-                order.getId(), item.getId(), gross, fee, credited, gross.subtract(fee).subtract(credited), creatorNet));
+                        BigDecimal creatorNet, SaleSplitDetail split) {
+        purchaseSettlementRecorder.recordLineSettlement(new PurchaseLineSettlement(order.getId(), item.getId(), gross,
+                fee, credited, gross.subtract(fee).subtract(credited), creatorNet, split));
     }
 
     private static String reference(OrderResponse order, CartItemResponse item) {
@@ -221,5 +252,9 @@ public class OrderCaptureWalletCreditListener {
         return null;
     }
 
-    private record Parties(BigDecimal creatorPercentage, WalletOwner creator, WalletOwner delivery, String description) { }
+    private record Parties(BigDecimal creatorPercentage, WalletOwner creator, WalletOwner delivery,
+                           SaleDeliveryKind deliveryKind, String description) { }
+
+    /** Prices one earner's fee, and says which rule did so for the split's record. */
+    private record FeeRule(UnaryOperator<BigDecimal> feeOnShare, SaleSplitDetail.FeeRule snapshot) { }
 }

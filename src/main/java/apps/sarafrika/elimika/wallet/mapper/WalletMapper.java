@@ -7,6 +7,7 @@ import apps.sarafrika.elimika.wallet.dto.WalletDTO;
 import apps.sarafrika.elimika.wallet.dto.WalletTransactionDTO;
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
+import java.util.UUID;
 
 public final class WalletMapper {
 
@@ -42,6 +43,11 @@ public final class WalletMapper {
     }
 
     public static WalletTransactionDTO toDto(UserWalletTransaction transaction) {
+        return toDto(transaction, null);
+    }
+
+    /** With the sale split the row belongs to, for SALE and PLATFORM_FEE rows. */
+    public static WalletTransactionDTO toDto(UserWalletTransaction transaction, UUID saleSplitUuid) {
         if (transaction == null) {
             return null;
         }
@@ -57,7 +63,8 @@ public final class WalletMapper {
                 transaction.getDescription(),
                 transaction.getTransferReference(),
                 transaction.getCounterpartyUserUuid(),
-                transaction.getCreatedDate()
+                transaction.getCreatedDate(),
+                saleSplitUuid
         );
     }
 }

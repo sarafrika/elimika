@@ -107,6 +107,15 @@ public record WalletTransactionDTO(
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty("created_date")
-        LocalDateTime createdDate
+        LocalDateTime createdDate,
+
+        @Schema(
+                description = "**[READ-ONLY]** On SALE and PLATFORM_FEE rows of a class sale: the sale split that "
+                        + "explains the row, for GET .../sales/{split_uuid}. Null on other rows.",
+                format = "uuid",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty("sale_split_uuid")
+        UUID saleSplitUuid
 ) {
 }

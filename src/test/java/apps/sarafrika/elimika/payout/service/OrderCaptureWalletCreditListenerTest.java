@@ -23,6 +23,13 @@ import apps.sarafrika.elimika.shared.spi.revenue.PurchaseSettlementRecorder;
 import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.systemconfig.dto.PlatformFeeConfig;
 import apps.sarafrika.elimika.systemconfig.enums.PlatformFeeMode;
+import apps.sarafrika.elimika.systemconfig.enums.RuleCategory;
+import apps.sarafrika.elimika.systemconfig.model.SystemRule;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleDeliveryKind;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleFeeMode;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleLegStatus;
+import apps.sarafrika.elimika.shared.spi.revenue.SalePartyType;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleSplitDetail;
 import apps.sarafrika.elimika.systemconfig.service.RuleEvaluationService;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletService;
@@ -78,6 +85,7 @@ class OrderCaptureWalletCreditListenerTest {
     private final UUID instructorUuid = UUID.randomUUID();
     private final UUID instructorUserUuid = UUID.randomUUID();
     private final UUID organisationUuid = UUID.randomUUID();
+    private final SystemRule feeRule = feeRule();
 
     @Test
     @DisplayName("worked example, instructor's own class: creator 13,500 and instructor 31,500 after 10% fees")
@@ -96,6 +104,20 @@ class OrderCaptureWalletCreditListenerTest {
                 money("3500.00"), eq("KES"), eq(ORDER_ID + ":line-1:delivery"), any());
         assertSettlement(settlement(), "50000.00", "5000.00", "45000.00", "0.00");
         assertThat(settlement().creatorCreditedAmount()).isEqualByComparingTo("13500.00");
+        SaleSplitDetail split = settlement().split();
+        assertThat(split.creatorPercentage()).isEqualByComparingTo("30");
+        assertThat(split.creator()).isEqualTo(new SaleSplitDetail.Leg(SalePartyType.USER, creatorUserUuid,
+                SaleLegStatus.PAID, new BigDecimal("15000.00"), new BigDecimal("1500.00"), new BigDecimal("13500.00")));
+        assertThat(split.deliveryKind()).isEqualTo(SaleDeliveryKind.INSTRUCTOR);
+        assertThat(split.delivery()).isEqualTo(new SaleSplitDetail.Leg(SalePartyType.USER, instructorUserUuid,
+                SaleLegStatus.PAID, new BigDecimal("35000.00"), new BigDecimal("3500.00"), new BigDecimal("31500.00")));
+        assertThat(split.feeRule().ruleUuid()).isEqualTo(feeRule.getUuid());
+        assertThat(split.feeRule().ruleKey()).isEqualTo("platform-fee");
+        assertThat(split.feeRule().mode()).isEqualTo(SaleFeeMode.PERCENTAGE);
+        assertThat(split.feeRule().rate()).isEqualByComparingTo("10");
+        assertThat(split.feeRule().waived()).isFalse();
+        assertThat(split.feeRule().evaluatedAt()).isEqualTo(ORDERED_AT);
+        assertThat(split.reconcilesWith(settlement())).isTrue();
     }
 
     @Test
@@ -115,6 +137,10 @@ class OrderCaptureWalletCreditListenerTest {
                 money("1500.00"), any(), any(), any());
         verifyNoInteractions(instructorLookupService);
         assertSettlement(settlement(), "50000.00", "5000.00", "45000.00", "0.00");
+        assertThat(settlement().split().deliveryKind()).isEqualTo(SaleDeliveryKind.ORGANISATION);
+        assertThat(settlement().split().delivery().ownerType()).isEqualTo(SalePartyType.ORGANISATION);
+        assertThat(settlement().split().delivery().ownerUuid()).isEqualTo(organisationUuid);
+        assertThat(settlement().split().reconcilesWith(settlement())).isTrue();
     }
 
     @Test
@@ -145,7 +171,7 @@ class OrderCaptureWalletCreditListenerTest {
 
         capture(classLine("line-1", "100.00"));
 
-        verify(ruleEvaluationService).resolvePlatformFee(argThat(c -> ORDERED_AT.equals(c.evaluationInstant())));
+        verify(ruleEvaluationService).resolvePlatformFeeMatch(argThat(c -> ORDERED_AT.equals(c.evaluationInstant())));
     }
 
     @Test
@@ -162,6 +188,8 @@ class OrderCaptureWalletCreditListenerTest {
         verify(walletService).settleSaleShare(eq(WalletOwner.user(instructorUserUuid)), any(), any(), any(), any(), any());
         assertSettlement(settlement(), "50000.00", "3500.00", "31500.00", "15000.00");
         assertThat(settlement().creatorCreditedAmount()).isEqualByComparingTo("0");
+        assertThat(settlement().split().creator()).isEqualTo(SaleSplitDetail.Leg.unpaid(null, null, SaleLegStatus.NO_EARNER));
+        assertThat(settlement().split().reconcilesWith(settlement())).isTrue();
     }
 
     @Test
@@ -190,6 +218,9 @@ class OrderCaptureWalletCreditListenerTest {
 
         verify(walletService, never()).settleSaleShare(any(), any(), any(), any(), any(), any());
         assertSettlement(settlement(), "1000.00", "0.00", "0.00", "1000.00");
+        assertThat(settlement().split().creator().status()).isEqualTo(SaleLegStatus.NOT_SPLIT);
+        assertThat(settlement().split().delivery().status()).isEqualTo(SaleLegStatus.NOT_SPLIT);
+        assertThat(settlement().split().reconcilesWith(settlement())).isTrue();
     }
 
     @Test
@@ -290,7 +321,8 @@ class OrderCaptureWalletCreditListenerTest {
     }
 
     private void givenFee(PlatformFeeConfig config) {
-        when(ruleEvaluationService.resolvePlatformFee(any())).thenReturn(Optional.ofNullable(config));
+        when(ruleEvaluationService.resolvePlatformFeeMatch(any())).thenReturn(Optional.ofNullable(config)
+                .map(payload -> new RuleEvaluationService.RuleMatch<>(feeRule, payload, RuleCategory.PLATFORM_FEE)));
     }
 
     private void givenClassOfCourse(String title, String creatorPercentage) {
@@ -359,5 +391,12 @@ class OrderCaptureWalletCreditListenerTest {
         assertThat(s.platformFeeAmount()).as("fee").isEqualByComparingTo(fee);
         assertThat(s.creditedAmount()).as("credited").isEqualByComparingTo(credited);
         assertThat(s.retainedAmount()).as("retained").isEqualByComparingTo(retained);
+    }
+
+    private static SystemRule feeRule() {
+        SystemRule rule = new SystemRule();
+        rule.setUuid(UUID.randomUUID());
+        rule.setKey("platform-fee");
+        return rule;
     }
 }

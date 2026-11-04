@@ -21,6 +21,7 @@ import java.math.BigDecimal;
  * @param creditedAmount    what was credited to an earner's wallet for this line; zero if nobody was
  * @param retainedAmount    collected, not fee, credited to no earner
  * @param creatorCreditedAmount the course creator's part of {@code creditedAmount}
+ * @param split             how the line was split per leg and the fee rule that priced it; null when not known
  */
 public record PurchaseLineSettlement(
         String orderId,
@@ -29,12 +30,20 @@ public record PurchaseLineSettlement(
         BigDecimal platformFeeAmount,
         BigDecimal creditedAmount,
         BigDecimal retainedAmount,
-        BigDecimal creatorCreditedAmount
+        BigDecimal creatorCreditedAmount,
+        SaleSplitDetail split
 ) {
 
     public PurchaseLineSettlement(String orderId, String lineItemId, BigDecimal grossAmount,
+                                  BigDecimal platformFeeAmount, BigDecimal creditedAmount, BigDecimal retainedAmount,
+                                  BigDecimal creatorCreditedAmount) {
+        this(orderId, lineItemId, grossAmount, platformFeeAmount, creditedAmount, retainedAmount,
+                creatorCreditedAmount, null);
+    }
+
+    public PurchaseLineSettlement(String orderId, String lineItemId, BigDecimal grossAmount,
                                   BigDecimal platformFeeAmount, BigDecimal creditedAmount, BigDecimal retainedAmount) {
-        this(orderId, lineItemId, grossAmount, platformFeeAmount, creditedAmount, retainedAmount, BigDecimal.ZERO);
+        this(orderId, lineItemId, grossAmount, platformFeeAmount, creditedAmount, retainedAmount, BigDecimal.ZERO, null);
     }
 
     public PurchaseLineSettlement {
