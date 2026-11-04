@@ -101,7 +101,7 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
             }
             try {
                 // A seat bought for a child is judged by the child, not the guardian paying.
-                var blocker = classEnrolmentGateService.findEnrolmentBlocker(
+                var blocker = classEnrolmentGateService.findCaptureBlocker(
                         java.util.UUID.fromString(classUuid.toString()),
                         learnerResolver.learnerUserUuid(item.getMetadata(), order.getUserUuid()));
                 if (blocker.isPresent()) {

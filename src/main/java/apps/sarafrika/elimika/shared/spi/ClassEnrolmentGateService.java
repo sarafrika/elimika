@@ -24,6 +24,13 @@ public interface ClassEnrolmentGateService {
     Optional<String> findEnrolmentBlocker(UUID classDefinitionUuid, UUID userUuid);
 
     /**
+     * Why money already collected for this seat must not be recorded: only rules about the learner
+     * (age, a date of birth on file). Seats, the window and clashes were settled by the checkout hold,
+     * and "already enrolled" means the seat is theirs, so none of those may refuse a paid order.
+     */
+    Optional<String> findCaptureBlocker(UUID classDefinitionUuid, UUID userUuid);
+
+    /**
      * Holds a seat for this buyer until {@code reservedUntil}.
      * <p>
      * A held seat counts against capacity, so a concurrent buyer cannot take the last place between

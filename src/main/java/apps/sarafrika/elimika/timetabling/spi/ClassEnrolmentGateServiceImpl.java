@@ -37,6 +37,21 @@ public class ClassEnrolmentGateServiceImpl implements ClassEnrolmentGateService 
     }
 
     @Override
+    public Optional<String> findCaptureBlocker(UUID classDefinitionUuid, UUID userUuid) {
+        if (classDefinitionUuid == null || userUuid == null) {
+            return Optional.empty();
+        }
+        UUID studentUuid = studentLookupService.findStudentUuidByUserUuid(userUuid).orElse(null);
+        if (studentUuid == null) {
+            return Optional.empty();
+        }
+        ClassEnrolmentEligibilityDTO eligibility =
+                timetableService.getClassEnrolmentEligibility(classDefinitionUuid, studentUuid);
+        boolean learnerQualifies = eligibility.dateOfBirthOnFile() && eligibility.ageRequirementMet();
+        return learnerQualifies ? Optional.empty() : Optional.ofNullable(eligibility.reason());
+    }
+
+    @Override
     public boolean reserveSeats(UUID classDefinitionUuid, UUID userUuid, java.time.LocalDateTime reservedUntil) {
         UUID studentUuid = resolveStudent(userUuid);
         if (classDefinitionUuid == null || studentUuid == null) {
