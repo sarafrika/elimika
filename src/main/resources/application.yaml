@@ -30,7 +30,7 @@ spring:
   flyway:
     out-of-order: true
     # Java migrations live in their owning module; SQL ones stay in db/migration.
-    locations: classpath:db/migration,classpath:apps/sarafrika/elimika/shared/tracking/migration
+    locations: classpath:db/migration,classpath:apps/sarafrika/elimika/shared/tracking/migration,classpath:apps/sarafrika/elimika/commerce/internal/migration
 
   # Mail configuration
   mail:
@@ -216,6 +216,10 @@ commerce:
     # Dev default true: checkout auto-captures without a gateway. In prod set false so
     # capture is driven only by confirmed M-Pesa payments (COMMERCE_CAPTURE_AUTO_ON_COMPLETE=false).
     auto-on-complete: ${COMMERCE_CAPTURE_AUTO_ON_COMPLETE:true}
+  order-number:
+    # Shuffled alphabet behind order numbers (ELM-K7Q9PX). Never change it once orders exist;
+    # the Flyway backfill reads the same env var.
+    alphabet: ${COMMERCE_ORDER_NUMBER_ALPHABET:JH5EV3YQK9BNTP6GDMA2SZWR84X7FC}
 
 # Transactional SMS. `log` (default) sends nothing and logs a masked recipient; `celcom` sends through
 # Celcom Africa and needs the API key, partner ID and registered sender ID from its dashboard.

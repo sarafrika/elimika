@@ -209,7 +209,9 @@ class ClassRegistrationWindowIntegrationTest {
                 cartSecurity,
                 new apps.sarafrika.elimika.commerce.internal.service.LearnerResolver(cartSecurity,
                         mock(apps.sarafrika.elimika.student.spi.StudentGuardianLookupService.class),
-                        mock(apps.sarafrika.elimika.student.spi.StudentLookupService.class)));
+                        mock(apps.sarafrika.elimika.student.spi.StudentLookupService.class)),
+                apps.sarafrika.elimika.commerce.internal.service.OrderNumbers.of(
+                        apps.sarafrika.elimika.commerce.internal.service.OrderNumbers.DEFAULT_ALPHABET));
     }
 
     @Test

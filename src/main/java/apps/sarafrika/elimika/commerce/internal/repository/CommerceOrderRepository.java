@@ -9,10 +9,15 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 
 public interface CommerceOrderRepository extends JpaRepository<CommerceOrder, Long> {
 
     Optional<CommerceOrder> findByUuid(UUID uuid);
+
+    /** The next value behind an order number; see {@code OrderNumbers}. */
+    @Query(value = "SELECT nextval('commerce_order_number_seq')", nativeQuery = true)
+    long nextOrderNumberSequence();
 
     Optional<CommerceOrder> findFirstByCart_UuidOrderByCreatedDateDesc(UUID cartUuid);
 

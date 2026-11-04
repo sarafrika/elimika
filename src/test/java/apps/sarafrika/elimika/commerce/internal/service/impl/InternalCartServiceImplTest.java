@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.commerce.internal.service.impl;
 
 import apps.sarafrika.elimika.commerce.cart.dto.CartLineItemRequest;
 import apps.sarafrika.elimika.commerce.internal.service.LearnerResolver;
+import apps.sarafrika.elimika.commerce.internal.service.OrderNumbers;
 import apps.sarafrika.elimika.student.spi.StudentGuardianLookupService;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.commerce.cart.dto.CartResponse;
@@ -108,7 +109,8 @@ class InternalCartServiceImplTest {
                 classDefinitionLookupService,
                 currencyValidator,
                 domainSecurityService,
-                new LearnerResolver(domainSecurityService, studentGuardianLookupService, studentLookupService));
+                new LearnerResolver(domainSecurityService, studentGuardianLookupService, studentLookupService),
+                OrderNumbers.of(OrderNumbers.DEFAULT_ALPHABET));
     }
 
     @Test

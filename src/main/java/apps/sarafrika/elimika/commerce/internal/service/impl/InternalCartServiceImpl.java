@@ -24,6 +24,7 @@ import apps.sarafrika.elimika.commerce.internal.repository.CommerceOrderReposito
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceProductVariantRepository;
 import apps.sarafrika.elimika.commerce.internal.service.InternalCartService;
 import apps.sarafrika.elimika.commerce.internal.service.LearnerResolver;
+import apps.sarafrika.elimika.commerce.internal.service.OrderNumbers;
 import apps.sarafrika.elimika.commerce.internal.service.RegionResolver;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyValidator;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
@@ -82,6 +83,7 @@ public class InternalCartServiceImpl implements InternalCartService {
     private final CurrencyValidator currencyValidator;
     private final DomainSecurityService domainSecurityService;
     private final LearnerResolver learnerResolver;
+    private final OrderNumbers orderNumbers;
 
     @Override
     public CartResponse createCart(CreateCartRequest request) {
@@ -223,6 +225,7 @@ public class InternalCartServiceImpl implements InternalCartService {
         refreshCartMetadata(cart);
 
         CommerceOrder order = new CommerceOrder();
+        order.setOrderNumber(orderNumbers.format(orderRepository.nextOrderNumberSequence()));
         order.setCart(cart);
         order.setUserUuid(cart.getUserUuid());
         order.setCustomerEmail(customerEmail);

@@ -90,6 +90,9 @@ public class CommerceOrder extends BaseEntity {
     @Column(name = "checkout_request_id")
     private String checkoutRequestId;
 
+    @Column(name = "order_number")
+    private String orderNumber;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata_json")
     private String metadataJson;

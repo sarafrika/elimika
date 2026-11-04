@@ -41,11 +41,12 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
                     "Order " + orderId + " is not awaiting payment (status=" + order.getPaymentStatus() + ")");
         }
 
+        // The order number is what the buyer sees on the prompt and their M-Pesa statement.
         String checkoutRequestId = mpesaGatewayClient.initiateStkPush(
                 phoneNumber,
                 order.getTotal(),
-                orderId,
-                "Payment for order " + orderId);
+                order.getDisplayId(),
+                "Elimika order " + order.getDisplayId());
         internalOrderService.storeCheckoutRequestId(orderId, checkoutRequestId);
 
         return new MpesaCheckoutResponse(checkoutRequestId, STATUS_PENDING);
