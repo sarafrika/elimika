@@ -73,18 +73,23 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
             purchase.setUserUuid(buyerUserUuid);
         }
 
-        List<CartItemResponse> items = order.getItems();
         if (purchase.getItems() == null) {
             purchase.setItems(new ArrayList<>());
         }
-        purchase.getItems().clear();
-
-        if (!CollectionUtils.isEmpty(items)) {
-            for (CartItemResponse item : items) {
-                CommercePurchaseItem entity = buildPurchaseItem(purchase, item, checkoutRequest, buyerUserUuid);
-                purchase.getItems().add(entity);
+        // Checkout records the order and capture records it again. Lines are updated in place by
+        // line id: clearing and re-adding them inserts before it deletes and trips the unique line key.
+        Map<String, CommercePurchaseItem> existing = new java.util.HashMap<>();
+        purchase.getItems().forEach(line -> existing.put(line.getLineItemId(), line));
+        List<CommercePurchaseItem> lines = new ArrayList<>();
+        if (!CollectionUtils.isEmpty(order.getItems())) {
+            for (CartItemResponse item : order.getItems()) {
+                CommercePurchaseItem line = existing.getOrDefault(item.getId(), new CommercePurchaseItem());
+                fillPurchaseItem(line, purchase, item, checkoutRequest, buyerUserUuid);
+                lines.add(line);
             }
         }
+        purchase.getItems().removeIf(line -> !lines.contains(line));
+        lines.stream().filter(line -> !purchase.getItems().contains(line)).forEach(purchase.getItems()::add);
 
         CommercePurchase saved = purchaseRepository.save(purchase);
         publishClassPurchases(saved);
@@ -115,13 +120,13 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
         }
     }
 
-    private CommercePurchaseItem buildPurchaseItem(
+    private void fillPurchaseItem(
+            CommercePurchaseItem entity,
             CommercePurchase purchase,
             CartItemResponse item,
             CheckoutRequest checkoutRequest,
             UUID buyerUserUuid
     ) {
-        CommercePurchaseItem entity = new CommercePurchaseItem();
         entity.setPurchase(purchase);
         entity.setLineItemId(item.getId());
         entity.setVariantId(item.getVariantId());
@@ -141,7 +146,6 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
         } else {
             entity.setStudentUuid(resolveStudentUuid(Map.of(), checkoutRequest, buyerUserUuid));
         }
-        return entity;
     }
 
     private void applyPlatformFee(CommercePurchase purchase, PlatformFeeBreakdown breakdown) {
