@@ -29,6 +29,7 @@ import static org.mockito.Mockito.when;
 class OrderPaymentServiceImplTest {
 
     private static final String ORDER_ID = "11111111-1111-1111-1111-111111111111";
+    private static final String ORDER_NUMBER = "ELM-K7Q9PX";
     private static final String CHECKOUT_ID = "ws_CO_04112017184930742";
 
     @Mock
@@ -44,6 +45,7 @@ class OrderPaymentServiceImplTest {
     private OrderResponse order(String status) {
         return OrderResponse.builder()
                 .id(ORDER_ID)
+                .displayId(ORDER_NUMBER)
                 .paymentStatus(status)
                 .currencyCode("KES")
                 .total(new BigDecimal("1000.00"))
@@ -54,7 +56,7 @@ class OrderPaymentServiceImplTest {
     void initiateMpesaPaymentInitiatesAndStoresCheckoutRequestId() {
         when(internalOrderService.getOrder(ORDER_ID)).thenReturn(order("AWAITING_PAYMENT"));
         when(mpesaGatewayClient.initiateStkPush(eq("254708374149"), eq(new BigDecimal("1000.00")),
-                eq(ORDER_ID), any())).thenReturn(CHECKOUT_ID);
+                eq(ORDER_NUMBER), eq("Elimika order " + ORDER_NUMBER))).thenReturn(CHECKOUT_ID);
 
         MpesaCheckoutResponse response = service.initiateMpesaPayment(ORDER_ID, "254708374149");
 
