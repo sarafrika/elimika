@@ -12,8 +12,11 @@ import apps.sarafrika.elimika.wallet.dto.PayoutFloatDTO;
 import apps.sarafrika.elimika.wallet.dto.RejectPayoutBatchRequestDTO;
 import apps.sarafrika.elimika.wallet.dto.WithdrawalDTO;
 import apps.sarafrika.elimika.wallet.entity.PayoutBatch;
+import apps.sarafrika.elimika.wallet.entity.Withdrawal;
 import apps.sarafrika.elimika.wallet.enums.PayoutBatchStatus;
 import apps.sarafrika.elimika.wallet.service.PayoutBatchService;
+import apps.sarafrika.elimika.wallet.service.WalletCheck;
+import apps.sarafrika.elimika.wallet.service.WithdrawalWalletChecks;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -48,6 +51,7 @@ public class AdminPayoutBatchController {
     private final PayoutBatchService batchService;
     private final DomainSecurityService domainSecurityService;
     private final MobileMoneyPayoutGateway gateway;
+    private final WithdrawalWalletChecks walletChecks;
 
     @GetMapping
     @Operation(operationId = "listPayoutBatches", summary = "List payout batches",
@@ -55,10 +59,12 @@ public class AdminPayoutBatchController {
     public ResponseEntity<ApiResponse<PagedDTO<PayoutBatchDTO>>> list(
             @RequestParam(value = "status", required = false) List<PayoutBatchStatus> statuses, Pageable pageable) {
         Page<PayoutBatch> batches = batchService.list(statuses, pageable);
-        Map<UUID, PayoutBatchService.RowCounts> counts = batchService.counts(
-                batches.getContent().stream().map(PayoutBatch::getUuid).toList());
+        List<UUID> uuids = batches.getContent().stream().map(PayoutBatch::getUuid).toList();
+        Map<UUID, PayoutBatchService.RowCounts> counts = batchService.counts(uuids);
+        Map<UUID, PayoutBatchService.WalletIssues> walletIssues = batchService.walletIssues(uuids);
         UUID me = domainSecurityService.getCurrentUserUuid();
-        Page<PayoutBatchDTO> page = batches.map(b -> PayoutBatchDTO.from(b, counts.get(b.getUuid()), me));
+        Page<PayoutBatchDTO> page = batches.map(b -> PayoutBatchDTO.from(b, counts.get(b.getUuid()),
+                walletIssues.get(b.getUuid()), me));
         return ResponseEntity.ok(ApiResponse.success(
                 PagedDTO.from(page, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()),
                 "Payout batches retrieved successfully"));
@@ -76,17 +82,23 @@ public class AdminPayoutBatchController {
 
     @GetMapping("/{batchUuid}")
     @Operation(operationId = "getPayoutBatch", summary = "Get a payout batch with its withdrawals and the payout float",
-            description = "payout_float is read from M-Pesa on each call and is null when unknown.")
+            description = "payout_float is read from M-Pesa on each call and is null when unknown. Each row carries "
+                    + "wallet_check, its earner's wallet read now, and wallet_flags derived from it; the batch's "
+                    + "wallet_issue_count counts the rows with a wallet flag.")
     public ResponseEntity<ApiResponse<PayoutBatchDetailDTO>> get(@PathVariable UUID batchUuid) {
         PayoutBatch batch = batchService.get(batchUuid);
-        List<WithdrawalDTO> rows = batchService.rows(batchUuid).stream().map(WithdrawalDTO::from).toList();
+        List<Withdrawal> withdrawals = batchService.rows(batchUuid);
+        Map<UUID, WalletCheck> checks = walletChecks.check(withdrawals);
+        List<WithdrawalDTO> rows = withdrawals.stream().map(w -> WithdrawalDTO.from(w, checks.get(w.getUuid()))).toList();
         PayoutFloatDTO payoutFloat = null;
         try {
             payoutFloat = gateway.currentFloat().map(PayoutFloatDTO::from).orElse(null);
         } catch (RuntimeException ex) {
             log.warn("Could not read the payout float: {}", ex.getMessage());
         }
-        return ResponseEntity.ok(ApiResponse.success(new PayoutBatchDetailDTO(dto(batch), rows, payoutFloat),
+        PayoutBatchDTO summary = PayoutBatchDTO.from(batch, batchService.counts(List.of(batchUuid)).get(batchUuid),
+                PayoutBatchService.WalletIssues.of(checks.values()), domainSecurityService.getCurrentUserUuid());
+        return ResponseEntity.ok(ApiResponse.success(new PayoutBatchDetailDTO(summary, rows, payoutFloat),
                 "Payout batch retrieved successfully"));
     }
 
@@ -118,12 +130,15 @@ public class AdminPayoutBatchController {
     @PostMapping("/{batchUuid}/approve")
     @Operation(operationId = "approvePayoutBatch", summary = "Approve a batch and release it to M-Pesa",
             description = "Refused (409) for whoever built or submitted the batch, when the batch total exceeds the "
-                    + "payout float's utility funds, and when the float is unknown unless override_unknown_float is "
-                    + "true. On approval every row moves to SENDING and is paid a few at a time.")
+                    + "payout float's utility funds, when the float is unknown unless override_unknown_float is "
+                    + "true, and when any row carries a wallet flag (wallet_issue_count above zero) unless "
+                    + "acknowledge_wallet_issues is true, which the approval audit records. On approval every row "
+                    + "moves to SENDING and is paid a few at a time.")
     public ResponseEntity<ApiResponse<PayoutBatchDTO>> approve(@PathVariable UUID batchUuid,
                                                                @RequestBody(required = false) ApprovePayoutBatchRequestDTO request) {
         return ResponseEntity.ok(ApiResponse.success(dto(batchService.approve(batchUuid,
-                request != null && request.overrideUnknownFloat())), "Payout batch approved"));
+                request != null && request.overrideUnknownFloat(), request != null && request.acknowledgeWalletIssues())),
+                "Payout batch approved"));
     }
 
     @PostMapping("/{batchUuid}/reject")
@@ -153,6 +168,7 @@ public class AdminPayoutBatchController {
 
     private PayoutBatchDTO dto(PayoutBatch batch) {
         return PayoutBatchDTO.from(batch, batchService.counts(List.of(batch.getUuid())).get(batch.getUuid()),
+                batchService.walletIssues(List.of(batch.getUuid())).get(batch.getUuid()),
                 domainSecurityService.getCurrentUserUuid());
     }
 }

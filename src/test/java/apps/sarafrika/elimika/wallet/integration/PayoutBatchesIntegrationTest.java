@@ -36,6 +36,7 @@ import apps.sarafrika.elimika.wallet.service.WithdrawalService;
 import apps.sarafrika.elimika.wallet.service.impl.PayoutBatchServiceImpl;
 import apps.sarafrika.elimika.wallet.service.impl.WalletServiceImpl;
 import apps.sarafrika.elimika.wallet.service.impl.WithdrawalServiceImpl;
+import apps.sarafrika.elimika.wallet.service.impl.WithdrawalWalletChecksImpl;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -72,7 +73,8 @@ import org.springframework.transaction.annotation.Transactional;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({WalletServiceImpl.class, LedgerServiceImpl.class, WalletLedgerReconciliationJob.class, JpaConfig.class,
         WithdrawalServiceImpl.class, PayoutSettingsService.class, OneTimeCodeService.class, WithdrawalNotifier.class,
-        PayoutBatchServiceImpl.class, PayoutBatchSender.class, PayoutBatchesIntegrationTest.Fakes.class})
+        PayoutBatchServiceImpl.class, PayoutBatchSender.class, WithdrawalWalletChecksImpl.class,
+        PayoutBatchesIntegrationTest.Fakes.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @DisplayName("Payout batches")
 class PayoutBatchesIntegrationTest {

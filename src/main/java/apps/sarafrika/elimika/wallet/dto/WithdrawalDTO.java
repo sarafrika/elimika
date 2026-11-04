@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.wallet.dto;
 import apps.sarafrika.elimika.shared.sms.Msisdn;
 import apps.sarafrika.elimika.wallet.entity.Withdrawal;
 import apps.sarafrika.elimika.wallet.enums.WithdrawalStatus;
+import apps.sarafrika.elimika.wallet.service.WalletCheck;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -42,14 +43,26 @@ public record WithdrawalDTO(
         @JsonProperty("sent_at") OffsetDateTime sentAt,
         @JsonProperty("completed_at") OffsetDateTime completedAt,
         @Schema(description = "The payout batch this withdrawal is in, or was paid in; null when in none")
-        @JsonProperty("payout_batch_uuid") UUID payoutBatchUuid
+        @JsonProperty("payout_batch_uuid") UUID payoutBatchUuid,
+        @Schema(description = "The earner's wallet read now; only on admin views, null elsewhere")
+        @JsonProperty("wallet_check") WalletCheckDTO walletCheck,
+        @Schema(description = "Derived from wallet_check, never stored: LEDGER_MISMATCH when ledger_matches is false, "
+                + "WALLET_SHORT when covers is false. Empty when the wallet checks out; null off admin views")
+        @JsonProperty("wallet_flags") List<String> walletFlags
 ) {
 
+    /** Without the wallet check, for the earner's own screens. */
     public static WithdrawalDTO from(Withdrawal w) {
+        return from(w, null);
+    }
+
+    /** With the wallet check, for admin views. */
+    public static WithdrawalDTO from(Withdrawal w, WalletCheck check) {
         return new WithdrawalDTO(w.getUuid(), w.getOwnerType(), w.getOwnerUuid(), w.getReference(), w.getStatus(), w.getAmount(), w.getFeeAmount(),
                 w.getNetAmount(), w.getCurrencyCode(), w.getPayoutMethodUuid(), Msisdn.mask(w.getMsisdn()),
                 w.getRequestedByUserUuid(), w.getRequesterName(), w.reviewFlagList(), w.getSecondApproverUserUuid(), w.getRejectionReason(),
                 w.getFailureReason(), w.getMpesaReceipt(), w.getMpesaRecipientName(), w.getCreatedDate(),
-                w.getConfirmedAt(), w.getSentAt(), w.getCompletedAt(), w.getPayoutBatchUuid());
+                w.getConfirmedAt(), w.getSentAt(), w.getCompletedAt(), w.getPayoutBatchUuid(), WalletCheckDTO.from(check),
+                check == null ? null : check.flags());
     }
 }

@@ -15,6 +15,8 @@ import apps.sarafrika.elimika.wallet.repository.PayoutBatchRepository;
 import apps.sarafrika.elimika.wallet.repository.WalletAuditEventRepository;
 import apps.sarafrika.elimika.wallet.repository.WithdrawalRepository;
 import apps.sarafrika.elimika.wallet.service.PayoutBatchService;
+import apps.sarafrika.elimika.wallet.service.WalletCheck;
+import apps.sarafrika.elimika.wallet.service.WithdrawalWalletChecks;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -50,16 +52,19 @@ public class PayoutBatchServiceImpl implements PayoutBatchService {
     private final DomainSecurityService domainSecurityService;
     private final MobileMoneyPayoutGateway gateway;
     private final TransactionTemplate transactions;
+    private final WithdrawalWalletChecks walletChecks;
 
     public PayoutBatchServiceImpl(PayoutBatchRepository batchRepository, WithdrawalRepository withdrawalRepository,
                                   WalletAuditEventRepository auditRepository, DomainSecurityService domainSecurityService,
-                                  MobileMoneyPayoutGateway gateway, PlatformTransactionManager transactionManager) {
+                                  MobileMoneyPayoutGateway gateway, PlatformTransactionManager transactionManager,
+                                  WithdrawalWalletChecks walletChecks) {
         this.batchRepository = batchRepository;
         this.withdrawalRepository = withdrawalRepository;
         this.auditRepository = auditRepository;
         this.domainSecurityService = domainSecurityService;
         this.gateway = gateway;
         this.transactions = new TransactionTemplate(transactionManager);
+        this.walletChecks = walletChecks;
     }
 
     @Override
@@ -101,6 +106,21 @@ public class PayoutBatchServiceImpl implements PayoutBatchService {
                     c.inFlight() + (IN_FLIGHT.contains(status) ? n : 0)));
         }
         return counts;
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public Map<UUID, WalletIssues> walletIssues(Collection<UUID> batchUuids) {
+        Map<UUID, WalletIssues> issues = new HashMap<>();
+        if (batchUuids == null || batchUuids.isEmpty()) {
+            return issues;
+        }
+        List<Withdrawal> rows = withdrawalRepository.findByPayoutBatchUuidIn(batchUuids);
+        Map<UUID, WalletCheck> checks = walletChecks.check(rows);
+        Map<UUID, List<WalletCheck>> byBatch = new HashMap<>();
+        rows.forEach(w -> byBatch.computeIfAbsent(w.getPayoutBatchUuid(), k -> new ArrayList<>()).add(checks.get(w.getUuid())));
+        byBatch.forEach((batch, list) -> issues.put(batch, WalletIssues.of(list)));
+        return issues;
     }
 
     @Override
@@ -163,7 +183,7 @@ public class PayoutBatchServiceImpl implements PayoutBatchService {
     }
 
     @Override
-    public PayoutBatch approve(UUID batchUuid, boolean overrideUnknownFloat) {
+    public PayoutBatch approve(UUID batchUuid, boolean overrideUnknownFloat, boolean acknowledgeWalletIssues) {
         UUID actor = domainSecurityService.getCurrentUserUuid();
         String actorName = actorName();
         // Fail fast before asking M-Pesa; everything is checked again under the lock.
@@ -181,6 +201,14 @@ public class PayoutBatchServiceImpl implements PayoutBatchService {
                         + "; remove it from the batch first.");
             });
             recount(batch);
+            Map<UUID, WalletCheck> checks = walletChecks.check(rows);
+            WalletIssues walletIssues = WalletIssues.of(checks.values());
+            if (walletIssues.issues() > 0 && !acknowledgeWalletIssues) {
+                throw new IllegalStateException(walletIssues.issues() + " of " + rows.size()
+                        + (rows.size() == 1 ? " row has" : " rows have")
+                        + " a wallet issue (ledger mismatch or a wallet that does not back what is held). "
+                        + "Check those wallets, remove the rows, or approve with acknowledge_wallet_issues.");
+            }
             BigDecimal utility = payoutFloat.map(PayoutFloat::utilityAccountFunds).orElse(null);
             if (utility == null && !overrideUnknownFloat) {
                 throw new IllegalStateException("The payout float is unknown right now, so this batch of "
@@ -203,17 +231,26 @@ public class PayoutBatchServiceImpl implements PayoutBatchService {
             batchRepository.save(batch);
             Map<String, Object> extra = new HashMap<>();
             extra.put("override_unknown_float", utility == null);
+            extra.put("acknowledge_wallet_issues", acknowledgeWalletIssues && walletIssues.issues() > 0);
+            extra.put("wallet_issue_count", walletIssues.issues());
             payoutFloat.map(PayoutFloat::reportedAt).ifPresent(at -> extra.put("float_reported_at", at.toString()));
             for (Withdrawal w : rows) {
                 w.setReviewedByUserUuid(actor);
                 w.setReviewedAt(now);
                 w.setStatus(WithdrawalStatus.SENDING);
                 withdrawalRepository.save(w);
+                Map<String, Object> rowExtra = new HashMap<>(extra);
+                WalletCheck check = checks.get(w.getUuid());
+                rowExtra.put("wallet_flags", check.flags());
+                rowExtra.put("wallet_account_balance", check.accountBalance());
+                rowExtra.put("wallet_held_amount", check.heldAmount());
+                rowExtra.put("wallet_available_balance", check.availableBalance());
                 audit(batch, w, WalletAuditEventType.PAYOUT_BATCH_APPROVED, actor,
-                        "Approved by an Elimika admin in a payout batch", extra);
+                        "Approved by an Elimika admin in a payout batch", rowExtra);
             }
-            log.info("Payout batch {} released by {}: {} rows, {} (float {}, override {})", batch.getUuid(), actor,
-                    batch.getRowCount(), batch.getTotalAmount(), utility, utility == null);
+            log.info("Payout batch {} released by {}: {} rows, {} (float {}, override {}, wallet issues {})",
+                    batch.getUuid(), actor, batch.getRowCount(), batch.getTotalAmount(), utility, utility == null,
+                    walletIssues.issues());
             return batch;
         });
     }

@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.wallet.repository;
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
 import jakarta.persistence.LockModeType;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.UUID;
@@ -61,4 +62,22 @@ public interface UserWalletRepository extends JpaRepository<UserWallet, Long> {
             @Param("cursor") long cursor,
             @Param("batchSize") int batchSize
     );
+
+    /** The owners' wallets with their ledger earnings balances, in one statement. */
+    @Query(value = """
+            select w.owner_type     as "ownerType",
+                   w.user_uuid      as "ownerUuid",
+                   w.currency_code  as "currencyCode",
+                   w.balance_amount as "walletBalance",
+                   case when la.uuid is null then null else coalesce(lb.posted_amount, 0) end as "ledgerBalance"
+            from user_wallets w
+                     left join ledger_accounts la
+                               on la.owner_type = w.owner_type
+                                   and la.owner_uuid = w.user_uuid
+                                   and la.purse = 'EARNINGS'
+                                   and la.currency_code = w.currency_code
+                     left join ledger_account_balances lb on lb.account_uuid = la.uuid
+            where w.user_uuid in (:ownerUuids)
+            """, nativeQuery = true)
+    List<WalletCheckBalance> findWalletCheckBalances(@Param("ownerUuids") Collection<UUID> ownerUuids);
 }

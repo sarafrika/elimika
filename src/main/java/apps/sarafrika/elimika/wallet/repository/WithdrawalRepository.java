@@ -97,4 +97,38 @@ public interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
 
     @Query("select coalesce(sum(w.netAmount), 0) from Withdrawal w where w.status = :status and w.completedAt >= :since")
     BigDecimal sumNetCompletedSince(@Param("status") WithdrawalStatus status, @Param("since") OffsetDateTime since);
+
+    /**
+     * Per owner and currency: the held withdrawals' count and gross amount, and the wallet debits
+     * recorded for them (withdrawal and fee rows by reference, less reversals), in one statement.
+     */
+    @Query(value = """
+            select w.owner_type    as "ownerType",
+                   w.owner_uuid    as "ownerUuid",
+                   w.currency_code as "currencyCode",
+                   count(*)        as "heldCount",
+                   coalesce(sum(w.amount), 0) as "heldAmount",
+                   coalesce(sum(d.debited), 0) as "heldDebited"
+            from withdrawals w
+                     left join lateral (
+                select coalesce(sum(case when t.transaction_type = 'WITHDRAWAL_REVERSAL' then -t.amount
+                                         else t.amount end), 0) as debited
+                from user_wallet_transactions t
+                         join user_wallets uw on uw.id = t.wallet_id
+                where uw.owner_type = w.owner_type
+                  and uw.user_uuid = w.owner_uuid
+                  and uw.currency_code = w.currency_code
+                  and ((t.transaction_type = 'WITHDRAWAL' and t.reference = w.reference)
+                    or (t.transaction_type = 'PAYOUT_FEE' and t.reference = w.reference || ':fee')
+                    or (t.transaction_type = 'WITHDRAWAL_REVERSAL' and t.reference = w.reference || ':reversal'))
+                ) d on true
+            where w.owner_uuid in (:ownerUuids)
+              and w.status in (:statuses)
+            group by w.owner_type, w.owner_uuid, w.currency_code
+            """, nativeQuery = true)
+    List<HeldWithdrawalTotals> heldTotalsByOwner(@Param("ownerUuids") Collection<UUID> ownerUuids,
+                                                 @Param("statuses") Collection<String> statuses);
+
+    @Query("select w from Withdrawal w where w.payoutBatchUuid in :batchUuids order by w.id")
+    List<Withdrawal> findByPayoutBatchUuidIn(@Param("batchUuids") Collection<UUID> batchUuids);
 }

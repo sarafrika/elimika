@@ -38,7 +38,18 @@ public interface PayoutBatchService {
      * Releases the batch to M-Pesa. Refused for whoever built or submitted it, when the payout float
      * is below the batch total, and when the float is unknown unless {@code overrideUnknownFloat}.
      */
-    PayoutBatch approve(UUID batchUuid, boolean overrideUnknownFloat);
+    default PayoutBatch approve(UUID batchUuid, boolean overrideUnknownFloat) {
+        return approve(batchUuid, overrideUnknownFloat, false);
+    }
+
+    /**
+     * As {@link #approve(UUID, boolean)}, and also refused while any row's wallet check raises a wallet
+     * flag unless {@code acknowledgeWalletIssues}, which the approval audit records.
+     */
+    PayoutBatch approve(UUID batchUuid, boolean overrideUnknownFloat, boolean acknowledgeWalletIssues);
+
+    /** Each batch's rows checked against their wallets now; batches without rows are absent. */
+    Map<UUID, WalletIssues> walletIssues(Collection<UUID> batchUuids);
 
     PayoutBatch reject(UUID batchUuid, String reason);
 
@@ -55,5 +66,15 @@ public interface PayoutBatchService {
     record RowCounts(long paid, long failed, long inFlight) {
 
         public static final RowCounts NONE = new RowCounts(0, 0, 0);
+    }
+
+    /** Rows checked, and how many of them carry a wallet flag. */
+    record WalletIssues(int checked, int issues) {
+
+        public static final WalletIssues NONE = new WalletIssues(0, 0);
+
+        public static WalletIssues of(Collection<WalletCheck> checks) {
+            return new WalletIssues(checks.size(), (int) checks.stream().filter(WalletCheck::hasIssues).count());
+        }
     }
 }

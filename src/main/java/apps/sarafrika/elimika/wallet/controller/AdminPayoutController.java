@@ -7,10 +7,13 @@ import apps.sarafrika.elimika.wallet.dto.PayoutSettingsDTO;
 import apps.sarafrika.elimika.wallet.dto.PayoutSummaryDTO;
 import apps.sarafrika.elimika.wallet.dto.RejectWithdrawalRequestDTO;
 import apps.sarafrika.elimika.wallet.dto.WithdrawalDTO;
+import apps.sarafrika.elimika.wallet.entity.Withdrawal;
 import apps.sarafrika.elimika.wallet.enums.WithdrawalStatus;
 import apps.sarafrika.elimika.wallet.repository.WithdrawalRepository;
 import apps.sarafrika.elimika.wallet.service.PayoutBatchService;
 import apps.sarafrika.elimika.wallet.service.PayoutSettingsService;
+import apps.sarafrika.elimika.wallet.service.WalletCheck;
+import apps.sarafrika.elimika.wallet.service.WithdrawalWalletChecks;
 import apps.sarafrika.elimika.wallet.service.WithdrawalService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -18,6 +21,7 @@ import jakarta.validation.Valid;
 import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
@@ -49,6 +53,7 @@ public class AdminPayoutController {
     private final PayoutSettingsService settingsService;
     private final PayoutBatchService batchService;
     private final MobileMoneyPayoutGateway gateway;
+    private final WithdrawalWalletChecks walletChecks;
 
     @GetMapping("/summary")
     @Operation(operationId = "getPayoutSummary", summary = "Headline payout figures")
@@ -72,12 +77,15 @@ public class AdminPayoutController {
     @GetMapping("/withdrawals")
     @Operation(operationId = "listAdminWithdrawals", summary = "List withdrawals across all wallets",
             description = "Newest first; filter by status, e.g. NEEDS_REVIEW. With unbatched=true, withdrawals "
-                    + "already in a payout batch are left out, which gives the queue a new batch is built from.")
+                    + "already in a payout batch are left out, which gives the queue a new batch is built from. "
+                    + "Each row carries wallet_check, its earner's wallet read now, and wallet_flags derived from it.")
     public ResponseEntity<ApiResponse<PagedDTO<WithdrawalDTO>>> list(
             @RequestParam(value = "status", required = false) List<WithdrawalStatus> statuses,
             @RequestParam(value = "unbatched", required = false, defaultValue = "false") boolean unbatched,
             Pageable pageable) {
-        Page<WithdrawalDTO> page = withdrawalService.queue(statuses, unbatched, pageable).map(WithdrawalDTO::from);
+        Page<Withdrawal> withdrawals = withdrawalService.queue(statuses, unbatched, pageable);
+        Map<UUID, WalletCheck> checks = walletChecks.check(withdrawals.getContent());
+        Page<WithdrawalDTO> page = withdrawals.map(w -> WithdrawalDTO.from(w, checks.get(w.getUuid())));
         return ResponseEntity.ok(ApiResponse.success(
                 PagedDTO.from(page, ServletUriComponentsBuilder.fromCurrentRequestUri().build().toString()),
                 "Withdrawals retrieved successfully"));
@@ -90,7 +98,7 @@ public class AdminPayoutController {
                     + "that batch before M-Pesa pays it. The withdrawal stays NEEDS_REVIEW and comes back with its "
                     + "payout_batch_uuid set. Refused when the withdrawal is already in a batch.")
     public ResponseEntity<ApiResponse<WithdrawalDTO>> approve(@PathVariable UUID withdrawalUuid) {
-        return ResponseEntity.ok(ApiResponse.success(WithdrawalDTO.from(batchService.submitSingle(withdrawalUuid)),
+        return ResponseEntity.ok(ApiResponse.success(checked(batchService.submitSingle(withdrawalUuid)),
                 "Withdrawal submitted for approval in a payout batch"));
     }
 
@@ -100,7 +108,7 @@ public class AdminPayoutController {
                     + "one in a batch waiting for approval or released cannot be rejected on its own (409).")
     public ResponseEntity<ApiResponse<WithdrawalDTO>> reject(@PathVariable UUID withdrawalUuid,
                                                              @Valid @RequestBody RejectWithdrawalRequestDTO request) {
-        return ResponseEntity.ok(ApiResponse.success(WithdrawalDTO.from(
+        return ResponseEntity.ok(ApiResponse.success(checked(
                 withdrawalService.adminReject(withdrawalUuid, request.reason())), "Withdrawal rejected"));
     }
 
@@ -115,7 +123,7 @@ public class AdminPayoutController {
             withdrawalService.send(withdrawalUuid);
         }
         withdrawalService.refresh(withdrawalUuid);
-        return ResponseEntity.ok(ApiResponse.success(WithdrawalDTO.from(withdrawalRepository.findByUuid(withdrawalUuid)
+        return ResponseEntity.ok(ApiResponse.success(checked(withdrawalRepository.findByUuid(withdrawalUuid)
                 .orElseThrow(() -> new apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException(
                         "Withdrawal not found."))), "Withdrawal checked"));
     }
@@ -137,5 +145,9 @@ public class AdminPayoutController {
                 request.feePayer(), request.earnerFee(), request.requireAdminApproval(),
                 authentication == null ? "SYSTEM" : authentication.getName())),
                 "Payout settings saved"));
+    }
+
+    private WithdrawalDTO checked(Withdrawal withdrawal) {
+        return WithdrawalDTO.from(withdrawal, walletChecks.check(List.of(withdrawal)).get(withdrawal.getUuid()));
     }
 }

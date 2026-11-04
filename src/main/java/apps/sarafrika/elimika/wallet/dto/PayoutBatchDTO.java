@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.wallet.dto;
 import apps.sarafrika.elimika.wallet.entity.PayoutBatch;
 import apps.sarafrika.elimika.wallet.enums.PayoutBatchStatus;
 import apps.sarafrika.elimika.wallet.service.PayoutBatchService.RowCounts;
+import apps.sarafrika.elimika.wallet.service.PayoutBatchService.WalletIssues;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -42,17 +43,23 @@ public record PayoutBatchDTO(
         @JsonProperty("updated_date") OffsetDateTime updatedDate,
         @Schema(description = "True when the signed-in admin may approve the batch now: it waits for approval and "
                 + "they neither built nor submitted it")
-        @JsonProperty("can_approve") boolean canApprove
+        @JsonProperty("can_approve") boolean canApprove,
+        @Schema(description = "Rows whose earner wallet has a wallet flag (LEDGER_MISMATCH or WALLET_SHORT) now; "
+                + "approval is refused while above zero unless acknowledge_wallet_issues is true")
+        @JsonProperty("wallet_issue_count") int walletIssueCount,
+        @Schema(description = "Rows whose wallet was checked for this response")
+        @JsonProperty("wallets_checked") int walletsChecked
 ) {
 
-    public static PayoutBatchDTO from(PayoutBatch b, RowCounts counts, UUID currentUser) {
+    public static PayoutBatchDTO from(PayoutBatch b, RowCounts counts, WalletIssues walletIssues, UUID currentUser) {
         RowCounts c = counts == null ? RowCounts.NONE : counts;
+        WalletIssues w = walletIssues == null ? WalletIssues.NONE : walletIssues;
         return new PayoutBatchDTO(b.getUuid(), b.getStatus(), b.getCreatedByUserUuid(), b.getCreatedByName(),
                 b.getSubmittedByUserUuid(), b.getSubmittedByName(), b.getSubmittedAt(), b.getApprovedByUserUuid(),
                 b.getApprovedByName(), b.getApprovedAt(), b.getRejectedByUserUuid(), b.getRejectedAt(),
                 b.getRejectionReason(), b.getRowCount(), b.getTotalAmount(), c.paid(), c.failed(), c.inFlight(),
                 b.getFloatAtApproval(), b.getReleasedAt(), b.getCompletedAt(), utc(b.getCreatedDate()),
-                utc(b.getLastModifiedDate()), b.canBeApprovedBy(currentUser));
+                utc(b.getLastModifiedDate()), b.canBeApprovedBy(currentUser), w.issues(), w.checked());
     }
 
     private static OffsetDateTime utc(LocalDateTime value) {
