@@ -95,7 +95,8 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
      * service the enrolment paywall uses, so a seat is never announced that the paywall would refuse.
      */
     private void publishClassPurchases(CommercePurchase purchase) {
-        if (CollectionUtils.isEmpty(purchase.getItems())) {
+        // Checkout records the order before it is paid; only a captured order may enrol anyone.
+        if (CollectionUtils.isEmpty(purchase.getItems()) || !"CAPTURED".equalsIgnoreCase(purchase.getPaymentStatus())) {
             return;
         }
         for (CommercePurchaseItem item : purchase.getItems()) {

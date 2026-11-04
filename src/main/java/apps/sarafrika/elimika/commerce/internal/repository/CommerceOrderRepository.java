@@ -31,4 +31,8 @@ public interface CommerceOrderRepository extends JpaRepository<CommerceOrder, Lo
      */
     List<CommerceOrder> findByPaymentStatusAndCheckoutRequestIdIsNotNullAndPlacedAtBefore(
             PaymentStatus paymentStatus, java.time.LocalDateTime placedBefore);
+
+    /** Orders whose M-Pesa prompt never started; nothing can pay them, so the sweep cancels them. */
+    List<CommerceOrder> findByPaymentStatusAndCheckoutRequestIdIsNullAndPlacedAtBefore(
+            PaymentStatus paymentStatus, java.time.LocalDateTime placedBefore);
 }

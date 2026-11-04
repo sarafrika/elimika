@@ -8,13 +8,11 @@ import java.util.List;
 import java.util.Set;
 import java.util.UUID;
 import lombok.RequiredArgsConstructor;
-import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 
 @Service
-@Profile("!dev")
 @RequiredArgsConstructor
 // isSettled reads the LAZY CommercePurchaseItem.purchase; without open-in-view that needs a session here.
 @Transactional(readOnly = true)

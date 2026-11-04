@@ -1,10 +1,9 @@
 # Development and staging overrides.
 #
 # The `dev` profile marks the relaxed environments — a workstation or the staging VPS — as opposed
-# to `prod`, which is what a real deployment runs. The commerce module already draws the line here:
-# DevCommerceAccessServiceImpl is @Profile("dev") and grants universal course access, while
-# CommerceAccessServiceImpl is @Profile("!dev") and enforces the paywall. Anything that should be
-# open on staging and closed in production belongs in this file, for the same reason.
+# to `prod`, which is what a real deployment runs. Anything that should be open on staging and
+# closed in production belongs in this file. The paywall is not one of them: the only payment
+# bypass is commerce.capture.auto-on-complete.
 app:
   email:
     frontend:

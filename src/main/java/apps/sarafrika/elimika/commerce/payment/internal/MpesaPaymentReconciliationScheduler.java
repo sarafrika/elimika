@@ -1,18 +1,27 @@
 package apps.sarafrika.elimika.commerce.payment.internal;
 
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceOrder;
+import apps.sarafrika.elimika.commerce.internal.entity.CommerceOrderItem;
+import apps.sarafrika.elimika.commerce.internal.enums.OrderStatus;
 import apps.sarafrika.elimika.commerce.internal.enums.PaymentStatus;
 import apps.sarafrika.elimika.commerce.internal.repository.CommerceOrderRepository;
+import apps.sarafrika.elimika.commerce.internal.service.LearnerResolver;
 import apps.sarafrika.elimika.commerce.payment.service.OrderPaymentService;
+import apps.sarafrika.elimika.shared.spi.ClassEnrolmentGateService;
+import com.fasterxml.jackson.core.type.TypeReference;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
+import java.util.UUID;
 
 /**
  * Settles M-Pesa payments whose outcome never reached us through the browser.
@@ -25,8 +34,7 @@ import java.util.List;
  * <h2>Cadence</h2>
  * An STK prompt lives about a minute, so the timings are deliberately short: anything still
  * unresolved after 90 seconds is re-queried every minute, and anything past five minutes is given up
- * on and its held seat released. A slower sweep would be useless to the person watching their phone
- * and would leave seats dead long after the buyer walked away.
+ * on: the order is cancelled and the seats it held are released.
  */
 @Component
 @RequiredArgsConstructor
@@ -35,9 +43,13 @@ class MpesaPaymentReconciliationScheduler {
 
     private static final int UNRESOLVED_AFTER_SECONDS = 90;
     private static final int GIVE_UP_AFTER_MINUTES = 5;
+    private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     private final CommerceOrderRepository orderRepository;
     private final OrderPaymentService orderPaymentService;
+    private final ClassEnrolmentGateService classEnrolmentGateService;
+    private final LearnerResolver learnerResolver;
+    private final ObjectMapper objectMapper;
 
     @Scheduled(
             initialDelayString = "${commerce.payment.reconciliation.initial-delay:PT60S}",
@@ -55,15 +67,10 @@ class MpesaPaymentReconciliationScheduler {
 
     private void reconcile() {
         LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
-        List<CommerceOrder> unresolved = orderRepository
-                .findByPaymentStatusAndCheckoutRequestIdIsNotNullAndPlacedAtBefore(
-                        PaymentStatus.AWAITING_PAYMENT, now.minusSeconds(UNRESOLVED_AFTER_SECONDS));
+        LocalDateTime giveUpBefore = now.minusMinutes(GIVE_UP_AFTER_MINUTES);
 
-        if (unresolved.isEmpty()) {
-            return;
-        }
-
-        for (CommerceOrder order : unresolved) {
+        for (CommerceOrder order : orderRepository.findByPaymentStatusAndCheckoutRequestIdIsNotNullAndPlacedAtBefore(
+                PaymentStatus.AWAITING_PAYMENT, now.minusSeconds(UNRESOLVED_AFTER_SECONDS))) {
             String orderId = order.getUuid() == null ? null : order.getUuid().toString();
             if (orderId == null) {
                 continue;
@@ -75,14 +82,49 @@ class MpesaPaymentReconciliationScheduler {
             } catch (Exception e) {
                 log.warn("Could not settle payment for order {}: {}", orderId, e.getMessage());
             }
-
-            if (order.getPlacedAt() != null
-                    && order.getPlacedAt().isBefore(now.minusMinutes(GIVE_UP_AFTER_MINUTES))
-                    && order.getPaymentStatus() == PaymentStatus.AWAITING_PAYMENT) {
-                order.setPaymentStatus(PaymentStatus.CANCELED);
-                orderRepository.save(order);
-                log.info("Abandoned order {} past the STK window; its held seats will lapse", orderId);
+            if (order.getPlacedAt() != null && order.getPlacedAt().isBefore(giveUpBefore)) {
+                abandon(order);
             }
         }
+
+        // A prompt that never started can never be paid; cancel it once the same window has passed.
+        orderRepository.findByPaymentStatusAndCheckoutRequestIdIsNullAndPlacedAtBefore(
+                PaymentStatus.AWAITING_PAYMENT, giveUpBefore).forEach(this::abandon);
+    }
+
+    private void abandon(CommerceOrder order) {
+        if (order.getPaymentStatus() != PaymentStatus.AWAITING_PAYMENT) {
+            return;
+        }
+        order.setPaymentStatus(PaymentStatus.CANCELED);
+        order.setStatus(OrderStatus.CANCELLED);
+        orderRepository.save(order);
+        releaseHeldSeats(order);
+        log.info("Abandoned unpaid order {} past the STK window and released its held seats", order.getOrderNumber());
+    }
+
+    /** Gives back every seat this order held; seats already taken by a paid enrolment are untouched. */
+    private void releaseHeldSeats(CommerceOrder order) {
+        if (order.getItems() == null || order.getUserUuid() == null) {
+            return;
+        }
+        for (CommerceOrderItem item : order.getItems()) {
+            try {
+                Map<String, Object> metadata = readMetadata(item.getMetadataJson());
+                Object classUuid = metadata.get("class_definition_uuid");
+                if (classUuid == null) {
+                    continue;
+                }
+                classEnrolmentGateService.releaseSeats(UUID.fromString(classUuid.toString()),
+                        learnerResolver.learnerUserUuid(metadata, order.getUserUuid()));
+            } catch (Exception ex) {
+                log.warn("Could not release held seat for order {} line {}: {}",
+                        order.getOrderNumber(), item.getUuid(), ex.getMessage());
+            }
+        }
+    }
+
+    private Map<String, Object> readMetadata(String json) throws Exception {
+        return StringUtils.hasText(json) ? objectMapper.readValue(json, MAP_TYPE) : Map.of();
     }
 }
