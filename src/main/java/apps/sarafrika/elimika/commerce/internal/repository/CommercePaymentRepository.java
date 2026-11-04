@@ -22,6 +22,11 @@ public interface CommercePaymentRepository extends JpaRepository<CommercePayment
     boolean existsByOrderUuidAndStatus(@Param("orderUuid") java.util.UUID orderUuid,
                                        @Param("status") PaymentStatus status);
 
+    /** The captured payment behind an order, for the receipt it is quoted on. */
+    @Query("SELECT p FROM CommercePayment p WHERE p.order.uuid = :orderUuid AND p.status = :status")
+    java.util.Optional<CommercePayment> findFirstByOrderUuidAndStatus(@Param("orderUuid") java.util.UUID orderUuid,
+                                                                     @Param("status") PaymentStatus status);
+
     @EntityGraph(attributePaths = "order")
     @Query("""
             select p from CommercePayment p

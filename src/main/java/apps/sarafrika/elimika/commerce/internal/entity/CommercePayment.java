@@ -45,6 +45,12 @@ public class CommercePayment extends BaseEntity {
     @Column(name = "external_reference")
     private String externalReference;
 
+    @Column(name = "provider_receipt")
+    private String providerReceipt;
+
+    @Column(name = "payer_msisdn")
+    private String payerMsisdn;
+
     @Column(name = "processed_at")
     private LocalDateTime processedAt;
 

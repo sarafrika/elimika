@@ -25,6 +25,9 @@ public interface InternalOrderService {
     /** Captures the order; empty when another confirmation already captured it. */
     Optional<OrderResponse> markOrderCaptured(String orderId);
 
+    /** As {@link #markOrderCaptured(String)}, recording the gateway receipt and the paying number. */
+    Optional<OrderResponse> markOrderCaptured(String orderId, String providerReceipt, String payerMsisdn);
+
     /**
      * Persists the M-Pesa STK Push checkout request id against the order so payment status
      * can later be polled from the gateway.

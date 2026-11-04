@@ -9,6 +9,8 @@ import com.fasterxml.jackson.annotation.JsonProperty;
  */
 @JsonIgnoreProperties(ignoreUnknown = true)
 public record MpesaPaymentStatusResponse(
-        @JsonProperty("status") String status
+        @JsonProperty("status") String status,
+        @JsonProperty("transaction_id") String transactionId,
+        @JsonProperty("phone_number") String phoneNumber
 ) {
 }

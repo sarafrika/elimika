@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.commerce.payment.service.impl;
 
 import apps.sarafrika.elimika.commerce.internal.service.InternalOrderService;
 import apps.sarafrika.elimika.commerce.payment.client.MpesaGatewayClient;
+import apps.sarafrika.elimika.commerce.payment.client.dto.MpesaPaymentStatusResponse;
 import apps.sarafrika.elimika.commerce.payment.dto.MpesaCheckoutResponse;
 import apps.sarafrika.elimika.commerce.payment.dto.PaymentStatusResponse;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
@@ -80,13 +81,13 @@ class OrderPaymentServiceImplTest {
     void getPaymentStatusCapturesOnceOnSuccess() {
         when(internalOrderService.getOrder(ORDER_ID)).thenReturn(order("AWAITING_PAYMENT"));
         when(internalOrderService.findCheckoutRequestId(ORDER_ID)).thenReturn(Optional.of(CHECKOUT_ID));
-        when(mpesaGatewayClient.getPaymentStatus(CHECKOUT_ID)).thenReturn("SUCCESS");
-        when(internalOrderService.markOrderCaptured(ORDER_ID)).thenReturn(Optional.of(order("CAPTURED")));
+        when(mpesaGatewayClient.getPayment(CHECKOUT_ID)).thenReturn(new MpesaPaymentStatusResponse("SUCCESS", "UK42C120ZR", "254712345678"));
+        when(internalOrderService.markOrderCaptured(ORDER_ID, "UK42C120ZR", "254712345678")).thenReturn(Optional.of(order("CAPTURED")));
 
         PaymentStatusResponse response = service.getPaymentStatus(ORDER_ID);
 
         assertThat(response.status()).isEqualTo("CAPTURED");
-        verify(internalOrderService).markOrderCaptured(ORDER_ID);
+        verify(internalOrderService).markOrderCaptured(ORDER_ID, "UK42C120ZR", "254712345678");
 
         ArgumentCaptor<OrderCompletedEvent> captor = ArgumentCaptor.forClass(OrderCompletedEvent.class);
         verify(eventPublisher).publishEvent(captor.capture());
@@ -102,8 +103,8 @@ class OrderPaymentServiceImplTest {
         PaymentStatusResponse response = service.getPaymentStatus(ORDER_ID);
 
         assertThat(response.status()).isEqualTo("CAPTURED");
-        verify(internalOrderService, never()).markOrderCaptured(any());
-        verify(mpesaGatewayClient, never()).getPaymentStatus(any());
+        verify(internalOrderService, never()).markOrderCaptured(any(), any(), any());
+        verify(mpesaGatewayClient, never()).getPayment(any());
         verify(eventPublisher, never()).publishEvent(any());
     }
 
@@ -111,12 +112,12 @@ class OrderPaymentServiceImplTest {
     void getPaymentStatusDoesNotCaptureWhenNotSuccessful() {
         when(internalOrderService.getOrder(ORDER_ID)).thenReturn(order("AWAITING_PAYMENT"));
         when(internalOrderService.findCheckoutRequestId(ORDER_ID)).thenReturn(Optional.of(CHECKOUT_ID));
-        when(mpesaGatewayClient.getPaymentStatus(CHECKOUT_ID)).thenReturn("PENDING");
+        when(mpesaGatewayClient.getPayment(CHECKOUT_ID)).thenReturn(new MpesaPaymentStatusResponse("PENDING", null, null));
 
         PaymentStatusResponse response = service.getPaymentStatus(ORDER_ID);
 
         assertThat(response.status()).isEqualTo("PENDING");
-        verify(internalOrderService, never()).markOrderCaptured(any());
+        verify(internalOrderService, never()).markOrderCaptured(any(), any(), any());
         verify(eventPublisher, never()).publishEvent(any());
     }
 }

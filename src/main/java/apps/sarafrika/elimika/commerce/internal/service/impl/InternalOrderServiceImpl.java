@@ -103,6 +103,11 @@ public class InternalOrderServiceImpl implements InternalOrderService {
 
     @Override
     public Optional<OrderResponse> markOrderCaptured(String orderId) {
+        return markOrderCaptured(orderId, null, null);
+    }
+
+    @Override
+    public Optional<OrderResponse> markOrderCaptured(String orderId, String providerReceipt, String payerMsisdn) {
         // The browser poll and the sweep both confirm every few seconds; the row lock lets only one win.
         CommerceOrder order = orderRepository.lockByUuid(parseUuid(orderId))
                 .filter(this::canAccess)
@@ -113,7 +118,7 @@ public class InternalOrderServiceImpl implements InternalOrderService {
         order.setPaymentStatus(PaymentStatus.CAPTURED);
         order.setStatus(OrderStatus.COMPLETED);
         order = orderRepository.save(order);
-        recordPayment(order);
+        recordPayment(order, providerReceipt, payerMsisdn);
         return Optional.of(mapper.toOrderResponse(order));
     }
 
@@ -246,7 +251,7 @@ public class InternalOrderServiceImpl implements InternalOrderService {
      * touched them — nothing wrote a row, so every payment report was empty by construction rather
      * than by absence of payments.
      */
-    private void recordPayment(CommerceOrder order) {
+    private void recordPayment(CommerceOrder order, String providerReceipt, String payerMsisdn) {
         if (paymentRepository.existsByOrderUuidAndStatus(order.getUuid(), PaymentStatus.CAPTURED)) {
             return;
         }
@@ -257,6 +262,8 @@ public class InternalOrderServiceImpl implements InternalOrderService {
         payment.setAmount(order.getTotalAmount());
         payment.setCurrencyCode(order.getCurrencyCode());
         payment.setExternalReference(order.getCheckoutRequestId());
+        payment.setProviderReceipt(providerReceipt);
+        payment.setPayerMsisdn(apps.sarafrika.elimika.shared.sms.Msisdn.normalise(payerMsisdn).orElse(null));
         payment.setProcessedAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
         paymentRepository.save(payment);
     }

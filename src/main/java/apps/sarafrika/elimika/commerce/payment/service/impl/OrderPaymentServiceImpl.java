@@ -64,7 +64,8 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
                 .orElseThrow(() -> new IllegalStateException(
                         "No M-Pesa checkout initiated for order " + orderId));
 
-        String gatewayStatus = mpesaGatewayClient.getPaymentStatus(checkoutRequestId);
+        var payment = mpesaGatewayClient.getPayment(checkoutRequestId);
+        String gatewayStatus = payment.status();
         if (GATEWAY_STATUS_SUCCESS.equalsIgnoreCase(gatewayStatus)) {
             String blocker = findEnrolmentBlocker(order);
             if (blocker != null) {
@@ -79,7 +80,7 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
             }
             // The learner pays the plain price; platform fees are charged to each earner at settlement.
             // Only the confirmation that captured the order announces it.
-            internalOrderService.markOrderCaptured(orderId).ifPresent(captured -> {
+            internalOrderService.markOrderCaptured(orderId, payment.transactionId(), payment.phoneNumber()).ifPresent(captured -> {
                 eventPublisher.publishEvent(new OrderCompletedEvent(captured, null));
                 log.info("Captured order {} on confirmed M-Pesa payment {}", captured.getDisplayId(), checkoutRequestId);
             });

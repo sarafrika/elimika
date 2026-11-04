@@ -61,10 +61,10 @@ public class MpesaGatewayClient {
     }
 
     /**
-     * Fetches the current payment status for a checkout request id. Returns one of
-     * PENDING/SUCCESS/FAILED/CANCELLED.
+     * Fetches the payment behind a checkout request id: its status (PENDING/SUCCESS/FAILED/CANCELLED),
+     * and once paid the M-Pesa receipt and the number that paid.
      */
-    public String getPaymentStatus(String checkoutRequestId) {
+    public MpesaPaymentStatusResponse getPayment(String checkoutRequestId) {
         try {
             MpesaPaymentStatusResponse response = mpesaRestClient.get()
                     .uri(STATUS_PATH, checkoutRequestId)
@@ -74,7 +74,7 @@ public class MpesaGatewayClient {
                 throw new MpesaGatewayException(
                         "M-Pesa payment status missing for checkout request " + checkoutRequestId);
             }
-            return response.status();
+            return response;
         } catch (RestClientException ex) {
             log.error("M-Pesa payment status lookup failed for checkout request {}: {}",
                     checkoutRequestId, ex.getMessage());
