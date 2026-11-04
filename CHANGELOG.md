@@ -1,3 +1,16 @@
+# [2.192.0](https://github.com/sarafrika/elimika/compare/v2.191.0...v2.192.0) (2026-11-04)
+
+
+### Bug Fixes
+
+* **sms:** resolve the admin's name and phone in the controller so code-sending slices load the template service ([4730276](https://github.com/sarafrika/elimika/commit/4730276eb7c086515c8ae0bbc25fa71071cbe6ff))
+
+
+### Features
+
+* **notifications:** attach a branded PDF receipt to the payment email ([345578f](https://github.com/sarafrika/elimika/commit/345578f20f195ef8af5acc518764506c1526c3fe))
+* **sms:** make every system SMS an admin-editable template and text buyers when an unpaid seat is released ([56a4da6](https://github.com/sarafrika/elimika/commit/56a4da6f2f0e0c1874ad7e03edd841bc1d319ad2))
+
 # [2.191.0](https://github.com/sarafrika/elimika/compare/v2.190.2...v2.191.0) (2026-11-04)
 
 
