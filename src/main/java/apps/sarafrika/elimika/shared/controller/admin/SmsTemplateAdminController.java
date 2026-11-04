@@ -6,7 +6,9 @@ import apps.sarafrika.elimika.shared.sms.template.SmsTemplateResponse;
 import apps.sarafrika.elimika.shared.sms.template.SmsTemplateService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import java.util.List;
+import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -28,6 +30,7 @@ public class SmsTemplateAdminController {
 
     private final SmsTemplateService service;
     private final DomainSecurityService domainSecurityService;
+    private final UserLookupService userLookupService;
 
     @GetMapping
     @Operation(summary = "List every system SMS with its wording and allowed placeholders")
@@ -40,8 +43,9 @@ public class SmsTemplateAdminController {
     @Operation(summary = "Save new wording; rejected unless it passes the placeholder and length checks")
     public ResponseEntity<ApiResponse<SmsTemplateResponse>> save(@PathVariable String key,
                                                                  @RequestBody SmsTemplateResponse.UpdateRequest request) {
+        UUID me = domainSecurityService.getCurrentUserUuid();
         var view = service.save(key, request.body(), request.enabled() == null || request.enabled(),
-                domainSecurityService.getCurrentUserUuid());
+                me == null ? null : userLookupService.getUserFullName(me).orElse(null));
         return ResponseEntity.ok(ApiResponse.success(SmsTemplateResponse.of(view), "SMS template saved"));
     }
 
@@ -55,7 +59,8 @@ public class SmsTemplateAdminController {
     @PostMapping("/{key}/test")
     @Operation(summary = "Send the saved wording with sample values to the admin's own phone")
     public ResponseEntity<ApiResponse<SmsTemplateResponse.TestResponse>> test(@PathVariable String key) {
-        var sent = service.sendTest(key, domainSecurityService.getCurrentUserUuid());
+        UUID me = domainSecurityService.getCurrentUserUuid();
+        var sent = service.sendTest(key, me == null ? null : userLookupService.getUserPhoneNumber(me).orElse(null));
         return ResponseEntity.ok(ApiResponse.success(new SmsTemplateResponse.TestResponse(sent.sent(), sent.toMasked()),
                 sent.sent() ? "Test SMS sent" : "The SMS provider did not accept the test"));
     }

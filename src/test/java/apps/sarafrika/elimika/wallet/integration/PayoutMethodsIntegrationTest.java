@@ -53,7 +53,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({PayoutMethodServiceImpl.class, OneTimeCodeService.class, JpaConfig.class, PayoutMethodsIntegrationTest.Sms.class})
+@Import({apps.sarafrika.elimika.shared.sms.template.SmsTemplateService.class, PayoutMethodServiceImpl.class, OneTimeCodeService.class, JpaConfig.class, PayoutMethodsIntegrationTest.Sms.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @RecordApplicationEvents
 @DisplayName("Payout methods")

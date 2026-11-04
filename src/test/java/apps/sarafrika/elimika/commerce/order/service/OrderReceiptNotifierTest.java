@@ -55,7 +55,7 @@ class OrderReceiptNotifierTest {
     @BeforeEach
     void setUp() {
         notifier = new OrderReceiptNotifier(eventPublisher, userLookupService, paymentRepository, smsSender,
-                new SmsTemplateService(templateRepository, smsSender, userLookupService), classScheduleService);
+                new SmsTemplateService(templateRepository, smsSender), classScheduleService);
         lenient().when(templateRepository.findByTemplateKey(anyString())).thenReturn(Optional.empty());
         lenient().when(userLookupService.getUserEmail(buyer)).thenReturn(Optional.of(EMAIL));
         lenient().when(userLookupService.getUserFullName(buyer)).thenReturn(Optional.of("Buyer"));

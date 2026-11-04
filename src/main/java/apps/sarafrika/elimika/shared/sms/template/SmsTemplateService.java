@@ -3,13 +3,11 @@ package apps.sarafrika.elimika.shared.sms.template;
 import apps.sarafrika.elimika.shared.sms.Msisdn;
 import apps.sarafrika.elimika.shared.sms.SmsDelivery;
 import apps.sarafrika.elimika.shared.sms.SmsSender;
-import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
 import java.util.Optional;
-import java.util.UUID;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -21,7 +19,6 @@ public class SmsTemplateService {
 
     private final SmsTemplateRepository repository;
     private final SmsSender smsSender;
-    private final UserLookupService userLookupService;
 
     /** The filled message, or empty when an admin switched this (non-security) message off. */
     @Transactional(readOnly = true)
@@ -50,7 +47,7 @@ public class SmsTemplateService {
     }
 
     @Transactional
-    public SmsTemplateView save(String keyName, String body, boolean enabled, UUID actor) {
+    public SmsTemplateView save(String keyName, String body, boolean enabled, String actorName) {
         SmsTemplateKey key = key(keyName);
         String text = body == null ? "" : body.trim();
         List<String> problems = SmsTemplateRules.problems(key, text);
@@ -64,7 +61,7 @@ public class SmsTemplateService {
         });
         template.setBody(text);
         template.setEnabled(key.security() || enabled);
-        template.setUpdatedByName(actor == null ? null : userLookupService.getUserFullName(actor).orElse(null));
+        template.setUpdatedByName(actorName);
         repository.save(template);
         return view(key);
     }
@@ -77,12 +74,11 @@ public class SmsTemplateService {
         return view(key);
     }
 
-    /** Sends the saved wording, filled with sample values, to the admin's own phone. */
+    /** Sends the saved wording, filled with sample values, to {@code phoneNumber} (the admin's own). */
     @Transactional(readOnly = true)
-    public TestSend sendTest(String keyName, UUID actor) {
+    public TestSend sendTest(String keyName, String phoneNumber) {
         SmsTemplateKey key = key(keyName);
-        Optional<String> msisdn = Optional.ofNullable(actor).flatMap(userLookupService::getUserPhoneNumber)
-                .flatMap(Msisdn::normalise);
+        Optional<String> msisdn = Msisdn.normalise(phoneNumber);
         if (msisdn.isEmpty()) {
             throw new IllegalArgumentException("Add a Kenyan phone number to your profile to receive a test SMS.");
         }

@@ -32,7 +32,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({OneTimeCodeService.class, JpaConfig.class, OneTimeCodeServiceIntegrationTest.Sms.class})
+@Import({apps.sarafrika.elimika.shared.sms.template.SmsTemplateService.class, OneTimeCodeService.class, JpaConfig.class, OneTimeCodeServiceIntegrationTest.Sms.class})
 @Transactional(propagation = Propagation.NOT_SUPPORTED)
 @DisplayName("One-time codes")
 class OneTimeCodeServiceIntegrationTest {
