@@ -384,7 +384,7 @@ class SaleSplitIntegrationTest {
                 + "retained_amount = 0, creator_credited_amount = 13500 where line_item_id = ?", line);
 
         String migration = Files.readString(Path.of(
-                "src/main/resources/db/migration/V202611042024__record_sale_split_on_purchase_lines.sql"));
+                "src/main/resources/db/migration/V202611042151__record_sale_split_on_purchase_lines.sql"));
         String backfill = migration.substring(migration.indexOf("WITH legs AS"));
         jdbc.execute(backfill);
         jdbc.execute(backfill);
