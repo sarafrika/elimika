@@ -9,11 +9,18 @@ import java.util.UUID;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import jakarta.persistence.LockModeType;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 
 public interface CommerceOrderRepository extends JpaRepository<CommerceOrder, Long> {
 
     Optional<CommerceOrder> findByUuid(UUID uuid);
+
+    /** The order, locked until the transaction ends, so two confirmations cannot both capture it. */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT o FROM CommerceOrder o WHERE o.uuid = :uuid")
+    Optional<CommerceOrder> lockByUuid(@org.springframework.data.repository.query.Param("uuid") UUID uuid);
 
     /** The next value behind an order number; see {@code OrderNumbers}. */
     @Query(value = "SELECT nextval('commerce_order_number_seq')", nativeQuery = true)
@@ -31,6 +38,10 @@ public interface CommerceOrderRepository extends JpaRepository<CommerceOrder, Lo
      */
     List<CommerceOrder> findByPaymentStatusAndCheckoutRequestIdIsNotNullAndPlacedAtBefore(
             PaymentStatus paymentStatus, java.time.LocalDateTime placedBefore);
+
+    /** Orders given up on recently; M-Pesa can still confirm one late, and that money must be recorded. */
+    List<CommerceOrder> findByPaymentStatusAndCheckoutRequestIdIsNotNullAndPlacedAtAfter(
+            PaymentStatus paymentStatus, java.time.LocalDateTime placedAfter);
 
     /** Orders whose M-Pesa prompt never started; nothing can pay them, so the sweep cancels them. */
     List<CommerceOrder> findByPaymentStatusAndCheckoutRequestIdIsNullAndPlacedAtBefore(

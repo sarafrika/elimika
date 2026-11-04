@@ -208,10 +208,10 @@ commerce:
       # minute, so a wrong name here delays capture rather than losing it.
       client-ids: ${COMMERCE_PAYMENT_CALLBACK_CLIENT_IDS:mpesa-service}
     reconciliation:
-      # An STK prompt lives about a minute, so this sweep is deliberately tight: it is the safety net
-      # for a payment whose callback never arrived and whose buyer closed the tab.
-      initial-delay: ${COMMERCE_PAYMENT_RECONCILIATION_INITIAL_DELAY:PT60S}
-      interval: ${COMMERCE_PAYMENT_RECONCILIATION_INTERVAL:PT60S}
+      # Confirms an unpaid order within seconds even when the buyer closed the tab; the browser
+      # polls at the same 5-second pace. Cancelled orders are re-checked once a minute for an hour.
+      initial-delay: ${COMMERCE_PAYMENT_RECONCILIATION_INITIAL_DELAY:PT30S}
+      interval: ${COMMERCE_PAYMENT_RECONCILIATION_INTERVAL:PT5S}
   capture:
     # Dev default true: checkout auto-captures without a gateway. In prod set false so
     # capture is driven only by confirmed M-Pesa payments (COMMERCE_CAPTURE_AUTO_ON_COMPLETE=false).

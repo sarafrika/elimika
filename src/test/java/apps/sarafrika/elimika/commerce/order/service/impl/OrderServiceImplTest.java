@@ -58,7 +58,7 @@ class OrderServiceImplTest {
         CheckoutRequest request = new CheckoutRequest();
         when(internalOrderService.completeCheckout(request)).thenReturn(order("AWAITING_PAYMENT"));
         when(internalOrderService.markOrderCaptured("11111111-1111-1111-1111-111111111111"))
-                .thenReturn(order("CAPTURED"));
+                .thenReturn(java.util.Optional.of(order("CAPTURED")));
 
         OrderResponse result = service.completeCheckout(request);
 

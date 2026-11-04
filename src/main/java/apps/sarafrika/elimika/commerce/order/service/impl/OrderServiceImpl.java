@@ -41,7 +41,9 @@ public class OrderServiceImpl implements OrderService {
                 throw new IllegalStateException(blocker);
             }
             try {
-                response = internalOrderService.markOrderCaptured(response.getId());
+                String orderId = response.getId();
+                response = internalOrderService.markOrderCaptured(orderId)
+                        .orElseGet(() -> internalOrderService.getOrder(orderId));
             } catch (Exception ex) {
                 log.warn("Auto-capture failed for order {}: {}", response.getId(), ex.getMessage());
             }

@@ -32,17 +32,18 @@ import java.util.UUID;
  * anywhere that would notice.
  *
  * <h2>Cadence</h2>
- * An STK prompt lives about a minute, so the timings are deliberately short: anything still
- * unresolved after 90 seconds is re-queried every minute, and anything past five minutes is given up
- * on: the order is cancelled and the seats it held are released.
+ * Unpaid orders are re-queried every five seconds, so a payment is confirmed within seconds even
+ * with the tab closed. Past five minutes the order is cancelled and its held seats released; for an
+ * hour after that it is still re-checked once a minute, in case M-Pesa confirms late.
  */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 class MpesaPaymentReconciliationScheduler {
 
-    private static final int UNRESOLVED_AFTER_SECONDS = 90;
+    private static final int UNRESOLVED_AFTER_SECONDS = 5;
     private static final int GIVE_UP_AFTER_MINUTES = 5;
+    private static final int LATE_CONFIRMATION_MINUTES = 60;
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
     private final CommerceOrderRepository orderRepository;
@@ -60,8 +61,27 @@ class MpesaPaymentReconciliationScheduler {
             reconcile();
         } catch (Exception ex) {
             // Never let a sweep kill the scheduler. Unresolved payments stay unresolved and the next
-            // pass picks them up; a database that has gone away is not worth a stack trace a minute.
+            // pass picks them up.
             log.warn("M-Pesa reconciliation sweep could not run: {}", ex.getMessage());
+        }
+    }
+
+    @Scheduled(initialDelayString = "PT60S", fixedDelayString = "PT60S")
+    @Transactional
+    void recheckRecentlyCancelled() {
+        try {
+            // M-Pesa can confirm after we gave up (a slow PIN, a late callback); keep asking for an hour.
+            LocalDateTime since = LocalDateTime.now(ZoneOffset.UTC).minusMinutes(LATE_CONFIRMATION_MINUTES);
+            for (CommerceOrder order : orderRepository.findByPaymentStatusAndCheckoutRequestIdIsNotNullAndPlacedAtAfter(
+                    PaymentStatus.CANCELED, since)) {
+                try {
+                    orderPaymentService.getPaymentStatus(order.getUuid().toString());
+                } catch (Exception e) {
+                    log.warn("Could not re-check cancelled order {}: {}", order.getOrderNumber(), e.getMessage());
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Re-check of cancelled M-Pesa orders could not run: {}", ex.getMessage());
         }
     }
 

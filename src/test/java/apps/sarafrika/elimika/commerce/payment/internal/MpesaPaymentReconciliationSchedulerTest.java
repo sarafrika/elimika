@@ -98,6 +98,18 @@ class MpesaPaymentReconciliationSchedulerTest {
         verify(classEnrolmentGateService, never()).releaseSeats(any(), any());
     }
 
+    @Test
+    void anOrderCancelledInTheLastHourIsAskedAboutAgainSoALatePaymentIsRecorded() {
+        CommerceOrder order = order("ws_CO_3", 20);
+        order.setPaymentStatus(PaymentStatus.CANCELED);
+        when(orderRepository.findByPaymentStatusAndCheckoutRequestIdIsNotNullAndPlacedAtAfter(any(), any()))
+                .thenReturn(List.of(order));
+
+        scheduler.recheckRecentlyCancelled();
+
+        verify(orderPaymentService).getPaymentStatus(order.getUuid().toString());
+    }
+
     private CommerceOrder order(String checkoutRequestId, int minutesAgo) {
         CommerceOrderItem item = new CommerceOrderItem();
         item.setMetadataJson("{\"class_definition_uuid\":\"" + CLASS + "\"}");

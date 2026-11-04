@@ -78,9 +78,11 @@ public class OrderPaymentServiceImpl implements OrderPaymentService {
                 return new PaymentStatusResponse("REFUSED");
             }
             // The learner pays the plain price; platform fees are charged to each earner at settlement.
-            OrderResponse captured = internalOrderService.markOrderCaptured(orderId);
-            eventPublisher.publishEvent(new OrderCompletedEvent(captured, null));
-            log.info("Captured order {} on confirmed M-Pesa payment {}", orderId, checkoutRequestId);
+            // Only the confirmation that captured the order announces it.
+            internalOrderService.markOrderCaptured(orderId).ifPresent(captured -> {
+                eventPublisher.publishEvent(new OrderCompletedEvent(captured, null));
+                log.info("Captured order {} on confirmed M-Pesa payment {}", captured.getDisplayId(), checkoutRequestId);
+            });
             return new PaymentStatusResponse(STATUS_CAPTURED);
         }
 

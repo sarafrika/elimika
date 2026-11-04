@@ -102,17 +102,19 @@ public class InternalOrderServiceImpl implements InternalOrderService {
     }
 
     @Override
-    public OrderResponse markOrderCaptured(String orderId) {
-        CommerceOrder order = loadOrder(orderId);
-        if (order.getPaymentStatus() != PaymentStatus.CAPTURED) {
-            order.setPaymentStatus(PaymentStatus.CAPTURED);
-            // OrderStatus.COMPLETED existed but was never assigned anywhere, so every order stayed
-            // PENDING for life and no report could tell a finished order from an abandoned one.
-            order.setStatus(OrderStatus.COMPLETED);
-            order = orderRepository.save(order);
-            recordPayment(order);
+    public Optional<OrderResponse> markOrderCaptured(String orderId) {
+        // The browser poll and the sweep both confirm every few seconds; the row lock lets only one win.
+        CommerceOrder order = orderRepository.lockByUuid(parseUuid(orderId))
+                .filter(this::canAccess)
+                .orElseThrow(() -> new ResourceNotFoundException("Order not found"));
+        if (order.getPaymentStatus() == PaymentStatus.CAPTURED) {
+            return Optional.empty();
         }
-        return mapper.toOrderResponse(order);
+        order.setPaymentStatus(PaymentStatus.CAPTURED);
+        order.setStatus(OrderStatus.COMPLETED);
+        order = orderRepository.save(order);
+        recordPayment(order);
+        return Optional.of(mapper.toOrderResponse(order));
     }
 
     @Override

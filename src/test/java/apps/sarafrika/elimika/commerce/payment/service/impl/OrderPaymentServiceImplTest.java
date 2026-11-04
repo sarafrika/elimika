@@ -81,7 +81,7 @@ class OrderPaymentServiceImplTest {
         when(internalOrderService.getOrder(ORDER_ID)).thenReturn(order("AWAITING_PAYMENT"));
         when(internalOrderService.findCheckoutRequestId(ORDER_ID)).thenReturn(Optional.of(CHECKOUT_ID));
         when(mpesaGatewayClient.getPaymentStatus(CHECKOUT_ID)).thenReturn("SUCCESS");
-        when(internalOrderService.markOrderCaptured(ORDER_ID)).thenReturn(order("CAPTURED"));
+        when(internalOrderService.markOrderCaptured(ORDER_ID)).thenReturn(Optional.of(order("CAPTURED")));
 
         PaymentStatusResponse response = service.getPaymentStatus(ORDER_ID);
 

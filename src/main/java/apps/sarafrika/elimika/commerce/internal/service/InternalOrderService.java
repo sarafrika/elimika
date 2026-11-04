@@ -22,7 +22,8 @@ public interface InternalOrderService {
      * Marks an order's payment as captured (idempotent) and returns the refreshed order.
      * Used by the dev auto-capture path and by the M-Pesa confirmation callback.
      */
-    OrderResponse markOrderCaptured(String orderId);
+    /** Captures the order; empty when another confirmation already captured it. */
+    Optional<OrderResponse> markOrderCaptured(String orderId);
 
     /**
      * Persists the M-Pesa STK Push checkout request id against the order so payment status
