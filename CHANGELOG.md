@@ -1,3 +1,10 @@
+## [2.190.1](https://github.com/sarafrika/elimika/compare/v2.190.0...v2.190.1) (2026-11-04)
+
+
+### Bug Fixes
+
+* **commerce:** record collected M-Pesa payments unless the learner fails the age rules ([5717720](https://github.com/sarafrika/elimika/commit/5717720fd511ddaf685d0c6e8c2bbcbe70a6f3c1))
+
 # [2.190.0](https://github.com/sarafrika/elimika/compare/v2.189.0...v2.190.0) (2026-11-04)
 
 
