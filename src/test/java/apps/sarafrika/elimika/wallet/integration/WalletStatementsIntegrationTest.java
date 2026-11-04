@@ -16,6 +16,7 @@ import apps.sarafrika.elimika.wallet.ledger.WalletLedgerReconciliationJob;
 import apps.sarafrika.elimika.wallet.ledger.impl.LedgerServiceImpl;
 import apps.sarafrika.elimika.wallet.service.WalletMonthStatement;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import apps.sarafrika.elimika.wallet.service.WalletTransactionFilter;
 import apps.sarafrika.elimika.wallet.service.impl.WalletServiceImpl;
 import java.math.BigDecimal;
@@ -82,10 +83,10 @@ class WalletStatementsIntegrationTest {
     @DisplayName("each month opens where the last closed, and a quiet month carries the balance")
     void monthlyStatements() {
         WalletOwner earner = WalletOwner.user(user("Akinyi"));
-        walletService.settleSaleShare(earner, new BigDecimal("1000.00"), new BigDecimal("100.00"),
+        walletService.settleSaleShare(earner, WalletPurse.deliveryLegOf(earner.type()), new BigDecimal("1000.00"), new BigDecimal("100.00"),
                 KES, "order-1:creator", "Class sale share");
         backdate("order-1:creator%", current.minusMonths(2).atDay(5));
-        walletService.settleSaleShare(earner, new BigDecimal("500.00"), BigDecimal.ZERO,
+        walletService.settleSaleShare(earner, WalletPurse.deliveryLegOf(earner.type()), new BigDecimal("500.00"), BigDecimal.ZERO,
                 KES, "order-2:creator", "Class sale share");
 
         List<WalletMonthStatement> statements = walletService.monthlyStatementsOf(earner, KES, 12);
@@ -101,7 +102,7 @@ class WalletStatementsIntegrationTest {
     @DisplayName("the window keeps only the latest months, opening from the balance before it")
     void windowedStatements() {
         WalletOwner earner = WalletOwner.organisation(UUID.randomUUID());
-        walletService.settleSaleShare(earner, new BigDecimal("700.00"), BigDecimal.ZERO,
+        walletService.settleSaleShare(earner, WalletPurse.deliveryLegOf(earner.type()), new BigDecimal("700.00"), BigDecimal.ZERO,
                 KES, "order-3:delivery", "Class sale share");
         backdate("order-3:delivery", current.minusMonths(5).atDay(1));
 
@@ -121,11 +122,11 @@ class WalletStatementsIntegrationTest {
     @DisplayName("transactions filter by type and by UTC dates")
     void filters() {
         WalletOwner earner = WalletOwner.user(user("Mutua"));
-        walletService.settleSaleShare(earner, new BigDecimal("1000.00"), new BigDecimal("100.00"),
+        walletService.settleSaleShare(earner, WalletPurse.deliveryLegOf(earner.type()), new BigDecimal("1000.00"), new BigDecimal("100.00"),
                 KES, "order-4:creator", "Class sale share");
         LocalDate day = current.minusMonths(1).atDay(10);
         backdate("order-4:creator%", day);
-        walletService.settleSaleShare(earner, new BigDecimal("200.00"), BigDecimal.ZERO,
+        walletService.settleSaleShare(earner, WalletPurse.deliveryLegOf(earner.type()), new BigDecimal("200.00"), BigDecimal.ZERO,
                 KES, "order-5:creator", "Class sale share");
 
         assertThat(walletService.statementOf(earner, KES, WalletTransactionFilter.of(
@@ -142,7 +143,7 @@ class WalletStatementsIntegrationTest {
     @DisplayName("every money movement leaves an audit event with the balance before and after")
     void auditTrail() {
         WalletOwner earner = WalletOwner.user(user("Chebet"));
-        walletService.settleSaleShare(earner, new BigDecimal("1000.00"), new BigDecimal("100.00"),
+        walletService.settleSaleShare(earner, WalletPurse.deliveryLegOf(earner.type()), new BigDecimal("1000.00"), new BigDecimal("100.00"),
                 KES, "order-6:creator", "Class sale share");
 
         List<WalletAuditEvent> events = walletService.auditOf(earner, PageRequest.of(0, 20)).getContent();
@@ -162,7 +163,7 @@ class WalletStatementsIntegrationTest {
     @DisplayName("the audit trail cannot be edited or deleted")
     void auditIsAppendOnly() {
         WalletOwner earner = WalletOwner.user(user("Kiprop"));
-        walletService.settleSaleShare(earner, new BigDecimal("50.00"), BigDecimal.ZERO,
+        walletService.settleSaleShare(earner, WalletPurse.deliveryLegOf(earner.type()), new BigDecimal("50.00"), BigDecimal.ZERO,
                 KES, "order-7:creator", "Class sale share");
 
         assertThatThrownBy(() -> jdbc.update("update wallet_audit_events set reason = 'x' where owner_uuid = ?",

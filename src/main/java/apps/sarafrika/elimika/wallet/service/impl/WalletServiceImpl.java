@@ -38,6 +38,12 @@ import java.time.YearMonth;
 import apps.sarafrika.elimika.wallet.service.WalletMonthStatement;
 import apps.sarafrika.elimika.wallet.repository.MonthlyWalletActivity;
 import java.util.Comparator;
+import java.util.EnumMap;
+import java.util.Locale;
+import java.util.TreeMap;
+import apps.sarafrika.elimika.wallet.service.PurseTransferResult;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
+import apps.sarafrika.elimika.wallet.service.WalletPurseBalance;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -55,7 +61,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 import org.springframework.util.StringUtils;
 
 /**
- * Wallet balances, plus a dual-write into the double-entry ledger.
+ * Wallet balances, one wallet row per owner, purse and currency, plus a dual-write into the double-entry
+ * ledger, where each row mirrors the liability account of its purse.
  * <p>
  * {@code user_wallets} is still authoritative: it is the only thing read, the only thing a balance
  * check consults, and the only thing a transfer's sufficiency test looks at. Every mutation is also
@@ -74,6 +81,7 @@ public class WalletServiceImpl implements WalletService {
     private static final String CAUSE_WALLET_TRANSACTION = "WALLET_TRANSACTION";
     private static final String CAUSE_WALLET_TRANSFER = "WALLET_TRANSFER";
     private static final String CAUSE_WITHDRAWAL = "WITHDRAWAL";
+    private static final String REVERSAL_SUFFIX = ":reversal";
 
     private final UserWalletRepository userWalletRepository;
     private final UserWalletTransactionRepository transactionRepository;
@@ -84,10 +92,22 @@ public class WalletServiceImpl implements WalletService {
     private final WithdrawalRepository withdrawalRepository;
 
     @Override
-    @Transactional
-    public UserWallet getOrCreateWallet(UUID userUuid, String currencyCode) {
-        String resolvedCurrency = resolveCurrencyCode(currencyCode);
-        return lockOrCreateWallet(WalletOwner.user(userUuid), resolvedCurrency);
+    @Transactional(readOnly = true)
+    public List<WalletPurseBalance> pursesOf(WalletOwner owner, String currencyCode) {
+        String currency = resolveCurrencyCode(currencyCode);
+        Map<WalletPurse, UserWallet> rows = new EnumMap<>(WalletPurse.class);
+        rowsOf(owner, currency).forEach(wallet -> rows.put(wallet.getPurse(), wallet));
+        Map<WalletPurse, BigDecimal> held = heldByPurse(owner, currency);
+        List<WalletPurseBalance> purses = new ArrayList<>();
+        for (WalletPurse purse : WalletPurse.of(owner.type())) {
+            UserWallet wallet = rows.get(purse);
+            BigDecimal heldAmount = held.getOrDefault(purse, ZERO);
+            purses.add(wallet == null
+                    ? new WalletPurseBalance(purse, null, currency, ZERO, heldAmount, WalletTotals.none(), null, null)
+                    : new WalletPurseBalance(purse, wallet.getUuid(), currency, wallet.getBalanceAmount(), heldAmount,
+                    totals(wallet, false), wallet.getCreatedDate(), wallet.getLastModifiedDate()));
+        }
+        return purses;
     }
 
     @Override
@@ -100,42 +120,58 @@ public class WalletServiceImpl implements WalletService {
     @Transactional(readOnly = true)
     public WalletBalanceSummary balanceOf(WalletOwner owner, String currencyCode) {
         String resolvedCurrency = resolveCurrencyCode(currencyCode);
-        return userWalletRepository.findByOwnerTypeAndOwnerUuidAndCurrencyCode(owner.type(), owner.uuid(), resolvedCurrency)
-                .map(wallet -> new WalletBalanceSummary(wallet.getUuid(), resolvedCurrency, wallet.getBalanceAmount()))
-                .orElseGet(() -> new WalletBalanceSummary(null, resolvedCurrency, ZERO));
+        List<UserWallet> rows = rowsOf(owner, resolvedCurrency);
+        BigDecimal total = rows.stream().map(UserWallet::getBalanceAmount).reduce(ZERO, BigDecimal::add);
+        return new WalletBalanceSummary(rows.isEmpty() ? null : rows.getFirst().getUuid(), resolvedCurrency, total);
     }
 
     @Override
     @Transactional(readOnly = true)
-    public Page<UserWalletTransaction> getTransactions(UUID userUuid, String currencyCode, Pageable pageable) {
-        return statementOf(WalletOwner.user(userUuid), currencyCode, pageable);
+    public WalletBalanceSummary balanceOf(WalletOwner owner, WalletPurse purse, String currencyCode) {
+        requireFits(owner, purse);
+        String resolvedCurrency = resolveCurrencyCode(currencyCode);
+        return userWalletRepository.findByOwnerTypeAndOwnerUuidAndPurseAndCurrencyCode(owner.type(), owner.uuid(),
+                        purse, resolvedCurrency)
+                .map(wallet -> new WalletBalanceSummary(wallet.getUuid(), resolvedCurrency, wallet.getBalanceAmount(),
+                        purse))
+                .orElseGet(() -> new WalletBalanceSummary(null, resolvedCurrency, ZERO, purse));
     }
 
     @Override
     @Transactional(readOnly = true)
     public WalletTotals totalsOf(WalletOwner owner, String currencyCode) {
-        return userWalletRepository
-                .findByOwnerTypeAndOwnerUuidAndCurrencyCode(owner.type(), owner.uuid(), resolveCurrencyCode(currencyCode))
-                .map(wallet -> {
-                    BigDecimal shares = ZERO;
-                    BigDecimal fees = ZERO;
-                    BigDecimal out = ZERO;
-                    long sales = 0;
-                    for (Object[] row : transactionRepository.totalsByType(wallet.getId())) {
-                        WalletTransactionType type = (WalletTransactionType) row[0];
-                        BigDecimal sum = (BigDecimal) row[1];
-                        long count = ((Number) row[2]).longValue();
-                        switch (type) {
-                            case SALE -> { shares = shares.add(sum); sales += count; }
-                            case SALE_REVERSAL -> { shares = shares.subtract(sum); sales -= count; }
-                            case PLATFORM_FEE -> fees = fees.add(sum);
-                            case TRANSFER_OUT -> out = out.add(sum);
-                            default -> { }
-                        }
-                    }
-                    return new WalletTotals(shares, fees, Math.max(sales, 0), out);
-                })
-                .orElseGet(WalletTotals::none);
+        WalletTotals sum = WalletTotals.none();
+        for (UserWallet wallet : rowsOf(owner, resolveCurrencyCode(currencyCode))) {
+            WalletTotals one = totals(wallet, true);
+            sum = new WalletTotals(sum.sharesTotal().add(one.sharesTotal()),
+                    sum.platformFeesTotal().add(one.platformFeesTotal()), sum.salesCount() + one.salesCount(),
+                    sum.transferredOutTotal().add(one.transferredOutTotal()));
+        }
+        return sum;
+    }
+
+    /** One purse row's lifetime figures; {@code withoutOwnMoves} leaves out transfers to the owner's other purses. */
+    private WalletTotals totals(UserWallet wallet, boolean withoutOwnMoves) {
+        BigDecimal shares = ZERO;
+        BigDecimal fees = ZERO;
+        BigDecimal out = ZERO;
+        long sales = 0;
+        for (Object[] row : transactionRepository.totalsByType(wallet.getId())) {
+            WalletTransactionType type = (WalletTransactionType) row[0];
+            BigDecimal sum = (BigDecimal) row[1];
+            long count = ((Number) row[2]).longValue();
+            switch (type) {
+                case SALE -> { shares = shares.add(sum); sales += count; }
+                case SALE_REVERSAL -> { shares = shares.subtract(sum); sales -= count; }
+                case PLATFORM_FEE -> fees = fees.add(sum);
+                case TRANSFER_OUT -> out = out.add(sum);
+                default -> { }
+            }
+        }
+        if (withoutOwnMoves && out.signum() > 0) {
+            out = out.subtract(transactionRepository.sumOwnMoves(wallet.getId(), WalletTransactionType.TRANSFER_OUT));
+        }
+        return new WalletTotals(shares, fees, Math.max(sales, 0), out);
     }
 
     @Override
@@ -149,11 +185,9 @@ public class WalletServiceImpl implements WalletService {
     public Page<UserWalletTransaction> statementOf(WalletOwner owner, String currencyCode,
                                                    WalletTransactionFilter filter, Pageable pageable) {
         SortAllowList.validate(pageable, TRANSACTION_SORTABLE_PROPERTIES);
-        return userWalletRepository.findByOwnerTypeAndOwnerUuidAndCurrencyCode(
-                        owner.type(), owner.uuid(), resolveCurrencyCode(currencyCode))
-                .map(wallet -> transactionRepository.findFiltered(wallet.getUuid(), filter.typesOrAll(),
-                        filter.fromInclusive(), filter.toExclusive(), pageable))
-                .orElseGet(() -> Page.empty(pageable));
+        return transactionRepository.findFiltered(owner.type(), owner.uuid(), resolveCurrencyCode(currencyCode),
+                filter.pursesFor(owner.type()), filter.typesOrAll(), filter.fromInclusive(), filter.toExclusive(),
+                pageable);
     }
 
     @Override
@@ -176,11 +210,38 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional(readOnly = true)
     public List<WalletMonthStatement> monthlyStatementsOf(WalletOwner owner, String currencyCode, int months) {
+        return monthlyStatementsOf(owner, null, currencyCode, months);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<WalletMonthStatement> monthlyStatementsOf(WalletOwner owner, WalletPurse purse, String currencyCode,
+                                                          int months) {
         int window = Math.clamp(months, 1, MAX_STATEMENT_MONTHS);
-        return userWalletRepository
-                .findByOwnerTypeAndOwnerUuidAndCurrencyCode(owner.type(), owner.uuid(), resolveCurrencyCode(currencyCode))
-                .map(wallet -> monthlyStatements(transactionRepository.monthlyActivity(wallet.getId()), window))
-                .orElseGet(List::of);
+        List<UserWallet> rows = rowsOf(owner, resolveCurrencyCode(currencyCode)).stream()
+                .filter(wallet -> purse == null || wallet.getPurse() == purse)
+                .toList();
+        boolean combined = purse == null;
+        // Each purse is a statement of its own; the owner's is their sum, month by month.
+        Map<YearMonth, WalletMonthStatement> sum = new TreeMap<>(Comparator.reverseOrder());
+        for (UserWallet wallet : rows) {
+            for (WalletMonthStatement month : monthlyStatements(
+                    transactionRepository.monthlyActivity(wallet.getId(), combined), window)) {
+                sum.merge(month.month(), month, (a, b) -> new WalletMonthStatement(a.month(),
+                        a.openingBalance().add(b.openingBalance()), a.moneyIn().add(b.moneyIn()),
+                        a.moneyOut().add(b.moneyOut()), a.closingBalance().add(b.closingBalance()),
+                        a.transactionCount() + b.transactionCount()));
+            }
+        }
+        if (rows.size() > 1) {
+            // A purse that started later is at zero, not absent, in the months before its first row.
+            YearMonth earliest = sum.keySet().stream().min(Comparator.naturalOrder()).orElse(null);
+            YearMonth current = YearMonth.now(ZoneOffset.UTC);
+            for (YearMonth month = earliest; month != null && !month.isAfter(current); month = month.plusMonths(1)) {
+                sum.putIfAbsent(month, new WalletMonthStatement(month, ZERO, ZERO, ZERO, ZERO, 0));
+            }
+        }
+        return List.copyOf(sum.values());
     }
 
     private static List<WalletMonthStatement> monthlyStatements(List<MonthlyWalletActivity> newestFirst, int window) {
@@ -224,49 +285,92 @@ public class WalletServiceImpl implements WalletService {
     }
 
     @Override
+    @Transactional(readOnly = true)
+    public WalletPurse debitPurse(WalletOwner owner, WalletPurse requested, String currencyCode) {
+        if (requested != null) {
+            requireFits(owner, requested);
+            return requested;
+        }
+        if (owner.type() == WalletOwnerType.ORGANISATION) {
+            return WalletPurse.EARNINGS;
+        }
+        List<UserWallet> funded = rowsOf(owner, resolveCurrencyCode(currencyCode)).stream()
+                .filter(wallet -> wallet.getBalanceAmount().signum() > 0)
+                .sorted(Comparator.comparing(UserWallet::getPurse))
+                .toList();
+        if (funded.size() > 1) {
+            throw new IllegalArgumentException("Choose a purse: " + funded.stream()
+                    .map(wallet -> wallet.getPurse() + " holds " + wallet.getBalanceAmount().stripTrailingZeros()
+                            .toPlainString())
+                    .reduce((a, b) -> a + ", " + b).orElse(""));
+        }
+        if (funded.size() == 1) {
+            return funded.getFirst().getPurse();
+        }
+        // Nothing funded: name the oldest row so the caller's own balance check explains the refusal.
+        return rowsOf(owner, resolveCurrencyCode(currencyCode)).stream().map(UserWallet::getPurse).findFirst()
+                .orElse(WalletPurse.COURSE_CREATOR);
+    }
+
+    @Override
     @Transactional
-    public UserWalletTransaction holdWithdrawal(WalletOwner owner, BigDecimal netAmount, String currencyCode,
-                                                String reference, String description) {
+    public UserWalletTransaction holdWithdrawal(WalletOwner owner, WalletPurse purse, BigDecimal netAmount,
+                                                String currencyCode, String reference, String description) {
         String currency = resolveCurrencyCode(currencyCode);
-        UserWallet wallet = lockOrCreateWallet(owner, currency);
+        UserWallet wallet = lockOrCreateWallet(owner, purse, currency);
         UserWalletTransaction row = applyDebit(wallet, netAmount, WalletTransactionType.WITHDRAWAL, reference,
                 description, null, null);
-        postRow(row, description, List.of(LedgerPostingLeg.debit(earningsAccount(wallet, currency), netAmount),
+        postRow(row, description, List.of(LedgerPostingLeg.debit(purseAccount(wallet, currency), netAmount),
                 LedgerPostingLeg.credit(payoutsInFlight(currency), netAmount)));
         return row;
     }
 
     @Override
     @Transactional
-    public UserWalletTransaction chargePayoutFee(WalletOwner owner, BigDecimal fee, String currencyCode,
-                                                 String reference, String description) {
+    public UserWalletTransaction chargePayoutFee(WalletOwner owner, WalletPurse purse, BigDecimal fee,
+                                                 String currencyCode, String reference, String description) {
         String currency = resolveCurrencyCode(currencyCode);
-        UserWallet wallet = lockOrCreateWallet(owner, currency);
+        UserWallet wallet = lockOrCreateWallet(owner, purse, currency);
         UserWalletTransaction row = applyDebit(wallet, fee, WalletTransactionType.PAYOUT_FEE, reference + ":fee",
                 description, null, null);
-        postRow(row, description, List.of(LedgerPostingLeg.debit(earningsAccount(wallet, currency), fee),
+        postRow(row, description, List.of(LedgerPostingLeg.debit(purseAccount(wallet, currency), fee),
                 LedgerPostingLeg.credit(LedgerAccountRef.platformFeeRevenue(currency), fee)));
         return row;
     }
 
     @Override
     @Transactional
-    public UserWalletTransaction reverseWithdrawal(WalletOwner owner, BigDecimal netAmount, BigDecimal fee,
-                                                   String currencyCode, String reference, String description) {
+    public List<UserWalletTransaction> reverseWithdrawal(WalletOwner owner, WalletPurse purse, BigDecimal netAmount,
+                                                         BigDecimal fee, String currencyCode, String reference,
+                                                         String description) {
         String currency = resolveCurrencyCode(currencyCode);
         BigDecimal feeBack = fee == null ? ZERO : fee;
+        // Back to each purse what its rows gave; a withdrawal split over purses by the backfill has rows in two.
+        Map<WalletPurse, BigDecimal> back = new EnumMap<>(WalletPurse.class);
+        for (UserWalletTransaction debit : transactionRepository.findOwnerRows(owner.type(), owner.uuid(), currency,
+                List.of(WalletTransactionType.WITHDRAWAL, WalletTransactionType.PAYOUT_FEE),
+                List.of(reference, reference + ":fee"))) {
+            back.merge(debit.getWallet().getPurse(), debit.getAmount(), BigDecimal::add);
+        }
         BigDecimal total = netAmount.add(feeBack);
-        UserWallet wallet = lockOrCreateWallet(owner, currency);
-        UserWalletTransaction row = applyCredit(wallet, total, currency, WalletTransactionType.WITHDRAWAL_REVERSAL,
-                reference + ":reversal", description, null, null);
+        if (back.isEmpty() || back.values().stream().reduce(ZERO, BigDecimal::add).compareTo(total) != 0) {
+            back.clear();
+            back.put(purse, total);
+        }
         List<LedgerPostingLeg> legs = new ArrayList<>();
         legs.add(LedgerPostingLeg.debit(payoutsInFlight(currency), netAmount));
         if (feeBack.signum() > 0) {
             legs.add(LedgerPostingLeg.debit(LedgerAccountRef.platformFeeRevenue(currency), feeBack));
         }
-        legs.add(LedgerPostingLeg.credit(earningsAccount(wallet, currency), total));
-        postRow(row, description, legs);
-        return row;
+        List<UserWalletTransaction> rows = new ArrayList<>();
+        for (Map.Entry<WalletPurse, BigDecimal> entry : back.entrySet()) {
+            UserWallet wallet = lockOrCreateWallet(owner, entry.getKey(), currency);
+            rows.add(applyCredit(wallet, entry.getValue(), currency, WalletTransactionType.WITHDRAWAL_REVERSAL,
+                    reference + ":reversal", description, null, null));
+            legs.add(LedgerPostingLeg.credit(purseAccount(wallet, currency), entry.getValue()));
+        }
+        postRow(rows.getFirst(), description, legs);
+        return rows;
     }
 
     @Override
@@ -297,25 +401,33 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     @Transactional
-    public UserWallet deposit(UUID userUuid, BigDecimal amount, String currencyCode, String reference, String description) {
-        return applyCredit(userUuid, amount, currencyCode, WalletTransactionType.DEPOSIT, reference, description, null);
+    public UserWallet deposit(UUID userUuid, WalletPurse purse, BigDecimal amount, String currencyCode,
+                              String reference, String description) {
+        return applyCredit(userUuid, purse == null ? WalletPurse.STUDENT : purse, amount, currencyCode,
+                WalletTransactionType.DEPOSIT, reference, description, null);
     }
 
     @Override
     @Transactional
-    public UserWallet creditSale(UUID userUuid, BigDecimal amount, String currencyCode, String reference, String description) {
-        return applyCredit(userUuid, amount, currencyCode, WalletTransactionType.SALE, reference, description, null);
+    public UserWallet creditSale(UUID userUuid, WalletPurse purse, BigDecimal amount, String currencyCode,
+                                 String reference, String description) {
+        if (purse == null) {
+            throw new IllegalArgumentException("Say which purse the sale is paid into");
+        }
+        return applyCredit(userUuid, purse, amount, currencyCode, WalletTransactionType.SALE, reference, description,
+                null);
     }
 
     @Override
     @Transactional
-    public boolean creditSaleIdempotent(UUID userUuid, BigDecimal amount, String currencyCode, String reference, String description) {
+    public boolean creditSaleIdempotent(UUID userUuid, WalletPurse purse, BigDecimal amount, String currencyCode,
+                                        String reference, String description) {
         if (StringUtils.hasText(reference) && transactionRepository.existsByReference(reference)) {
             log.debug("Skipping duplicate sale credit for reference {}", reference);
             return false;
         }
         try {
-            creditSale(userUuid, amount, currencyCode, reference, description);
+            creditSale(userUuid, purse, amount, currencyCode, reference, description);
             return true;
         } catch (DataIntegrityViolationException ex) {
             // Concurrent duplicate delivery raced past the existsByReference check; the
@@ -327,8 +439,8 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     @Transactional
-    public boolean settleSaleShare(WalletOwner owner, BigDecimal gross, BigDecimal platformFee, String currencyCode,
-                                   String reference, String description) {
+    public boolean settleSaleShare(WalletOwner owner, WalletPurse purse, BigDecimal gross, BigDecimal platformFee,
+                                   String currencyCode, String reference, String description) {
         if (!StringUtils.hasText(reference)) {
             throw new IllegalArgumentException("A sale share needs a reference so it is paid at most once");
         }
@@ -343,7 +455,7 @@ public class WalletServiceImpl implements WalletService {
         }
 
         String resolvedCurrency = resolveCurrencyCode(currencyCode);
-        UserWallet wallet = lockOrCreateWallet(owner, resolvedCurrency);
+        UserWallet wallet = lockOrCreateWallet(owner, purse, resolvedCurrency);
         UserWalletTransaction sale = applyCredit(
                 wallet, gross, resolvedCurrency, WalletTransactionType.SALE, reference, description, null, null);
         recordLedgerCredit(wallet, sale, gross, resolvedCurrency, WalletTransactionType.SALE, description);
@@ -358,7 +470,40 @@ public class WalletServiceImpl implements WalletService {
 
     @Override
     @Transactional
-    public WalletTransferResult transfer(UUID fromUserUuid, UUID toUserUuid, BigDecimal amount, String currencyCode, String reference, String description) {
+    public UserWalletTransaction reverseSaleShare(String saleReference, String description) {
+        UserWalletTransaction sale = transactionRepository
+                .findFirstByReferenceAndTransactionTypeOrderByIdAsc(saleReference, WalletTransactionType.SALE)
+                .orElseThrow(() -> new IllegalArgumentException("No sale share " + saleReference));
+        String reference = saleReference + REVERSAL_SUFFIX;
+        if (transactionRepository.existsByReference(reference)) {
+            log.debug("Sale share {} already reversed; skipping", saleReference);
+            return null;
+        }
+        BigDecimal fee = transactionRepository
+                .findFirstByReferenceAndTransactionTypeOrderByIdAsc(saleReference + ":fee",
+                        WalletTransactionType.PLATFORM_FEE)
+                .map(UserWalletTransaction::getAmount).orElse(ZERO);
+        BigDecimal kept = sale.getAmount().subtract(fee);
+        UserWallet original = sale.getWallet();
+        String currency = original.getCurrencyCode();
+        UserWallet wallet = lockOrCreateWallet(original.owner(), original.getPurse(), currency);
+        UserWalletTransaction row = applyDebit(wallet, kept, WalletTransactionType.SALE_REVERSAL, reference,
+                description, null, null);
+        List<LedgerPostingLeg> legs = new ArrayList<>();
+        legs.add(LedgerPostingLeg.debit(purseAccount(wallet, currency), kept));
+        if (fee.signum() > 0) {
+            legs.add(LedgerPostingLeg.debit(LedgerAccountRef.platformFeeRevenue(currency), fee));
+        }
+        legs.add(LedgerPostingLeg.credit(LedgerAccountRef.platformUnallocatedRevenue(currency), sale.getAmount()));
+        postRow(row, description, legs);
+        return row;
+    }
+
+    @Override
+    @Transactional
+    public WalletTransferResult transfer(UUID fromUserUuid, WalletPurse sourcePurse, UUID toUserUuid,
+                                         BigDecimal amount, String currencyCode, String reference,
+                                         String description) {
         if (fromUserUuid == null || toUserUuid == null) {
             throw new IllegalArgumentException("Both source and target users are required");
         }
@@ -368,14 +513,17 @@ public class WalletServiceImpl implements WalletService {
         validateAmount(amount);
 
         String resolvedCurrency = resolveCurrencyCode(currencyCode);
-        List<UUID> ordered = List.of(fromUserUuid, toUserUuid).stream()
-                .sorted(Comparator.naturalOrder())
-                .toList();
-
-        UserWallet first = lockOrCreateWallet(WalletOwner.user(ordered.get(0)), resolvedCurrency);
-        UserWallet second = lockOrCreateWallet(WalletOwner.user(ordered.get(1)), resolvedCurrency);
-        UserWallet source = fromUserUuid.equals(first.getOwnerUuid()) ? first : second;
-        UserWallet target = fromUserUuid.equals(first.getOwnerUuid()) ? second : first;
+        WalletOwner from = WalletOwner.user(fromUserUuid);
+        WalletPurse fromPurse = debitPurse(from, sourcePurse, resolvedCurrency);
+        // Rows are locked in uuid order whichever way the money goes, so two opposite transfers cannot deadlock.
+        boolean sourceFirst = fromUserUuid.compareTo(toUserUuid) < 0;
+        UserWallet first = sourceFirst ? lockOrCreateWallet(from, fromPurse, resolvedCurrency)
+                : lockOrCreateWallet(WalletOwner.user(toUserUuid), WalletPurse.STUDENT, resolvedCurrency);
+        UserWallet second = sourceFirst
+                ? lockOrCreateWallet(WalletOwner.user(toUserUuid), WalletPurse.STUDENT, resolvedCurrency)
+                : lockOrCreateWallet(from, fromPurse, resolvedCurrency);
+        UserWallet source = sourceFirst ? first : second;
+        UserWallet target = sourceFirst ? second : first;
 
         UUID transferReference = UUID.randomUUID();
         applyDebit(source, amount, WalletTransactionType.TRANSFER_OUT, reference, description, toUserUuid, transferReference);
@@ -385,8 +533,67 @@ public class WalletServiceImpl implements WalletService {
         return new WalletTransferResult(source, target, transferReference);
     }
 
+    @Override
+    @Transactional
+    public PurseTransferResult transferBetweenPurses(WalletOwner owner, WalletPurse from, WalletPurse to,
+                                                     BigDecimal amount, String currencyCode, String reference,
+                                                     String description) {
+        if (from == null || to == null) {
+            throw new IllegalArgumentException("Say which purse to move from and which to move to");
+        }
+        if (from == to) {
+            throw new IllegalArgumentException("Choose two different purses");
+        }
+        requireFits(owner, from);
+        requireFits(owner, to);
+        validateAmount(amount);
+        String currency = resolveCurrencyCode(currencyCode);
+        // Locked in purse order, so two opposite moves of one owner cannot deadlock.
+        boolean fromFirst = from.compareTo(to) < 0;
+        UserWallet first = lockOrCreateWallet(owner, fromFirst ? from : to, currency);
+        UserWallet second = lockOrCreateWallet(owner, fromFirst ? to : from, currency);
+        UserWallet source = fromFirst ? first : second;
+        UserWallet target = fromFirst ? second : first;
+
+        UUID transferReference = UUID.randomUUID();
+        String ref = StringUtils.hasText(reference) ? reference : "purse-transfer:" + transferReference;
+        String text = StringUtils.hasText(description) ? description
+                : "Moved from the " + label(from) + " purse to the " + label(to) + " purse";
+        applyDebit(source, amount, WalletTransactionType.TRANSFER_OUT, ref, text, owner.uuid(), transferReference);
+        applyCredit(target, amount, currency, WalletTransactionType.TRANSFER_IN, ref, text, owner.uuid(),
+                transferReference);
+        recordLedgerTransfer(source, target, amount, currency, text, transferReference);
+        return new PurseTransferResult(source, target, transferReference);
+    }
+
+    private static String label(WalletPurse purse) {
+        return purse.name().toLowerCase(Locale.ROOT).replace('_', ' ');
+    }
+
+    private List<UserWallet> rowsOf(WalletOwner owner, String currency) {
+        return userWalletRepository.findByOwnerTypeAndOwnerUuidAndCurrencyCodeOrderByIdAsc(owner.type(), owner.uuid(),
+                currency);
+    }
+
+    private Map<WalletPurse, BigDecimal> heldByPurse(WalletOwner owner, String currency) {
+        Map<WalletPurse, BigDecimal> held = new EnumMap<>(WalletPurse.class);
+        for (Object[] row : withdrawalRepository.sumByPurseAndStatus(owner.type(), owner.uuid(), currency,
+                WithdrawalStatus.HELD)) {
+            held.put((WalletPurse) row[0], (BigDecimal) row[1]);
+        }
+        return held;
+    }
+
+    private static void requireFits(WalletOwner owner, WalletPurse purse) {
+        if (purse == null || !purse.isAllowedFor(owner.type())) {
+            throw new IllegalArgumentException("A " + owner.type().name().toLowerCase(Locale.ROOT)
+                    + " wallet has no " + purse + " purse");
+        }
+    }
+
     private UserWallet applyCredit(
             UUID userUuid,
+            WalletPurse purse,
             BigDecimal amount,
             String currencyCode,
             WalletTransactionType type,
@@ -396,7 +603,7 @@ public class WalletServiceImpl implements WalletService {
     ) {
         validateAmount(amount);
         String resolvedCurrency = resolveCurrencyCode(currencyCode);
-        UserWallet wallet = lockOrCreateWallet(WalletOwner.user(userUuid), resolvedCurrency);
+        UserWallet wallet = lockOrCreateWallet(WalletOwner.user(userUuid), purse, resolvedCurrency);
         UserWalletTransaction transaction =
                 applyCredit(wallet, amount, resolvedCurrency, type, reference, description, counterpartyUserUuid, null);
         recordLedgerCredit(wallet, transaction, amount, resolvedCurrency, type, description);
@@ -511,6 +718,7 @@ public class WalletServiceImpl implements WalletService {
         event.setUpdatedValues(Map.of(
                 "balance_amount", transaction.getBalanceAfter(),
                 "amount", transaction.getAmount(),
+                "purse", wallet.getPurse().name(),
                 "transaction_type", transaction.getTransactionType().name(),
                 "transaction_uuid", String.valueOf(transaction.getUuid())));
         auditEventRepository.save(event);
@@ -546,7 +754,7 @@ public class WalletServiceImpl implements WalletService {
             WalletTransactionType type,
             String description
     ) {
-        LedgerAccountRef earner = earningsAccount(wallet, currencyCode);
+        LedgerAccountRef earner = purseAccount(wallet, currencyCode);
         LedgerAccountRef funding = type == WalletTransactionType.DEPOSIT
                 ? LedgerAccountRef.platformCashMpesa(currencyCode)
                 : LedgerAccountRef.platformUnallocatedRevenue(currencyCode);
@@ -574,14 +782,16 @@ public class WalletServiceImpl implements WalletService {
                 description,
                 CAUSE_WALLET_TRANSACTION,
                 transaction.getUuid(),
-                List.of(LedgerPostingLeg.debit(earningsAccount(wallet, currencyCode), amount),
+                List.of(LedgerPostingLeg.debit(purseAccount(wallet, currencyCode), amount),
                         LedgerPostingLeg.credit(LedgerAccountRef.platformFeeRevenue(currencyCode), amount))));
     }
 
-    private static LedgerAccountRef earningsAccount(UserWallet wallet, String currencyCode) {
+    /** The ledger account a wallet row mirrors: the organisation's EARNINGS, or the person's purse. */
+    private static LedgerAccountRef purseAccount(UserWallet wallet, String currencyCode) {
         return wallet.getOwnerType() == WalletOwnerType.ORGANISATION
                 ? LedgerAccountRef.organisationEarnings(wallet.getOwnerUuid(), currencyCode)
-                : LedgerAccountRef.userEarnings(wallet.getOwnerUuid(), currencyCode);
+                : LedgerAccountRef.userPurse(wallet.getOwnerUuid(), LedgerPurse.valueOf(wallet.getPurse().name()),
+                currencyCode);
     }
 
     /**
@@ -596,8 +806,8 @@ public class WalletServiceImpl implements WalletService {
             String description,
             UUID transferReference
     ) {
-        LedgerAccountRef from = earningsAccount(source, currencyCode);
-        LedgerAccountRef to = earningsAccount(target, currencyCode);
+        LedgerAccountRef from = purseAccount(source, currencyCode);
+        LedgerAccountRef to = purseAccount(target, currencyCode);
 
         postToLedger(new LedgerPostingRequest(
                 "wallet-transfer:" + transferReference,
@@ -646,8 +856,9 @@ public class WalletServiceImpl implements WalletService {
         }
     }
 
-    private UserWallet lockOrCreateWallet(WalletOwner owner, String currencyCode) {
-        Optional<UserWallet> existing = userWalletRepository.findLocked(owner.type(), owner.uuid(), currencyCode);
+    private UserWallet lockOrCreateWallet(WalletOwner owner, WalletPurse purse, String currencyCode) {
+        requireFits(owner, purse);
+        Optional<UserWallet> existing = userWalletRepository.findLocked(owner.type(), owner.uuid(), purse, currencyCode);
         if (existing.isPresent()) {
             return existing.get();
         }
@@ -655,16 +866,17 @@ public class WalletServiceImpl implements WalletService {
         UserWallet wallet = new UserWallet();
         wallet.setOwnerType(owner.type());
         wallet.setOwnerUuid(owner.uuid());
+        wallet.setPurse(purse);
         wallet.setCurrencyCode(currencyCode);
         wallet.setBalanceAmount(ZERO);
 
         try {
             userWalletRepository.saveAndFlush(wallet);
         } catch (DataIntegrityViolationException ex) {
-            log.debug("Wallet already created for {} and currency {}", owner, currencyCode, ex);
+            log.debug("Wallet already created for {} {} purse and currency {}", owner, purse, currencyCode, ex);
         }
 
-        return userWalletRepository.findLocked(owner.type(), owner.uuid(), currencyCode)
+        return userWalletRepository.findLocked(owner.type(), owner.uuid(), purse, currencyCode)
                 .orElseThrow(() -> new IllegalStateException("Failed to create wallet for " + owner.type()));
     }
 

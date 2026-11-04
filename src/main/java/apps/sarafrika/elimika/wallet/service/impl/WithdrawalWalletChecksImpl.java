@@ -42,15 +42,15 @@ public class WithdrawalWalletChecksImpl implements WithdrawalWalletChecks {
         Set<UUID> owners = withdrawals.stream().map(Withdrawal::getOwnerUuid).collect(Collectors.toSet());
         Map<Key, WalletCheckBalance> wallets = new HashMap<>();
         for (WalletCheckBalance row : walletRepository.findWalletCheckBalances(owners)) {
-            wallets.put(new Key(row.getOwnerType(), row.getOwnerUuid(), row.getCurrencyCode()), row);
+            wallets.put(new Key(row.getOwnerType(), row.getOwnerUuid(), row.getPurse(), row.getCurrencyCode()), row);
         }
         Map<Key, HeldWithdrawalTotals> held = new HashMap<>();
         for (HeldWithdrawalTotals row : withdrawalRepository.heldTotalsByOwner(owners, HELD)) {
-            held.put(new Key(row.getOwnerType(), row.getOwnerUuid(), row.getCurrencyCode()), row);
+            held.put(new Key(row.getOwnerType(), row.getOwnerUuid(), row.getPurse(), row.getCurrencyCode()), row);
         }
         OffsetDateTime now = OffsetDateTime.now(ZoneOffset.UTC);
         for (Withdrawal w : withdrawals) {
-            Key key = new Key(w.getOwnerType().name(), w.getOwnerUuid(), w.getCurrencyCode());
+            Key key = new Key(w.getOwnerType().name(), w.getOwnerUuid(), w.getPurse().name(), w.getCurrencyCode());
             checks.put(w.getUuid(), check(w, wallets.get(key), held.get(key), now));
         }
         return checks;
@@ -68,10 +68,10 @@ public class WithdrawalWalletChecksImpl implements WithdrawalWalletChecks {
         BigDecimal after = pending ? account.subtract(w.getAmount()) : null;
         BigDecimal ledger = wallet == null ? null : wallet.getLedgerBalance();
         Boolean matches = ledger == null ? null : ledger.compareTo(available) == 0;
-        return new WalletCheck(account, heldAmount, held == null ? 0 : held.getHeldCount(), heldDebited, available,
+        return new WalletCheck(w.getPurse(), account, heldAmount, held == null ? 0 : held.getHeldCount(), heldDebited, available,
                 after, ledger, matches, heldDebited.compareTo(heldAmount) >= 0, now);
     }
 
-    private record Key(String ownerType, UUID ownerUuid, String currencyCode) {
+    private record Key(String ownerType, UUID ownerUuid, String purse, String currencyCode) {
     }
 }

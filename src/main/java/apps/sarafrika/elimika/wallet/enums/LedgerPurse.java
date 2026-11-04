@@ -5,8 +5,9 @@ import java.util.Locale;
 /**
  * The purse identifies an account within a single owner.
  * <p>
- * Party-owned accounts have exactly one purse in this phase - {@link #EARNINGS}. The full purse
- * taxonomy (restricted funds and the rest) is phase 2 and deliberately absent here.
+ * A person holds one liability account per role purse ({@link #COURSE_CREATOR}, {@link #INSTRUCTOR},
+ * {@link #STUDENT}), each mirroring that purse's wallet row; an organisation holds {@link #EARNINGS}. A person's
+ * EARNINGS account predates the purses and is left at zero by the split.
  * <p>
  * The platform's internal accounts share {@code owner_type = PLATFORM} with no owner UUID, so the
  * purse is also what tells them apart. That is why the platform account names live in this enum
@@ -16,8 +17,17 @@ import java.util.Locale;
  */
 public enum LedgerPurse {
 
-    /** A party's spendable balance. Mirrors {@code user_wallets.balance_amount}. */
+    /** An organisation's spendable balance. Mirrors its {@code user_wallets.balance_amount}. */
     EARNINGS,
+
+    /** A person's course creator purse. */
+    COURSE_CREATOR,
+
+    /** A person's instructor purse. */
+    INSTRUCTOR,
+
+    /** A person's learner purse. */
+    STUDENT,
 
     /** Platform asset: money actually received through M-Pesa. */
     PLATFORM_CASH_MPESA,

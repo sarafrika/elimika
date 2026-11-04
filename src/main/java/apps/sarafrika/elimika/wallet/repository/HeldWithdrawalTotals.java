@@ -12,6 +12,8 @@ public interface HeldWithdrawalTotals {
 
     String getCurrencyCode();
 
+    String getPurse();
+
     long getHeldCount();
 
     BigDecimal getHeldAmount();

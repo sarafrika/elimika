@@ -66,6 +66,11 @@ public class WalletSecurityService {
         return canAccessWallet(userUuid);
     }
 
+    /** Moving money between one's own purses is the holder's alone; nobody else decides which role it counts under. */
+    public boolean canMoveBetweenPurses(UUID userUuid) {
+        return userUuid != null && isSelf(userUuid);
+    }
+
     /**
      * Withdrawing is holder-only, and only for people who earn: an approved instructor or course
      * creator. Off until {@code wallet.withdrawals.enabled} is set.

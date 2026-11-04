@@ -31,10 +31,9 @@ public record LedgerAccountRef(
         }
     }
 
-    /** A party's spendable balance. Money the platform holds and owes, hence a liability. */
-    public static LedgerAccountRef userEarnings(UUID userUuid, String currencyCode) {
-        return new LedgerAccountRef(
-                LedgerOwnerType.USER, userUuid, LedgerAccountType.LIABILITY, LedgerPurse.EARNINGS, currencyCode);
+    /** One of a person's purses. Money the platform holds and owes, hence a liability. */
+    public static LedgerAccountRef userPurse(UUID userUuid, LedgerPurse purse, String currencyCode) {
+        return new LedgerAccountRef(LedgerOwnerType.USER, userUuid, LedgerAccountType.LIABILITY, purse, currencyCode);
     }
 
     /** An organisation's spendable balance; a liability like a user's. */

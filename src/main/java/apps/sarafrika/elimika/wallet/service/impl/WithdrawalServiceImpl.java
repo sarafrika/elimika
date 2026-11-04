@@ -25,6 +25,7 @@ import apps.sarafrika.elimika.wallet.repository.WithdrawalRepository;
 import apps.sarafrika.elimika.wallet.service.PayoutSettingsService;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import apps.sarafrika.elimika.wallet.service.WithdrawalNotifier;
 import apps.sarafrika.elimika.wallet.service.WithdrawalService;
@@ -106,7 +107,8 @@ public class WithdrawalServiceImpl implements WithdrawalService {
 
     @Override
     @Transactional
-    public RequestedWithdrawal request(WalletOwner owner, BigDecimal amount, UUID payoutMethodUuid, String idempotencyKey) {
+    public RequestedWithdrawal request(WalletOwner owner, WalletPurse purse, BigDecimal amount, UUID payoutMethodUuid,
+                                       String idempotencyKey) {
         if (!StringUtils.hasText(idempotencyKey)) {
             throw new IllegalArgumentException("An idempotency key is required.");
         }
@@ -131,10 +133,12 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         }
         PayoutMethod method = usableMethod(owner, payoutMethodUuid);
         String currency = walletService.balanceOf(owner, null).currencyCode();
-        BigDecimal available = walletService.balanceOf(owner, currency).balanceAmount();
+        WalletPurse from = walletService.debitPurse(owner, purse, currency);
+        BigDecimal available = walletService.balanceOf(owner, from, currency).balanceAmount();
         if (amount.compareTo(available) > 0) {
-            throw new IllegalArgumentException("You can withdraw up to " + kes(available) + ".");
+            throw new IllegalArgumentException("You can withdraw up to " + kes(available) + " from this purse.");
         }
+        // Per person, across purses: moving money between purses must not open a second day's allowance.
         BigDecimal today = withdrawalRepository.sumSince(owner.type(), owner.uuid(), WithdrawalStatus.COUNTED,
                 LocalDate.now(ZoneOffset.UTC).atStartOfDay());
         if (today.add(amount).compareTo(settings.getDailyLimit()) > 0) {
@@ -149,6 +153,7 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         withdrawal.setOwnerType(owner.type());
         withdrawal.setOwnerUuid(owner.uuid());
         withdrawal.setCurrencyCode(currency);
+        withdrawal.setPurse(from);
         withdrawal.setAmount(amount);
         withdrawal.setFeeAmount(fee);
         withdrawal.setNetAmount(amount.subtract(fee));
@@ -186,17 +191,19 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         }
         oneTimeCodeService.verify(OneTimeCodePurpose.WITHDRAWAL_CONFIRMATION, withdrawal.getUuid(), code);
         PayoutMethod method = usableMethod(owner, withdrawal.getPayoutMethodUuid());
-        BigDecimal available = walletService.balanceOf(owner, withdrawal.getCurrencyCode()).balanceAmount();
+        BigDecimal available = walletService.balanceOf(owner, withdrawal.getPurse(), withdrawal.getCurrencyCode())
+                .balanceAmount();
         if (withdrawal.getAmount().compareTo(available) > 0) {
-            throw new IllegalArgumentException("Your balance changed; you can withdraw up to " + kes(available) + ".");
+            throw new IllegalArgumentException("Your balance changed; you can withdraw up to " + kes(available)
+                    + " from this purse.");
         }
 
         String description = "Withdrawal to M-Pesa " + Msisdn.mask(withdrawal.getMsisdn());
-        walletService.holdWithdrawal(owner, withdrawal.getNetAmount(), withdrawal.getCurrencyCode(),
-                withdrawal.getReference(), description);
+        walletService.holdWithdrawal(owner, withdrawal.getPurse(), withdrawal.getNetAmount(),
+                withdrawal.getCurrencyCode(), withdrawal.getReference(), description);
         if (withdrawal.getFeeAmount().signum() > 0) {
-            walletService.chargePayoutFee(owner, withdrawal.getFeeAmount(), withdrawal.getCurrencyCode(),
-                    withdrawal.getReference(), "M-Pesa charge - " + description);
+            walletService.chargePayoutFee(owner, withdrawal.getPurse(), withdrawal.getFeeAmount(),
+                    withdrawal.getCurrencyCode(), withdrawal.getReference(), "M-Pesa charge - " + description);
         }
 
         PayoutSettings settings = settingsService.current();
@@ -444,10 +451,11 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         afterCommit(() -> notifier.failed(withdrawal));
     }
 
-    /** Puts the held money back; the withdrawal is finished either way. */
+    /** Puts the held money back into the purse it left; the withdrawal is finished either way. */
     private void reverse(Withdrawal withdrawal, String description) {
-        walletService.reverseWithdrawal(withdrawal.owner(), withdrawal.getNetAmount(), withdrawal.getFeeAmount(),
-                withdrawal.getCurrencyCode(), withdrawal.getReference(), "Withdrawal returned - " + description);
+        walletService.reverseWithdrawal(withdrawal.owner(), withdrawal.getPurse(), withdrawal.getNetAmount(),
+                withdrawal.getFeeAmount(), withdrawal.getCurrencyCode(), withdrawal.getReference(),
+                "Withdrawal returned - " + description);
         withdrawal.setCompletedAt(now());
     }
 
@@ -575,6 +583,7 @@ public class WithdrawalServiceImpl implements WithdrawalService {
                        Map<String, Object> extra) {
         Map<String, Object> values = new HashMap<>(extra);
         values.put("reference", withdrawal.getReference());
+        values.put("purse", withdrawal.getPurse().name());
         values.put("amount", withdrawal.getAmount());
         values.put("status", withdrawal.getStatus().name());
         values.put("msisdn", Msisdn.mask(withdrawal.getMsisdn()));

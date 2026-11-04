@@ -10,7 +10,7 @@ import java.util.UUID;
  * @param scanned    wallets compared in this sweep
  * @param truncated  true when the sweep hit its batch cap before reaching the end of the table, so
  *                   the wallets past {@code lastWalletId} were not looked at this time
- * @param divergences wallets whose balance does not match their derived ledger balance
+ * @param divergences purse rows whose balance does not match their purse account's derived ledger balance
  */
 public record WalletLedgerReconciliationReport(
         int scanned,
@@ -30,6 +30,7 @@ public record WalletLedgerReconciliationReport(
     public record Divergence(
             UUID walletUuid,
             UUID userUuid,
+            String purse,
             String currencyCode,
             BigDecimal walletBalance,
             BigDecimal ledgerBalance

@@ -6,10 +6,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * The earner's wallet as an admin reviewing one of its withdrawals sees it, read now.
- * A confirmed withdrawal has already left {@code availableBalance}, so the account is available plus held.
+ * The purse a withdrawal is paid from, as an admin reviewing it sees it, read now. A confirmed withdrawal has
+ * already left {@code availableBalance}, so the account is available plus held; both are the purse's own.
  */
 public record WalletCheck(
+        WalletPurse purse,
         BigDecimal accountBalance,
         BigDecimal heldAmount,
         long heldCount,

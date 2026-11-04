@@ -10,10 +10,13 @@ public interface WalletCheckBalance {
 
     UUID getOwnerUuid();
 
+    /** The purse this wallet row holds. */
+    String getPurse();
+
     String getCurrencyCode();
 
     BigDecimal getWalletBalance();
 
-    /** The cached posted balance of the wallet's EARNINGS account; null when it has no ledger account. */
+    /** The cached posted balance of the purse's ledger account; null when it has no ledger account. */
     BigDecimal getLedgerBalance();
 }

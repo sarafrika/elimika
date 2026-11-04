@@ -37,6 +37,7 @@ import apps.sarafrika.elimika.wallet.service.PayoutBatchService;
 import apps.sarafrika.elimika.wallet.service.PayoutSettingsService;
 import apps.sarafrika.elimika.wallet.service.WalletCheck;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import apps.sarafrika.elimika.wallet.service.WithdrawalNotifier;
 import apps.sarafrika.elimika.wallet.service.WithdrawalService;
 import apps.sarafrika.elimika.wallet.service.WithdrawalWalletChecks;
@@ -271,7 +272,7 @@ class WithdrawalWalletCheckIntegrationTest {
         UUID tampered = confirm(earner, method(earner), "1000");
         UUID clean = queued("700");
         String account = jdbc.queryForObject("select uuid::text from ledger_accounts where owner_type = 'USER' "
-                + "and owner_uuid = ? and purse = 'EARNINGS' and currency_code = 'KES'", String.class, earner.uuid());
+                + "and owner_uuid = ? and purse = 'INSTRUCTOR' and currency_code = 'KES'", String.class, earner.uuid());
         jdbc.update("update ledger_account_balances set posted_amount = posted_amount + 250 where account_uuid = ?::uuid",
                 account);
         try {
@@ -348,8 +349,8 @@ class WithdrawalWalletCheckIntegrationTest {
         PayoutMethod other = method(earner);
         UUID forged = UUID.randomUUID();
         jdbc.update("insert into withdrawals (uuid, reference, owner_type, owner_uuid, currency_code, amount, fee_amount, "
-                        + "net_amount, payout_method_uuid, msisdn, status, idempotency_key, created_by) "
-                        + "values (?, ?, 'USER', ?, 'KES', 1500, 0, 1500, ?, ?, 'NEEDS_REVIEW', ?, 'TEST')",
+                        + "net_amount, payout_method_uuid, msisdn, status, idempotency_key, created_by, purse) "
+                        + "values (?, ?, 'USER', ?, 'KES', 1500, 0, 1500, ?, ?, 'NEEDS_REVIEW', ?, 'TEST', 'INSTRUCTOR')",
                 forged, "WD-FORGED-" + SEQ.incrementAndGet(), earner.uuid(), other.getUuid(), other.getMsisdn(),
                 "forged-" + UUID.randomUUID());
         try {
@@ -443,7 +444,7 @@ class WithdrawalWalletCheckIntegrationTest {
 
     private UUID confirm(WalletOwner owner, PayoutMethod method, String amount) {
         actAs(UUID.randomUUID(), "Jane Tester");
-        Withdrawal requested = withdrawals.request(owner, new BigDecimal(amount), method.getUuid(),
+        Withdrawal requested = withdrawals.request(owner, null, new BigDecimal(amount), method.getUuid(),
                 "key-" + UUID.randomUUID()).withdrawal();
         return withdrawals.confirm(owner, requested.getUuid(), lastCode()).getUuid();
     }
@@ -455,7 +456,7 @@ class WithdrawalWalletCheckIntegrationTest {
     }
 
     private void fund(WalletOwner owner, String amount) {
-        walletService.settleSaleShare(owner, new BigDecimal(amount), BigDecimal.ZERO, KES,
+        walletService.settleSaleShare(owner, WalletPurse.deliveryLegOf(owner.type()), new BigDecimal(amount), BigDecimal.ZERO, KES,
                 "sale-" + UUID.randomUUID(), "Class sale share");
     }
 
@@ -472,10 +473,11 @@ class WithdrawalWalletCheckIntegrationTest {
         method.setUnlockAt(OffsetDateTime.now(ZoneOffset.UTC).minusDays(2));
         method = methodRepository.saveAndFlush(method);
         jdbc.update("insert into withdrawals (reference, owner_type, owner_uuid, currency_code, amount, fee_amount, "
-                        + "net_amount, payout_method_uuid, msisdn, status, idempotency_key, created_by) "
-                        + "values (?, ?, ?, 'KES', 100, 0, 100, ?, ?, 'PAID', ?, 'TEST')",
+                        + "net_amount, payout_method_uuid, msisdn, status, idempotency_key, created_by, purse) "
+                        + "values (?, ?, ?, 'KES', 100, 0, 100, ?, ?, 'PAID', ?, 'TEST', "
+                        + "case when ? = 'ORGANISATION' then 'EARNINGS' else 'INSTRUCTOR' end)",
                 "WD-OLD-" + SEQ.incrementAndGet(), owner.type().name(), owner.uuid(), method.getUuid(), msisdn,
-                "old-" + UUID.randomUUID());
+                "old-" + UUID.randomUUID(), owner.type().name());
         return method;
     }
 

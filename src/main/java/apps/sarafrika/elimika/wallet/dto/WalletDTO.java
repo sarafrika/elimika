@@ -1,10 +1,13 @@
 package apps.sarafrika.elimika.wallet.dto;
 
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
+import apps.sarafrika.elimika.wallet.service.WalletPurseSummary;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 @Schema(
@@ -14,7 +17,9 @@ import java.util.UUID;
 public record WalletDTO(
 
         @Schema(
-                description = "**[READ-ONLY]** Unique identifier for the wallet.",
+                description = "**[READ-ONLY]** Unique identifier for the wallet row. On the owner's wallet, which sums "
+                        + "every purse, the owner's oldest purse row (the row the wallet had before purses); each "
+                        + "purse's own row is purses[].wallet_uuid. Null while the owner has no row.",
                 format = "uuid",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
@@ -54,7 +59,7 @@ public record WalletDTO(
         String currencyCode,
 
         @Schema(
-                description = "**[READ-ONLY]** Current wallet balance.",
+                description = "**[READ-ONLY]** Current balance: the purse's, or the sum of every purse.",
                 example = "1500.00",
                 accessMode = Schema.AccessMode.READ_ONLY
         )
@@ -110,6 +115,22 @@ public record WalletDTO(
         @Schema(description = "**[READ-ONLY]** Whether the caller may withdraw from this wallet.",
                 accessMode = Schema.AccessMode.READ_ONLY)
         @JsonProperty("can_withdraw")
-        Boolean canWithdraw
+        Boolean canWithdraw,
+
+        @Schema(description = "**[READ-ONLY]** The purse this row is; null when the wallet sums every purse.",
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty("purse")
+        WalletPurse purse,
+
+        @Schema(description = "**[READ-ONLY]** available_amount plus held_amount. Null where not computed.",
+                accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty("account_balance")
+        BigDecimal accountBalance,
+
+        @Schema(description = "**[READ-ONLY]** Each purse with its own balance, in the order COURSE_CREATOR, "
+                + "INSTRUCTOR, STUDENT (EARNINGS for an organisation). The top-level figures are their sums. Null "
+                + "where not computed.", accessMode = Schema.AccessMode.READ_ONLY)
+        @JsonProperty("purses")
+        List<WalletPurseSummary> purses
 ) {
 }

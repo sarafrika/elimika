@@ -14,6 +14,9 @@ public interface SaleSplitQueryService {
     /** Lines that paid this party on either leg, newest settlement first; the pageable's sort is ignored. */
     Page<SaleSplitView> findPaidTo(SalePartyType ownerType, UUID ownerUuid, Pageable pageable);
 
+    /** Lines that paid this party on the given leg; either leg when {@code side} is null. */
+    Page<SaleSplitView> findPaidTo(SalePartyType ownerType, UUID ownerUuid, SaleLegSide side, Pageable pageable);
+
     /** A settled line with a recorded split, by the line's uuid. */
     Optional<SaleSplitView> findByUuid(UUID splitUuid);
 

@@ -492,6 +492,38 @@ public interface CommercePurchaseItemRepository extends JpaRepository<CommercePu
                                                 @Param("paid") apps.sarafrika.elimika.shared.spi.revenue.SaleLegStatus paid,
                                                 Pageable pageable);
 
+    /** Settled lines whose creator leg paid this party, newest settlement first. */
+    @Query(value = """
+            select i from CommercePurchaseItem i join fetch i.purchase p
+            where i.creatorOwnerType = :type and i.creatorOwnerUuid = :uuid and i.creatorStatus = :paid
+            order by i.settledAt desc nulls last, i.id desc
+            """,
+            countQuery = """
+            select count(i) from CommercePurchaseItem i
+            where i.creatorOwnerType = :type and i.creatorOwnerUuid = :uuid and i.creatorStatus = :paid
+            """)
+    Page<CommercePurchaseItem> findSplitsPaidToCreator(
+            @Param("type") apps.sarafrika.elimika.shared.spi.revenue.SalePartyType type,
+            @Param("uuid") UUID uuid,
+            @Param("paid") apps.sarafrika.elimika.shared.spi.revenue.SaleLegStatus paid,
+            Pageable pageable);
+
+    /** Settled lines whose delivery leg paid this party, newest settlement first. */
+    @Query(value = """
+            select i from CommercePurchaseItem i join fetch i.purchase p
+            where i.deliveryOwnerType = :type and i.deliveryOwnerUuid = :uuid and i.deliveryStatus = :paid
+            order by i.settledAt desc nulls last, i.id desc
+            """,
+            countQuery = """
+            select count(i) from CommercePurchaseItem i
+            where i.deliveryOwnerType = :type and i.deliveryOwnerUuid = :uuid and i.deliveryStatus = :paid
+            """)
+    Page<CommercePurchaseItem> findSplitsPaidToDelivery(
+            @Param("type") apps.sarafrika.elimika.shared.spi.revenue.SalePartyType type,
+            @Param("uuid") UUID uuid,
+            @Param("paid") apps.sarafrika.elimika.shared.spi.revenue.SaleLegStatus paid,
+            Pageable pageable);
+
     @Query("""
             select i from CommercePurchaseItem i join fetch i.purchase p
             where i.uuid = :uuid and i.creatorStatus is not null

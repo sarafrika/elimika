@@ -32,6 +32,7 @@ import apps.sarafrika.elimika.shared.spi.revenue.SalePartyType;
 import apps.sarafrika.elimika.shared.spi.revenue.SaleSplitDetail;
 import apps.sarafrika.elimika.systemconfig.service.RuleEvaluationService;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import java.lang.reflect.Method;
 import java.math.BigDecimal;
@@ -94,13 +95,13 @@ class OrderCaptureWalletCreditListenerTest {
         givenClassOfCourse("Flower Gardening", "30.00");
         givenCreator();
         givenDirectInstructor();
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
 
         capture(classLine("line-1", "50000.00"));
 
-        verify(walletService).settleSaleShare(eq(WalletOwner.user(creatorUserUuid)), money("15000.00"), money("1500.00"),
+        verify(walletService).settleSaleShare(eq(WalletOwner.user(creatorUserUuid)), eq(WalletPurse.COURSE_CREATOR), money("15000.00"), money("1500.00"),
                 eq("KES"), eq(ORDER_ID + ":line-1:creator"), argThat(d -> d.contains("Flower Gardening")));
-        verify(walletService).settleSaleShare(eq(WalletOwner.user(instructorUserUuid)), money("35000.00"),
+        verify(walletService).settleSaleShare(eq(WalletOwner.user(instructorUserUuid)), eq(WalletPurse.INSTRUCTOR), money("35000.00"),
                 money("3500.00"), eq("KES"), eq(ORDER_ID + ":line-1:delivery"), any());
         assertSettlement(settlement(), "50000.00", "5000.00", "45000.00", "0.00");
         assertThat(settlement().creatorCreditedAmount()).isEqualByComparingTo("13500.00");
@@ -127,13 +128,13 @@ class OrderCaptureWalletCreditListenerTest {
         givenClassOfCourse("Flower Gardening", "30.00");
         givenCreator();
         when(classDefinitionLookupService.findHiringOrganisationUuid(classUuid)).thenReturn(Optional.of(organisationUuid));
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
 
         capture(classLine("line-1", "50000.00"));
 
-        verify(walletService).settleSaleShare(eq(WalletOwner.organisation(organisationUuid)), money("35000.00"),
+        verify(walletService).settleSaleShare(eq(WalletOwner.organisation(organisationUuid)), eq(WalletPurse.EARNINGS), money("35000.00"),
                 money("3500.00"), eq("KES"), eq(ORDER_ID + ":line-1:delivery"), any());
-        verify(walletService).settleSaleShare(eq(WalletOwner.user(creatorUserUuid)), money("15000.00"),
+        verify(walletService).settleSaleShare(eq(WalletOwner.user(creatorUserUuid)), eq(WalletPurse.COURSE_CREATOR), money("15000.00"),
                 money("1500.00"), any(), any(), any());
         verifyNoInteractions(instructorLookupService);
         assertSettlement(settlement(), "50000.00", "5000.00", "45000.00", "0.00");
@@ -150,13 +151,13 @@ class OrderCaptureWalletCreditListenerTest {
         givenClassOfCourse("Gaming", "60.00");
         givenCreator();
         givenDirectInstructor();
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
 
         capture(classLine("line-1", "10000.00"));
 
-        verify(walletService).settleSaleShare(eq(WalletOwner.user(creatorUserUuid)), money("6000.00"), money("0.00"),
+        verify(walletService).settleSaleShare(eq(WalletOwner.user(creatorUserUuid)), eq(WalletPurse.COURSE_CREATOR), money("6000.00"), money("0.00"),
                 any(), any(), any());
-        verify(walletService).settleSaleShare(eq(WalletOwner.user(instructorUserUuid)), money("4000.00"),
+        verify(walletService).settleSaleShare(eq(WalletOwner.user(instructorUserUuid)), eq(WalletPurse.INSTRUCTOR), money("4000.00"),
                 money("0.00"), any(), any(), any());
         assertSettlement(settlement(), "10000.00", "0.00", "10000.00", "0.00");
     }
@@ -181,11 +182,11 @@ class OrderCaptureWalletCreditListenerTest {
         givenClassOfCourse("Flower Gardening", "30.00");
         when(courseInfoService.getCourseCreatorUserUuid(courseUuid)).thenReturn(Optional.empty());
         givenDirectInstructor();
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
 
         capture(classLine("line-1", "50000.00"));
 
-        verify(walletService).settleSaleShare(eq(WalletOwner.user(instructorUserUuid)), any(), any(), any(), any(), any());
+        verify(walletService).settleSaleShare(eq(WalletOwner.user(instructorUserUuid)), eq(WalletPurse.INSTRUCTOR), any(), any(), any(), any(), any());
         assertSettlement(settlement(), "50000.00", "3500.00", "31500.00", "15000.00");
         assertThat(settlement().creatorCreditedAmount()).isEqualByComparingTo("0");
         assertThat(settlement().split().creator()).isEqualTo(SaleSplitDetail.Leg.unpaid(null, null, SaleLegStatus.NO_EARNER));
@@ -200,7 +201,7 @@ class OrderCaptureWalletCreditListenerTest {
         givenCreator();
         when(classDefinitionLookupService.findHiringOrganisationUuid(classUuid)).thenReturn(Optional.empty());
         when(classDefinitionLookupService.findDefaultInstructorUuid(classUuid)).thenReturn(Optional.empty());
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
 
         capture(classLine("line-1", "50000.00"));
 
@@ -216,7 +217,7 @@ class OrderCaptureWalletCreditListenerTest {
 
         capture(classLine("line-1", "1000.00"));
 
-        verify(walletService, never()).settleSaleShare(any(), any(), any(), any(), any(), any());
+        verify(walletService, never()).settleSaleShare(any(), any(), any(), any(), any(), any(), any());
         assertSettlement(settlement(), "1000.00", "0.00", "0.00", "1000.00");
         assertThat(settlement().split().creator().status()).isEqualTo(SaleLegStatus.NOT_SPLIT);
         assertThat(settlement().split().delivery().status()).isEqualTo(SaleLegStatus.NOT_SPLIT);
@@ -235,13 +236,13 @@ class OrderCaptureWalletCreditListenerTest {
                 .thenReturn(Optional.of(new RevenueShare(new BigDecimal("40.00"), new BigDecimal("60.00"))));
         when(courseInfoService.getTrainingProgramCreatorUserUuid(programUuid)).thenReturn(Optional.of(creatorUserUuid));
         givenDirectInstructor();
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
 
         capture(line("line-1", "10000.00", Map.of("class_definition_uuid", classUuid.toString())));
 
-        verify(walletService).settleSaleShare(eq(WalletOwner.user(creatorUserUuid)), money("4000.00"), money("400.00"),
+        verify(walletService).settleSaleShare(eq(WalletOwner.user(creatorUserUuid)), eq(WalletPurse.COURSE_CREATOR), money("4000.00"), money("400.00"),
                 any(), eq(ORDER_ID + ":line-1:creator"), argThat(d -> d.contains("Data Analytics Cohort")));
-        verify(walletService).settleSaleShare(eq(WalletOwner.user(instructorUserUuid)), money("6000.00"),
+        verify(walletService).settleSaleShare(eq(WalletOwner.user(instructorUserUuid)), eq(WalletPurse.INSTRUCTOR), money("6000.00"),
                 money("600.00"), any(), eq(ORDER_ID + ":line-1:delivery"), any());
         assertSettlement(settlement(), "10000.00", "1000.00", "9000.00", "0.00");
     }
@@ -253,7 +254,7 @@ class OrderCaptureWalletCreditListenerTest {
 
         capture(new CartItemResponse[]{line("line-1", "1000.00", Map.of())});
 
-        verify(walletService, never()).settleSaleShare(any(), any(), any(), any(), any(), any());
+        verify(walletService, never()).settleSaleShare(any(), any(), any(), any(), any(), any(), any());
         assertSettlement(settlement(), "1000.00", "0.00", "0.00", "1000.00");
     }
 
@@ -282,7 +283,7 @@ class OrderCaptureWalletCreditListenerTest {
         givenClassOfCourse("Flower Gardening", "30.00");
         givenCreator();
         givenDirectInstructor();
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any())).thenReturn(false);
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), any())).thenReturn(false);
 
         capture(classLine("line-1", "50000.00"));
 
@@ -296,15 +297,15 @@ class OrderCaptureWalletCreditListenerTest {
         givenClassOfCourse("Flower Gardening", "30.00");
         givenCreator();
         givenDirectInstructor();
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), argThat(d -> d != null)))
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), argThat(d -> d != null)))
                 .thenReturn(true);
-        when(walletService.settleSaleShare(any(), any(), any(), any(), eq(ORDER_ID + ":line-1:creator"), any()))
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), eq(ORDER_ID + ":line-1:creator"), any()))
                 .thenThrow(new IllegalStateException("wallet unavailable"));
 
         assertThatThrownBy(() -> capture(classLine("line-1", "100.00"), classLine("line-2", "100.00")))
                 .isInstanceOf(WalletCreditFailedException.class);
 
-        verify(walletService).settleSaleShare(any(), any(), any(), any(), eq(ORDER_ID + ":line-2:creator"), any());
+        verify(walletService).settleSaleShare(any(), any(), any(), any(), any(), eq(ORDER_ID + ":line-2:creator"), any());
         assertThat(settlements()).extracting(PurchaseLineSettlement::lineItemId).containsExactly("line-2");
     }
 

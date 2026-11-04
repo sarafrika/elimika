@@ -28,6 +28,7 @@ import apps.sarafrika.elimika.wallet.repository.PayoutMethodRepository;
 import apps.sarafrika.elimika.wallet.repository.WithdrawalRepository;
 import apps.sarafrika.elimika.wallet.service.PayoutSettingsService;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import apps.sarafrika.elimika.wallet.service.WithdrawalNotifier;
 import apps.sarafrika.elimika.wallet.service.WithdrawalService;
 import apps.sarafrika.elimika.wallet.service.impl.WalletServiceImpl;
@@ -185,7 +186,7 @@ class WithdrawalsIntegrationTest {
         fund(earner, "5000");
         PayoutMethod method = method(earner, "254712345678", true);
 
-        WithdrawalService.RequestedWithdrawal requested = withdrawals.request(earner, new BigDecimal("1500"),
+        WithdrawalService.RequestedWithdrawal requested = withdrawals.request(earner, null, new BigDecimal("1500"),
                 method.getUuid(), "key-1");
         assertThat(requested.withdrawal().getStatus()).isEqualTo(WithdrawalStatus.AWAITING_CONFIRMATION);
         assertThat(balance(earner)).isEqualByComparingTo("5000");
@@ -255,17 +256,17 @@ class WithdrawalsIntegrationTest {
         fund(earner, "2000");
         PayoutMethod method = method(earner, "254712345678", true);
 
-        assertThatThrownBy(() -> withdrawals.request(earner, new BigDecimal("50"), method.getUuid(), "a"))
+        assertThatThrownBy(() -> withdrawals.request(earner, null, new BigDecimal("50"), method.getUuid(), "a"))
                 .hasMessageContaining("minimum");
-        assertThatThrownBy(() -> withdrawals.request(earner, new BigDecimal("2500"), method.getUuid(), "b"))
+        assertThatThrownBy(() -> withdrawals.request(earner, null, new BigDecimal("2500"), method.getUuid(), "b"))
                 .hasMessageContaining("up to KES 2,000");
-        assertThatThrownBy(() -> withdrawals.request(earner, new BigDecimal("150.50"), method.getUuid(), "c"))
+        assertThatThrownBy(() -> withdrawals.request(earner, null, new BigDecimal("150.50"), method.getUuid(), "c"))
                 .hasMessageContaining("whole number");
 
         PayoutMethod held = method(earner, "254110552871", true);
         held.setUnlockAt(OffsetDateTime.now(ZoneOffset.UTC).plusHours(5));
         methodRepository.save(held);
-        assertThatThrownBy(() -> withdrawals.request(earner, new BigDecimal("500"), held.getUuid(), "d"))
+        assertThatThrownBy(() -> withdrawals.request(earner, null, new BigDecimal("500"), held.getUuid(), "d"))
                 .hasMessageContaining("on hold");
     }
 
@@ -276,13 +277,13 @@ class WithdrawalsIntegrationTest {
         fund(earner, "2000");
         PayoutMethod method = method(earner, "254712345678", true);
 
-        Withdrawal first = withdrawals.request(earner, new BigDecimal("500"), method.getUuid(), "same").withdrawal();
-        WithdrawalService.RequestedWithdrawal again = withdrawals.request(earner, new BigDecimal("500"), method.getUuid(), "same");
+        Withdrawal first = withdrawals.request(earner, null, new BigDecimal("500"), method.getUuid(), "same").withdrawal();
+        WithdrawalService.RequestedWithdrawal again = withdrawals.request(earner, null, new BigDecimal("500"), method.getUuid(), "same");
 
         assertThat(again.withdrawal().getUuid()).isEqualTo(first.getUuid());
         assertThat(again.verification()).isNull();
         assertThat(Fakes.SMS).hasSize(1);
-        assertThatThrownBy(() -> withdrawals.request(earner, new BigDecimal("400"), method.getUuid(), "other"))
+        assertThatThrownBy(() -> withdrawals.request(earner, null, new BigDecimal("400"), method.getUuid(), "other"))
                 .hasMessageContaining("already in progress");
     }
 
@@ -322,7 +323,7 @@ class WithdrawalsIntegrationTest {
         assertThat(withdrawalRepository.findByUuid(uuid).orElseThrow().getStatus()).isEqualTo(WithdrawalStatus.PROCESSING);
 
         PayoutMethod other = method(earner, "254110552871", true);
-        Withdrawal stale = withdrawals.request(earner, new BigDecimal("300"), other.getUuid(), "key-6").withdrawal();
+        Withdrawal stale = withdrawals.request(earner, null, new BigDecimal("300"), other.getUuid(), "key-6").withdrawal();
         jdbc.update("update withdrawals set created_date = ? where uuid = ?",
                 LocalDateTime.now(ZoneOffset.UTC).minusHours(1), stale.getUuid());
         withdrawals.expire(stale.getUuid());
@@ -359,7 +360,7 @@ class WithdrawalsIntegrationTest {
     }
 
     private UUID confirm(WalletOwner owner, PayoutMethod method, String amount, String key) {
-        Withdrawal requested = withdrawals.request(owner, new BigDecimal(amount), method.getUuid(), key).withdrawal();
+        Withdrawal requested = withdrawals.request(owner, null, new BigDecimal(amount), method.getUuid(), key).withdrawal();
         return withdrawals.confirm(owner, requested.getUuid(), lastCode()).getUuid();
     }
 
@@ -371,7 +372,7 @@ class WithdrawalsIntegrationTest {
     }
 
     private void fund(WalletOwner owner, String amount) {
-        walletService.settleSaleShare(owner, new BigDecimal(amount), BigDecimal.ZERO, KES,
+        walletService.settleSaleShare(owner, WalletPurse.deliveryLegOf(owner.type()), new BigDecimal(amount), BigDecimal.ZERO, KES,
                 "sale-" + UUID.randomUUID(), "Class sale share");
     }
 
@@ -388,10 +389,11 @@ class WithdrawalsIntegrationTest {
         method = methodRepository.saveAndFlush(method);
         if (paidBefore) {
             jdbc.update("insert into withdrawals (reference, owner_type, owner_uuid, currency_code, amount, fee_amount, "
-                            + "net_amount, payout_method_uuid, msisdn, status, idempotency_key, created_by) "
-                            + "values (?, ?, ?, 'KES', 100, 0, 100, ?, ?, 'PAID', ?, 'TEST')",
+                            + "net_amount, payout_method_uuid, msisdn, status, idempotency_key, created_by, purse) "
+                            + "values (?, ?, ?, 'KES', 100, 0, 100, ?, ?, 'PAID', ?, 'TEST', "
+                            + "case when ? = 'ORGANISATION' then 'EARNINGS' else 'INSTRUCTOR' end)",
                     "WD-OLD-" + USER_NO.incrementAndGet(), owner.type().name(), owner.uuid(), method.getUuid(), msisdn,
-                    "old-" + UUID.randomUUID());
+                    "old-" + UUID.randomUUID(), owner.type().name());
         }
         return method;
     }

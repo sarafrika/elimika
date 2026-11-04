@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.PartyNameLookupService;
 import apps.sarafrika.elimika.shared.spi.revenue.SaleDeliveryKind;
 import apps.sarafrika.elimika.shared.spi.revenue.SaleFeeMode;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleLegSide;
 import apps.sarafrika.elimika.shared.spi.revenue.SalePartyType;
 import apps.sarafrika.elimika.shared.spi.revenue.SaleSplitDetail;
 import apps.sarafrika.elimika.shared.spi.revenue.SaleSplitQueryService;
@@ -19,6 +20,7 @@ import apps.sarafrika.elimika.wallet.service.SaleSplitRole;
 import apps.sarafrika.elimika.wallet.service.SaleSplitService;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.util.ArrayList;
@@ -56,16 +58,31 @@ public class SaleSplitServiceImpl implements SaleSplitService {
 
     @Override
     public Page<SaleSplitDTO> salesOf(WalletOwner owner, Pageable pageable) {
-        Page<SaleSplitView> page = splitQueries.findPaidTo(partyType(owner), owner.uuid(), pageable);
-        return new PageImpl<>(toDtos(page.getContent(), owner), page.getPageable(), page.getTotalElements());
+        return salesOf(owner, null, pageable);
+    }
+
+    @Override
+    public Page<SaleSplitDTO> salesOf(WalletOwner owner, WalletPurse purse, Pageable pageable) {
+        Viewer viewer = Viewer.of(owner, purse);
+        if (viewer.paysNoLeg()) {
+            return Page.empty(pageable);
+        }
+        Page<SaleSplitView> page = splitQueries.findPaidTo(partyType(owner), owner.uuid(), viewer.side(), pageable);
+        return new PageImpl<>(toDtos(page.getContent(), viewer), page.getPageable(), page.getTotalElements());
     }
 
     @Override
     public SaleSplitDTO saleOf(WalletOwner owner, UUID splitUuid) {
+        return saleOf(owner, null, splitUuid);
+    }
+
+    @Override
+    public SaleSplitDTO saleOf(WalletOwner owner, WalletPurse purse, UUID splitUuid) {
+        Viewer viewer = Viewer.of(owner, purse);
         SaleSplitView split = splitQueries.findByUuid(splitUuid)
-                .filter(s -> paidTo(s.creator(), owner) || paidTo(s.delivery(), owner))
+                .filter(s -> viewer.creatorLeg(s) || viewer.deliveryLeg(s))
                 .orElseThrow(() -> new ResourceNotFoundException("Sale split not found."));
-        return toDtos(List.of(split), owner).get(0);
+        return toDtos(List.of(split), viewer).get(0);
     }
 
     @Override
@@ -121,7 +138,7 @@ public class SaleSplitServiceImpl implements SaleSplitService {
         return null;
     }
 
-    private List<SaleSplitDTO> toDtos(List<SaleSplitView> splits, WalletOwner viewer) {
+    private List<SaleSplitDTO> toDtos(List<SaleSplitView> splits, Viewer viewer) {
         if (splits.isEmpty()) {
             return List.of();
         }
@@ -134,17 +151,25 @@ public class SaleSplitServiceImpl implements SaleSplitService {
         return result;
     }
 
-    private SaleSplitDTO toDto(SaleSplitView split, WalletOwner viewer, Names names, List<UserWalletTransaction> rows) {
-        boolean viewerIsCreator = viewer != null && paidTo(split.creator(), viewer);
-        boolean viewerDelivers = viewer != null && paidTo(split.delivery(), viewer);
+    private SaleSplitDTO toDto(SaleSplitView split, Viewer viewer, Names names, List<UserWalletTransaction> rows) {
+        boolean viewerIsCreator = viewer != null && viewer.creatorLeg(split);
+        boolean viewerDelivers = viewer != null && viewer.deliveryLeg(split);
         SaleSplitRole deliveryRole = deliveryRole(split.deliveryKind());
+        WalletOwner owner = viewer == null ? null : viewer.owner();
 
         SaleSplitRole yourRole = null;
+        WalletPurse yourPurse = null;
         BigDecimal yourGross = null;
         BigDecimal yourFee = null;
         BigDecimal yourNet = null;
         if (viewerIsCreator || viewerDelivers) {
             yourRole = viewerIsCreator ? SaleSplitRole.COURSE_CREATOR : deliveryRole;
+            if (!(viewerIsCreator && viewerDelivers)) {
+                yourPurse = viewerIsCreator ? WalletPurse.creatorLegOf(owner.type())
+                        : WalletPurse.deliveryLegOf(owner.type());
+            } else if (owner.type() == WalletOwnerType.ORGANISATION) {
+                yourPurse = WalletPurse.EARNINGS;
+            }
             yourGross = money(BigDecimal.ZERO);
             yourFee = money(BigDecimal.ZERO);
             yourNet = money(BigDecimal.ZERO);
@@ -157,11 +182,11 @@ public class SaleSplitServiceImpl implements SaleSplitService {
         }
 
         List<SaleSplitTransactionDTO> transactions = rows.stream()
-                .filter(row -> viewer == null || viewer.equals(row.getWallet().owner()))
+                .filter(row -> viewer == null || viewer.shows(row))
                 .map(row -> new SaleSplitTransactionDTO(row.getUuid(), row.getWallet().getUuid(),
                         row.getTransactionType(),
                         stripFee(row.getReference()).endsWith(CREATOR) ? SaleSplitRole.COURSE_CREATOR : deliveryRole,
-                        row.getReference(), money(row.getAmount())))
+                        row.getWallet().getPurse(), row.getReference(), money(row.getAmount())))
                 .toList();
 
         return new SaleSplitDTO(
@@ -177,11 +202,12 @@ public class SaleSplitServiceImpl implements SaleSplitService {
                 money(split.lineGross()),
                 split.creatorPercentage() == null ? null : split.creatorPercentage().stripTrailingZeros(),
                 yourRole,
+                yourPurse,
                 yourGross,
                 yourFee,
                 yourNet,
-                party(SaleSplitRole.COURSE_CREATOR, split.creator(), viewer, names),
-                party(deliveryRole, split.delivery(), viewer, names),
+                party(SaleSplitRole.COURSE_CREATOR, split.creator(), owner, names),
+                party(deliveryRole, split.delivery(), owner, names),
                 money(split.platformFeeTotal()),
                 money(split.retained()),
                 split.reconciles(),
@@ -245,6 +271,44 @@ public class SaleSplitServiceImpl implements SaleSplitService {
             return null;
         }
         return new WalletOwner(WalletOwnerType.valueOf(leg.ownerType().name()), leg.ownerUuid());
+    }
+
+    /**
+     * Who is looking, and through which purse: a person's COURSE_CREATOR purse sees only their creator legs,
+     * INSTRUCTOR only their delivery legs, STUDENT none; no purse (or an organisation's EARNINGS) sees both.
+     */
+    private record Viewer(WalletOwner owner, WalletPurse purse) {
+
+        static Viewer of(WalletOwner owner, WalletPurse purse) {
+            if (purse != null && !purse.isAllowedFor(owner.type())) {
+                throw new IllegalArgumentException("A " + owner.type().name().toLowerCase(java.util.Locale.ROOT)
+                        + " wallet has no " + purse + " purse");
+            }
+            return new Viewer(owner, purse == WalletPurse.EARNINGS ? null : purse);
+        }
+
+        boolean paysNoLeg() {
+            return purse == WalletPurse.STUDENT;
+        }
+
+        SaleLegSide side() {
+            if (purse == WalletPurse.COURSE_CREATOR) {
+                return SaleLegSide.CREATOR;
+            }
+            return purse == WalletPurse.INSTRUCTOR ? SaleLegSide.DELIVERY : null;
+        }
+
+        boolean creatorLeg(SaleSplitView split) {
+            return (purse == null || purse == WalletPurse.COURSE_CREATOR) && paidTo(split.creator(), owner);
+        }
+
+        boolean deliveryLeg(SaleSplitView split) {
+            return (purse == null || purse == WalletPurse.INSTRUCTOR) && paidTo(split.delivery(), owner);
+        }
+
+        boolean shows(UserWalletTransaction row) {
+            return owner.equals(row.getWallet().owner()) && (purse == null || row.getWallet().getPurse() == purse);
+        }
     }
 
     private static SalePartyType partyType(WalletOwner owner) {

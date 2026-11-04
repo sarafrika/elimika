@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.wallet.dto;
 
 import apps.sarafrika.elimika.wallet.enums.WalletTransactionType;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -116,6 +117,16 @@ public record WalletTransactionDTO(
                 accessMode = Schema.AccessMode.READ_ONLY
         )
         @JsonProperty("sale_split_uuid")
-        UUID saleSplitUuid
+        UUID saleSplitUuid,
+
+        @Schema(
+                description = "**[READ-ONLY]** The purse whose balance this row moved: COURSE_CREATOR, INSTRUCTOR or "
+                        + "STUDENT for a person, EARNINGS for an organisation; balance_before and balance_after are "
+                        + "that purse's.",
+                example = "COURSE_CREATOR",
+                accessMode = Schema.AccessMode.READ_ONLY
+        )
+        @JsonProperty("purse")
+        WalletPurse purse
 ) {
 }

@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
 import apps.sarafrika.elimika.wallet.enums.LedgerPurse;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import apps.sarafrika.elimika.wallet.ledger.LedgerAccountRef;
 import apps.sarafrika.elimika.wallet.ledger.LedgerService;
 import apps.sarafrika.elimika.wallet.ledger.WalletLedgerReconciliationJob;
@@ -130,13 +131,23 @@ class WalletLedgerIntegrationTest {
         return uuid;
     }
 
+    /** The ledger account of a person's INSTRUCTOR purse, where these tests pay sales. */
     private UUID earningsAccount(UUID userUuid) {
-        return ledgerService.getOrCreateAccountUuid(LedgerAccountRef.userEarnings(userUuid, KES));
+        return purseAccount(userUuid, LedgerPurse.INSTRUCTOR);
+    }
+
+    private UUID purseAccount(UUID userUuid, LedgerPurse purse) {
+        return ledgerService.getOrCreateAccountUuid(LedgerAccountRef.userPurse(userUuid, purse, KES));
+    }
+
+    /** The person's pre-purse EARNINGS account, which only the opening-balance backfill wrote to. */
+    private UUID legacyEarningsAccount(UUID userUuid) {
+        return purseAccount(userUuid, LedgerPurse.EARNINGS);
     }
 
     private BigDecimal walletBalance(UUID userUuid) {
         return jdbc.queryForObject(
-                "select balance_amount from user_wallets where user_uuid = ? and currency_code = ?",
+                "select sum(balance_amount) from user_wallets where user_uuid = ? and currency_code = ?",
                 BigDecimal.class, userUuid, KES);
     }
 
@@ -161,7 +172,7 @@ class WalletLedgerIntegrationTest {
     void creditProducesBalancedEntriesMatchingTheWalletDelta() {
         UUID earner = user("Amina");
 
-        UserWallet wallet = walletService.creditSale(earner, new BigDecimal("700.00"), KES, "order-1:line-1", "Sale");
+        UserWallet wallet = walletService.creditSale(earner, WalletPurse.INSTRUCTOR, new BigDecimal("700.00"), KES, "order-1:line-1", "Sale");
 
         assertThat(wallet.getBalanceAmount()).isEqualByComparingTo("700.00");
         assertThat(walletBalance(earner)).isEqualByComparingTo("700.00");
@@ -188,11 +199,11 @@ class WalletLedgerIntegrationTest {
     void depositIsFundedFromCash() {
         UUID holder = user("Brian");
 
-        walletService.deposit(holder, new BigDecimal("250.00"), KES, "topup-1", "Top up");
+        walletService.deposit(holder, null, new BigDecimal("250.00"), KES, "topup-1", "Top up");
 
         UUID cash = ledgerService.getOrCreateAccountUuid(LedgerAccountRef.platformCashMpesa(KES));
         assertThat(ledgerService.derivedBalance(cash)).isEqualByComparingTo("250.00");
-        assertThat(ledgerService.derivedBalance(earningsAccount(holder))).isEqualByComparingTo("250.00");
+        assertThat(ledgerService.derivedBalance(purseAccount(holder, LedgerPurse.STUDENT))).isEqualByComparingTo("250.00");
     }
 
     @Test
@@ -201,8 +212,8 @@ class WalletLedgerIntegrationTest {
         UUID earner = user("Cynthia");
         String reference = "order-9:line-1";
 
-        assertThat(walletService.creditSaleIdempotent(earner, new BigDecimal("400.00"), KES, reference, "Sale")).isTrue();
-        assertThat(walletService.creditSaleIdempotent(earner, new BigDecimal("400.00"), KES, reference, "Sale")).isFalse();
+        assertThat(walletService.creditSaleIdempotent(earner, WalletPurse.INSTRUCTOR, new BigDecimal("400.00"), KES, reference, "Sale")).isTrue();
+        assertThat(walletService.creditSaleIdempotent(earner, WalletPurse.INSTRUCTOR, new BigDecimal("400.00"), KES, reference, "Sale")).isFalse();
 
         assertThat(walletBalance(earner)).isEqualByComparingTo("400.00");
         assertThat(ledgerTransactionCount()).isOne();
@@ -215,16 +226,17 @@ class WalletLedgerIntegrationTest {
         UUID sender = user("Dorcas");
         UUID recipient = user("Elijah");
 
-        walletService.deposit(sender, new BigDecimal("1000.00"), KES, "topup-2", "Top up");
-        walletService.creditSale(sender, new BigDecimal("500.00"), KES, "order-2:line-1", "Sale");
-        walletService.transfer(sender, recipient, new BigDecimal("300.00"), KES, "gift-1", "Gift");
+        walletService.deposit(sender, null, new BigDecimal("1000.00"), KES, "topup-2", "Top up");
+        walletService.creditSale(sender, WalletPurse.INSTRUCTOR, new BigDecimal("500.00"), KES, "order-2:line-1", "Sale");
+        walletService.transfer(sender, WalletPurse.STUDENT, recipient, new BigDecimal("300.00"), KES, "gift-1", "Gift");
 
-        UUID senderAccount = earningsAccount(sender);
-        UUID recipientAccount = earningsAccount(recipient);
+        UUID senderAccount = purseAccount(sender, LedgerPurse.STUDENT);
+        UUID recipientAccount = purseAccount(recipient, LedgerPurse.STUDENT);
 
         assertThat(walletBalance(sender)).isEqualByComparingTo("1200.00");
         assertThat(walletBalance(recipient)).isEqualByComparingTo("300.00");
-        assertThat(ledgerService.derivedBalance(senderAccount)).isEqualByComparingTo("1200.00");
+        assertThat(ledgerService.derivedBalance(senderAccount)).isEqualByComparingTo("700.00");
+        assertThat(ledgerService.derivedBalance(earningsAccount(sender))).isEqualByComparingTo("500.00");
         assertThat(ledgerService.derivedBalance(recipientAccount)).isEqualByComparingTo("300.00");
         assertThat(ledgerService.cachedBalance(senderAccount))
                 .isEqualByComparingTo(ledgerService.derivedBalance(senderAccount));
@@ -243,7 +255,7 @@ class WalletLedgerIntegrationTest {
     void reconciliationIsCleanAcrossManyWallets() {
         // More wallets than one batch holds, so the keyset paging is actually walked.
         for (int i = 0; i < 5; i++) {
-            walletService.creditSale(user("Earner" + i), new BigDecimal("100.00"), KES, "order-b" + i, "Sale");
+            walletService.creditSale(user("Earner" + i), WalletPurse.INSTRUCTOR, new BigDecimal("100.00"), KES, "order-b" + i, "Sale");
         }
 
         WalletLedgerReconciliationReport report = reconciliationJob.runOnce();
@@ -263,7 +275,7 @@ class WalletLedgerIntegrationTest {
         jdbc.execute("alter table ledger_entries add constraint tmp_ledger_outage check (false) not valid");
         try {
             assertThatCode(() -> walletService.creditSale(
-                    earner, new BigDecimal("700.00"), KES, "order-3:line-1", "Sale"))
+                    earner, WalletPurse.INSTRUCTOR, new BigDecimal("700.00"), KES, "order-3:line-1", "Sale"))
                     .doesNotThrowAnyException();
         } finally {
             jdbc.execute("alter table ledger_entries drop constraint tmp_ledger_outage");
@@ -287,7 +299,7 @@ class WalletLedgerIntegrationTest {
     @DisplayName("reconciliation notices a wallet edited behind the ledger's back")
     void reconciliationDetectsAnIntroducedDivergence() {
         UUID earner = user("Grace");
-        walletService.creditSale(earner, new BigDecimal("500.00"), KES, "order-4:line-1", "Sale");
+        walletService.creditSale(earner, WalletPurse.INSTRUCTOR, new BigDecimal("500.00"), KES, "order-4:line-1", "Sale");
         assertThat(reconciliationJob.runOnce().isClean()).isTrue();
 
         jdbc.update("update user_wallets set balance_amount = balance_amount + 250 where user_uuid = ?", earner);
@@ -306,16 +318,17 @@ class WalletLedgerIntegrationTest {
     void backfillIsIdempotent() {
         // A wallet that pre-dates the ledger: written straight to the table, no postings behind it.
         UUID legacy = user("Hadija");
-        jdbc.update("insert into user_wallets (user_uuid, currency_code, balance_amount, created_by) "
-                + "values (?, ?, 850.0000, 'TEST')", legacy, KES);
+        jdbc.update("insert into user_wallets (user_uuid, currency_code, balance_amount, purse, created_by) "
+                + "values (?, ?, 850.0000, 'INSTRUCTOR', 'TEST')", legacy, KES);
         UUID zeroBalance = user("Ibrahim");
-        jdbc.update("insert into user_wallets (user_uuid, currency_code, balance_amount, created_by) "
-                + "values (?, ?, 0, 'TEST')", zeroBalance, KES);
+        jdbc.update("insert into user_wallets (user_uuid, currency_code, balance_amount, purse, created_by) "
+                + "values (?, ?, 0, 'INSTRUCTOR', 'TEST')", zeroBalance, KES);
 
         String script = backfillScript();
         jdbc.execute(script);
 
-        UUID account = earningsAccount(legacy);
+        // That backfill predates purses and opens a person's EARNINGS account; the role purse split moves it on.
+        UUID account = legacyEarningsAccount(legacy);
         assertThat(ledgerTransactionCount()).isOne();
         assertThat(jdbc.queryForObject("select count(*) from ledger_entries", Long.class)).isEqualTo(2L);
         assertThat(ledgerService.derivedBalance(account)).isEqualByComparingTo("850.0000");
@@ -324,7 +337,6 @@ class WalletLedgerIntegrationTest {
         assertThat(jdbc.queryForObject(
                 "select count(*) from ledger_accounts where owner_type = 'USER' and owner_uuid = ?",
                 Long.class, zeroBalance)).isOne();
-        assertThat(reconciliationJob.runOnce().isClean()).isTrue();
 
         jdbc.execute(script);
 
@@ -332,36 +344,36 @@ class WalletLedgerIntegrationTest {
         assertThat(jdbc.queryForObject("select count(*) from ledger_entries", Long.class)).isEqualTo(2L);
         assertThat(ledgerService.derivedBalance(account)).isEqualByComparingTo("850.0000");
         assertThat(ledgerService.cachedBalance(account)).isEqualByComparingTo("850.0000");
-        assertThat(reconciliationJob.runOnce().isClean()).isTrue();
     }
 
     @Test
     @DisplayName("the backfill leaves live dual-written balances alone when it is replayed")
     void backfillDoesNotDisturbLiveLedgerActivity() {
         UUID legacy = user("Joyce");
-        jdbc.update("insert into user_wallets (user_uuid, currency_code, balance_amount, created_by) "
-                + "values (?, ?, 400.0000, 'TEST')", legacy, KES);
+        jdbc.update("insert into user_wallets (user_uuid, currency_code, balance_amount, purse, created_by) "
+                + "values (?, ?, 400.0000, 'INSTRUCTOR', 'TEST')", legacy, KES);
 
         String script = backfillScript();
         jdbc.execute(script);
-        walletService.creditSale(legacy, new BigDecimal("100.00"), KES, "order-5:line-1", "Sale");
+        walletService.creditSale(legacy, WalletPurse.INSTRUCTOR, new BigDecimal("100.00"), KES, "order-5:line-1", "Sale");
 
         assertThat(walletBalance(legacy)).isEqualByComparingTo("500.00");
-        assertThat(ledgerService.derivedBalance(earningsAccount(legacy))).isEqualByComparingTo("500.00");
+        assertThat(ledgerService.derivedBalance(legacyEarningsAccount(legacy))).isEqualByComparingTo("400.00");
+        assertThat(ledgerService.derivedBalance(earningsAccount(legacy))).isEqualByComparingTo("100.00");
 
         // Replaying the backfill after live traffic must not re-open the balance nor rewrite the cache.
         jdbc.execute(script);
 
         assertThat(ledgerTransactionCount()).isEqualTo(2L);
-        assertThat(ledgerService.derivedBalance(earningsAccount(legacy))).isEqualByComparingTo("500.00");
-        assertThat(ledgerService.cachedBalance(earningsAccount(legacy))).isEqualByComparingTo("500.00");
-        assertThat(reconciliationJob.runOnce().isClean()).isTrue();
+        assertThat(ledgerService.derivedBalance(legacyEarningsAccount(legacy))).isEqualByComparingTo("400.00");
+        assertThat(ledgerService.cachedBalance(legacyEarningsAccount(legacy))).isEqualByComparingTo("400.00");
+        assertThat(ledgerService.cachedBalance(earningsAccount(legacy))).isEqualByComparingTo("100.00");
     }
 
     @Test
-    @DisplayName("the purse taxonomy stays closed to anything phase 1 did not define")
+    @DisplayName("the purse taxonomy stays closed to anything not defined")
     void purseValuesAreConstrained() {
-        assertThat(LedgerPurse.values()).hasSize(6);
+        assertThat(LedgerPurse.values()).hasSize(9);
         assertThatThrownBy(() -> jdbc.update(
                 "insert into ledger_accounts (owner_type, owner_uuid, account_type, purse, currency_code, created_by) "
                         + "values ('USER', ?, 'LIABILITY', 'RESTRICTED_SKILLS_FUND', ?, 'TEST')",

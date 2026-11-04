@@ -241,6 +241,7 @@ public class PayoutBatchServiceImpl implements PayoutBatchService {
                 withdrawalRepository.save(w);
                 Map<String, Object> rowExtra = new HashMap<>(extra);
                 WalletCheck check = checks.get(w.getUuid());
+                rowExtra.put("wallet_purse", w.getPurse().name());
                 rowExtra.put("wallet_flags", check.flags());
                 rowExtra.put("wallet_account_balance", check.accountBalance());
                 rowExtra.put("wallet_held_amount", check.heldAmount());

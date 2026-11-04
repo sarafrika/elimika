@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.wallet.dto;
 
 import apps.sarafrika.elimika.wallet.service.SaleSplitRole;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -28,9 +29,14 @@ public record SaleSplitDTO(
         @JsonProperty("line_gross") BigDecimal lineGross,
         @Schema(description = "The course creator's percentage of the line; null on backfilled splits", example = "30")
         @JsonProperty("creator_percentage") BigDecimal creatorPercentage,
-        @Schema(description = "The viewer's part in the sale; null for admins. A creator who also delivered is "
+        @Schema(description = "The viewer's part in the sale; null for admins. Asked for one purse, the role of "
+                + "that purse's leg, and your_* covers that leg only. Otherwise a creator who also delivered is "
                 + "COURSE_CREATOR, with both legs summed into your_gross, your_fee and your_net")
         @JsonProperty("your_role") SaleSplitRole yourRole,
+        @Schema(description = "The purse your_net was paid into: COURSE_CREATOR, INSTRUCTOR or EARNINGS. Null for "
+                + "admins, and when a person was paid on both legs and no purse was asked for (the legs went to two "
+                + "purses; see transactions[].purse)")
+        @JsonProperty("your_purse") WalletPurse yourPurse,
         @JsonProperty("your_gross") BigDecimal yourGross,
         @JsonProperty("your_fee") BigDecimal yourFee,
         @JsonProperty("your_net") BigDecimal yourNet,

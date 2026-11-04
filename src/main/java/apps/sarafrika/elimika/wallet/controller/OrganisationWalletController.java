@@ -59,7 +59,7 @@ public class OrganisationWalletController {
         WalletStanding standing = walletService.standingOf(
                 owner, currencyCode, walletSecurityService.canWithdrawFromOrganisation(organisationUuid));
         return ResponseEntity.ok(ApiResponse.success(summary.withTotals(walletService.totalsOf(owner, currencyCode))
-                        .withStanding(standing),
+                        .withStanding(standing).withPurses(walletService.pursesOf(owner, currencyCode)),
                 "Organisation wallet retrieved successfully"));
     }
 

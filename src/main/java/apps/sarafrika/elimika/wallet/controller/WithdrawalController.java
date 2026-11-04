@@ -68,7 +68,7 @@ public class WithdrawalController {
             description = "Nothing moves until the code sent by SMS to that number is confirmed.")
     public ResponseEntity<ApiResponse<WithdrawalCreatedDTO>> request(@PathVariable UUID userUuid,
                                                                      @Valid @RequestBody WithdrawalRequestDTO request) {
-        WithdrawalService.RequestedWithdrawal requested = withdrawalService.request(WalletOwner.user(userUuid), request.amount(),
+        WithdrawalService.RequestedWithdrawal requested = withdrawalService.request(WalletOwner.user(userUuid), request.purse(), request.amount(),
                 request.payoutMethodUuid(), request.idempotencyKey());
         return ResponseEntity.ok(ApiResponse.success(new WithdrawalCreatedDTO(WithdrawalDTO.from(requested.withdrawal()),
                 requested.verification() == null ? null : VerificationCodeDTO.from(requested.verification())),

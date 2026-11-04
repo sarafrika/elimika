@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.commerce.purchase.service.impl;
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchase;
 import apps.sarafrika.elimika.commerce.purchase.entity.CommercePurchaseItem;
 import apps.sarafrika.elimika.commerce.purchase.repository.CommercePurchaseItemRepository;
+import apps.sarafrika.elimika.shared.spi.revenue.SaleLegSide;
 import apps.sarafrika.elimika.shared.spi.revenue.SaleLegStatus;
 import apps.sarafrika.elimika.shared.spi.revenue.SalePartyType;
 import apps.sarafrika.elimika.shared.spi.revenue.SaleSplitDetail;
@@ -34,10 +35,20 @@ public class CommerceSaleSplitQueryService implements SaleSplitQueryService {
 
     @Override
     public Page<SaleSplitView> findPaidTo(SalePartyType ownerType, UUID ownerUuid, Pageable pageable) {
+        return findPaidTo(ownerType, ownerUuid, null, pageable);
+    }
+
+    @Override
+    public Page<SaleSplitView> findPaidTo(SalePartyType ownerType, UUID ownerUuid, SaleLegSide side,
+                                          Pageable pageable) {
         Pageable unsorted = pageable.isPaged() ? PageRequest.of(pageable.getPageNumber(), pageable.getPageSize())
                 : pageable;
-        return purchaseItemRepository.findSplitsPaidTo(ownerType, ownerUuid, SaleLegStatus.PAID, unsorted)
-                .map(CommerceSaleSplitQueryService::toView);
+        Page<CommercePurchaseItem> page = side == null
+                ? purchaseItemRepository.findSplitsPaidTo(ownerType, ownerUuid, SaleLegStatus.PAID, unsorted)
+                : side == SaleLegSide.CREATOR
+                ? purchaseItemRepository.findSplitsPaidToCreator(ownerType, ownerUuid, SaleLegStatus.PAID, unsorted)
+                : purchaseItemRepository.findSplitsPaidToDelivery(ownerType, ownerUuid, SaleLegStatus.PAID, unsorted);
+        return page.map(CommerceSaleSplitQueryService::toView);
     }
 
     @Override

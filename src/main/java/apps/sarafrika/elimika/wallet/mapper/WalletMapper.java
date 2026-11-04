@@ -1,12 +1,20 @@
 package apps.sarafrika.elimika.wallet.mapper;
 
-import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
-import apps.sarafrika.elimika.wallet.service.WalletStanding;
-import apps.sarafrika.elimika.wallet.service.WalletTotals;
 import apps.sarafrika.elimika.wallet.dto.WalletDTO;
 import apps.sarafrika.elimika.wallet.dto.WalletTransactionDTO;
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
+import apps.sarafrika.elimika.wallet.service.WalletOwner;
+import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
+import apps.sarafrika.elimika.wallet.service.WalletPurseBalance;
+import apps.sarafrika.elimika.wallet.service.WalletPurseSummary;
+import apps.sarafrika.elimika.wallet.service.WalletStanding;
+import apps.sarafrika.elimika.wallet.service.WalletTotals;
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.Comparator;
+import java.util.List;
+import java.util.Objects;
 import java.util.UUID;
 
 public final class WalletMapper {
@@ -14,12 +22,8 @@ public final class WalletMapper {
     private WalletMapper() {
     }
 
+    /** One purse row, as a deposit, sale credit or transfer returns it. */
     public static WalletDTO toDto(UserWallet wallet) {
-        return toDto(wallet, null, null);
-    }
-
-    /** With lifetime totals and the caller's standing, for the screens that show them. */
-    public static WalletDTO toDto(UserWallet wallet, WalletTotals totals, WalletStanding standing) {
         if (wallet == null) {
             return null;
         }
@@ -32,13 +36,47 @@ public final class WalletMapper {
                 wallet.getBalanceAmount(),
                 wallet.getCreatedDate(),
                 wallet.getLastModifiedDate(),
-                totals == null ? null : totals.sharesTotal(),
-                totals == null ? null : totals.platformFeesTotal(),
-                totals == null ? null : totals.salesCount(),
-                totals == null ? null : totals.transferredOutTotal(),
-                standing == null ? null : standing.heldAmount(),
-                standing == null ? null : standing.availableAmount(),
-                standing == null ? null : standing.canWithdraw()
+                null, null, null, null, null, null, null,
+                wallet.getPurse(),
+                null,
+                null
+        );
+    }
+
+    /**
+     * The owner's wallet: every purse listed, and the top-level figures summed over them. Moves between the owner's
+     * own purses are left out of the summed transferred_out_total, which is what {@code totals} already holds.
+     */
+    public static WalletDTO toDto(WalletOwner owner, String currencyCode, List<WalletPurseBalance> purses,
+                                  WalletTotals totals, WalletStanding standing) {
+        BigDecimal balance = purses.stream().map(WalletPurseBalance::balanceAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal held = purses.stream().map(WalletPurseBalance::heldAmount).reduce(BigDecimal.ZERO, BigDecimal::add);
+        UUID oldest = purses.stream().filter(p -> p.walletUuid() != null && p.createdDate() != null)
+                .min(Comparator.comparing(WalletPurseBalance::createdDate))
+                .map(WalletPurseBalance::walletUuid).orElse(null);
+        LocalDateTime created = purses.stream().map(WalletPurseBalance::createdDate).filter(Objects::nonNull)
+                .min(Comparator.naturalOrder()).orElse(null);
+        LocalDateTime updated = purses.stream().map(WalletPurseBalance::updatedDate).filter(Objects::nonNull)
+                .max(Comparator.naturalOrder()).orElse(null);
+        return new WalletDTO(
+                oldest,
+                owner.type() == WalletOwnerType.USER ? owner.uuid() : null,
+                owner.type(),
+                owner.uuid(),
+                currencyCode,
+                balance,
+                created,
+                updated,
+                totals.sharesTotal(),
+                totals.platformFeesTotal(),
+                totals.salesCount(),
+                totals.transferredOutTotal(),
+                held,
+                balance,
+                standing == null ? null : standing.canWithdraw(),
+                null,
+                balance.add(held),
+                purses.stream().map(WalletPurseSummary::from).toList()
         );
     }
 
@@ -51,9 +89,10 @@ public final class WalletMapper {
         if (transaction == null) {
             return null;
         }
+        UserWallet wallet = transaction.getWallet();
         return new WalletTransactionDTO(
                 transaction.getUuid(),
-                transaction.getWallet() == null ? null : transaction.getWallet().getUuid(),
+                wallet == null ? null : wallet.getUuid(),
                 transaction.getTransactionType(),
                 transaction.getAmount(),
                 transaction.getCurrencyCode(),
@@ -64,7 +103,8 @@ public final class WalletMapper {
                 transaction.getTransferReference(),
                 transaction.getCounterpartyUserUuid(),
                 transaction.getCreatedDate(),
-                saleSplitUuid
+                saleSplitUuid,
+                wallet == null ? null : wallet.getPurse()
         );
     }
 }

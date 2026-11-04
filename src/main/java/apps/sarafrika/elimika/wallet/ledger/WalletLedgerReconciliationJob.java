@@ -13,8 +13,8 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 /**
- * Compares every wallet's {@code balance_amount} against the balance derived from its ledger
- * entries, and says so loudly when they differ.
+ * Compares every wallet row's {@code balance_amount} against the balance derived from the ledger
+ * entries of its purse's account, and says so loudly when they differ.
  * <p>
  * This is the safety net for the dual-write: a ledger write that fails is swallowed so it cannot
  * take a wallet credit down with it, which means divergence is possible by design. Divergence that
@@ -56,8 +56,8 @@ public class WalletLedgerReconciliationJob {
             log.error("Wallet/ledger reconciliation found {} divergent wallet(s) out of {} scanned",
                     report.divergences().size(), report.scanned());
             for (Divergence divergence : report.divergences()) {
-                log.error("Wallet {} (user {}, {}) holds {} but its ledger derives {} - difference {}",
-                        divergence.walletUuid(), divergence.userUuid(), divergence.currencyCode(),
+                log.error("Wallet {} (owner {}, {} purse, {}) holds {} but its ledger derives {} - difference {}",
+                        divergence.walletUuid(), divergence.userUuid(), divergence.purse(), divergence.currencyCode(),
                         divergence.walletBalance().toPlainString(), divergence.ledgerBalance().toPlainString(),
                         divergence.difference().toPlainString());
             }
@@ -93,7 +93,7 @@ public class WalletLedgerReconciliationJob {
                 BigDecimal ledger = row.getLedgerBalance();
                 if (wallet.compareTo(ledger) != 0) {
                     divergences.add(new Divergence(
-                            row.getWalletUuid(), row.getUserUuid(), row.getCurrencyCode(), wallet, ledger));
+                            row.getWalletUuid(), row.getUserUuid(), row.getPurse(), row.getCurrencyCode(), wallet, ledger));
                 }
             }
 

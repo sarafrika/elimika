@@ -75,6 +75,14 @@ public interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
     BigDecimal sumByStatus(@Param("ownerType") WalletOwnerType ownerType, @Param("ownerUuid") UUID ownerUuid,
                            @Param("currency") String currency, @Param("statuses") Collection<WithdrawalStatus> statuses);
 
+    /** Gross amount per purse, as {purse, sum}, of an owner's withdrawals in the given statuses. */
+    @Query("select w.purse, coalesce(sum(w.amount), 0) from Withdrawal w where w.ownerType = :ownerType "
+            + "and w.ownerUuid = :ownerUuid and w.currencyCode = :currency and w.status in :statuses group by w.purse")
+    List<Object[]> sumByPurseAndStatus(@Param("ownerType") WalletOwnerType ownerType, @Param("ownerUuid") UUID ownerUuid,
+                                       @Param("currency") String currency,
+                                       @Param("statuses") Collection<WithdrawalStatus> statuses);
+
+    /** Across every purse of the owner: the daily limit is per person, so moving money between purses cannot lift it. */
     @Query("select coalesce(sum(w.amount), 0) from Withdrawal w where w.ownerType = :ownerType "
             + "and w.ownerUuid = :ownerUuid and w.status in :statuses and w.createdDate >= :since")
     BigDecimal sumSince(@Param("ownerType") WalletOwnerType ownerType, @Param("ownerUuid") UUID ownerUuid,
@@ -99,13 +107,15 @@ public interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
     BigDecimal sumNetCompletedSince(@Param("status") WithdrawalStatus status, @Param("since") OffsetDateTime since);
 
     /**
-     * Per owner and currency: the held withdrawals' count and gross amount, and the wallet debits
-     * recorded for them (withdrawal and fee rows by reference, less reversals), in one statement.
+     * Per owner, currency and purse: the held withdrawals' count and gross amount, and the wallet debits
+     * recorded for them (withdrawal and fee rows by reference in any of the owner's purses, less reversals), in
+     * one statement.
      */
     @Query(value = """
             select w.owner_type    as "ownerType",
                    w.owner_uuid    as "ownerUuid",
                    w.currency_code as "currencyCode",
+                   w.purse         as "purse",
                    count(*)        as "heldCount",
                    coalesce(sum(w.amount), 0) as "heldAmount",
                    coalesce(sum(d.debited), 0) as "heldDebited"
@@ -124,7 +134,7 @@ public interface WithdrawalRepository extends JpaRepository<Withdrawal, Long> {
                 ) d on true
             where w.owner_uuid in (:ownerUuids)
               and w.status in (:statuses)
-            group by w.owner_type, w.owner_uuid, w.currency_code
+            group by w.owner_type, w.owner_uuid, w.currency_code, w.purse
             """, nativeQuery = true)
     List<HeldWithdrawalTotals> heldTotalsByOwner(@Param("ownerUuids") Collection<UUID> ownerUuids,
                                                  @Param("statuses") Collection<String> statuses);

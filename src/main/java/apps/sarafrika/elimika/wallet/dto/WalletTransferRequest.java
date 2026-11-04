@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.wallet.dto;
 
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -54,6 +55,14 @@ public record WalletTransferRequest(
                 example = "Reward payout"
         )
         @JsonProperty("description")
-        String description
+        String description,
+
+        @Schema(
+                description = "**[OPTIONAL]** The sender's purse the money leaves. May be left out when only one "
+                        + "purse holds money. The receiver is credited in their STUDENT purse.",
+                example = "COURSE_CREATOR"
+        )
+        @JsonProperty("source_purse")
+        WalletPurse sourcePurse
 ) {
 }

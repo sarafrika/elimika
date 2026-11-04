@@ -3,6 +3,8 @@ package apps.sarafrika.elimika.wallet.entity;
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
+import apps.sarafrika.elimika.wallet.util.converter.WalletPurseConverter;
 import apps.sarafrika.elimika.wallet.util.converter.WalletOwnerTypeConverter;
 import jakarta.persistence.Column;
 import jakarta.persistence.Convert;
@@ -34,6 +36,11 @@ public class UserWallet extends BaseEntity {
 
     @Column(name = "balance_amount")
     private BigDecimal balanceAmount = BigDecimal.ZERO;
+
+    /** Which of the owner's purses this row holds. */
+    @Convert(converter = WalletPurseConverter.class)
+    @Column(name = "purse")
+    private WalletPurse purse;
 
     public WalletOwner owner() {
         return new WalletOwner(ownerType, ownerUuid);

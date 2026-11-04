@@ -1,5 +1,7 @@
 package apps.sarafrika.elimika.payout.integration;
 
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatCode;
 import static org.mockito.ArgumentMatchers.any;
@@ -202,12 +204,12 @@ class WalletCreditEventDurabilityIntegrationTest {
     @Test
     @DisplayName("a successful credit completes its event publication")
     void successfulCreditCompletesThePublication() {
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any())).thenReturn(true);
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), any())).thenReturn(true);
 
         eventPublisher.publishEvent(capturedOrder());
 
         verify(walletService).settleSaleShare(
-                any(), any(BigDecimal.class), any(), any(), any(), any());
+                any(), any(), any(BigDecimal.class), any(), any(), any(), any());
         assertThat(completedPublications()).isOne();
         assertThat(incompletePublications()).isZero();
     }
@@ -215,7 +217,7 @@ class WalletCreditEventDurabilityIntegrationTest {
     @Test
     @DisplayName("a failed credit is durably recorded as an incomplete publication")
     void failedCreditLeavesAnIncompletePublication() {
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any()))
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalStateException("wallet unavailable"));
 
         eventPublisher.publishEvent(capturedOrder());
@@ -233,7 +235,7 @@ class WalletCreditEventDurabilityIntegrationTest {
     @Test
     @DisplayName("the order still completes when the credit fails")
     void publisherIsUnaffectedByACreditFailure() {
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any()))
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalStateException("wallet unavailable"));
 
         // Checkout availability: publishing must not blow up in the caller's face.
@@ -244,7 +246,7 @@ class WalletCreditEventDurabilityIntegrationTest {
     @Test
     @DisplayName("an incomplete publication is retried and pays the earner")
     void incompletePublicationCanBeResubmitted() {
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any()))
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalStateException("wallet unavailable"))
                 .thenReturn(true);
 
@@ -255,7 +257,7 @@ class WalletCreditEventDurabilityIntegrationTest {
                 publication -> publication.getEvent() instanceof OrderCompletedEvent);
 
         // Second attempt succeeded, so the publication is settled and the creator has been paid.
-        verify(walletService, times(2)).settleSaleShare(any(), any(), any(), any(), any(), any());
+        verify(walletService, times(2)).settleSaleShare(any(), any(), any(), any(), any(), any(), any());
         assertThat(incompletePublications()).isZero();
         assertThat(completedPublications()).isOne();
     }
@@ -263,7 +265,7 @@ class WalletCreditEventDurabilityIntegrationTest {
     @Test
     @DisplayName("a stored publication can be read back, so restart republication works")
     void storedPublicationDeserialisesBackIntoTheEvent() {
-        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any()))
+        when(walletService.settleSaleShare(any(), any(), any(), any(), any(), any(), any()))
                 .thenThrow(new IllegalStateException("wallet unavailable"));
 
         eventPublisher.publishEvent(capturedOrder());

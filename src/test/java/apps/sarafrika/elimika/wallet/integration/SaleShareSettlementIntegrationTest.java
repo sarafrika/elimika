@@ -18,6 +18,7 @@ import apps.sarafrika.elimika.wallet.ledger.LedgerService;
 import apps.sarafrika.elimika.wallet.ledger.WalletLedgerReconciliationJob;
 import apps.sarafrika.elimika.wallet.ledger.impl.LedgerServiceImpl;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import apps.sarafrika.elimika.wallet.service.WalletTotals;
 import apps.sarafrika.elimika.wallet.service.impl.WalletServiceImpl;
 import java.math.BigDecimal;
@@ -97,7 +98,7 @@ class SaleShareSettlementIntegrationTest {
     void userShareAndFee() {
         WalletOwner creator = WalletOwner.user(user("Wanjiru"));
 
-        boolean settled = walletService.settleSaleShare(creator, new BigDecimal("15000.00"), new BigDecimal("1500.00"),
+        boolean settled = walletService.settleSaleShare(creator, WalletPurse.creatorLegOf(creator.type()), new BigDecimal("15000.00"), new BigDecimal("1500.00"),
                 KES, "order-1:line-1:creator", "Class sale share - Flower Gardening");
 
         assertThat(settled).isTrue();
@@ -119,7 +120,7 @@ class SaleShareSettlementIntegrationTest {
     void organisationWallet() {
         WalletOwner organisation = WalletOwner.organisation(UUID.randomUUID());
 
-        walletService.settleSaleShare(organisation, new BigDecimal("35000.00"), new BigDecimal("3500.00"),
+        walletService.settleSaleShare(organisation, WalletPurse.deliveryLegOf(organisation.type()), new BigDecimal("35000.00"), new BigDecimal("3500.00"),
                 KES, "order-1:line-1:delivery", "Class sale share - Flower Gardening");
 
         assertThat(walletService.balanceOf(organisation, KES).balanceAmount()).isEqualByComparingTo("31500.00");
@@ -133,9 +134,9 @@ class SaleShareSettlementIntegrationTest {
     void ownersAreKeptApart() {
         UUID shared = user("Otieno");
 
-        walletService.settleSaleShare(WalletOwner.user(shared), new BigDecimal("100.00"), BigDecimal.ZERO,
+        walletService.settleSaleShare(WalletOwner.user(shared), WalletPurse.deliveryLegOf(WalletOwner.user(shared).type()), new BigDecimal("100.00"), BigDecimal.ZERO,
                 KES, "order-2:line-1:creator", "Share");
-        walletService.settleSaleShare(WalletOwner.organisation(shared), new BigDecimal("300.00"), BigDecimal.ZERO,
+        walletService.settleSaleShare(WalletOwner.organisation(shared), WalletPurse.deliveryLegOf(WalletOwner.organisation(shared).type()), new BigDecimal("300.00"), BigDecimal.ZERO,
                 KES, "order-2:line-1:delivery", "Share");
 
         assertThat(walletService.balanceOf(WalletOwner.user(shared), KES).balanceAmount()).isEqualByComparingTo("100.00");
@@ -148,9 +149,9 @@ class SaleShareSettlementIntegrationTest {
     void idempotent() {
         WalletOwner instructor = WalletOwner.user(user("Kamau"));
 
-        assertThat(walletService.settleSaleShare(instructor, new BigDecimal("35000.00"), new BigDecimal("3500.00"),
+        assertThat(walletService.settleSaleShare(instructor, WalletPurse.deliveryLegOf(instructor.type()), new BigDecimal("35000.00"), new BigDecimal("3500.00"),
                 KES, "order-3:line-1:delivery", "Share")).isTrue();
-        assertThat(walletService.settleSaleShare(instructor, new BigDecimal("35000.00"), new BigDecimal("3500.00"),
+        assertThat(walletService.settleSaleShare(instructor, WalletPurse.deliveryLegOf(instructor.type()), new BigDecimal("35000.00"), new BigDecimal("3500.00"),
                 KES, "order-3:line-1:delivery", "Share")).isFalse();
 
         assertThat(walletService.balanceOf(instructor, KES).balanceAmount()).isEqualByComparingTo("31500.00");
@@ -162,7 +163,7 @@ class SaleShareSettlementIntegrationTest {
     void noFeeRow() {
         WalletOwner instructor = WalletOwner.user(user("Achieng"));
 
-        walletService.settleSaleShare(instructor, new BigDecimal("7000.00"), BigDecimal.ZERO,
+        walletService.settleSaleShare(instructor, WalletPurse.deliveryLegOf(instructor.type()), new BigDecimal("7000.00"), BigDecimal.ZERO,
                 KES, "order-4:line-1:delivery", "Share");
 
         assertThat(statement(instructor)).extracting(UserWalletTransaction::getTransactionType)
@@ -174,7 +175,7 @@ class SaleShareSettlementIntegrationTest {
     void totalsCoverTheWholeStatement() {
         WalletOwner creator = WalletOwner.user(user("Mumbi"));
         for (int i = 0; i < 120; i++) {
-            walletService.settleSaleShare(creator, new BigDecimal("100.00"), new BigDecimal("10.00"),
+            walletService.settleSaleShare(creator, WalletPurse.creatorLegOf(creator.type()), new BigDecimal("100.00"), new BigDecimal("10.00"),
                     KES, "order-t" + i + ":line-1:creator", "Share");
         }
 
@@ -196,9 +197,11 @@ class SaleShareSettlementIntegrationTest {
         return walletService.statementOf(owner, KES, PageRequest.of(0, 20)).getContent();
     }
 
+    /** A person's COURSE_CREATOR purse account, where a creator leg lands; an organisation's EARNINGS. */
     private UUID earnings(LedgerOwnerType ownerType, UUID ownerUuid) {
         return ledgerService.getOrCreateAccountUuid(new LedgerAccountRef(
-                ownerType, ownerUuid, LedgerAccountType.LIABILITY, LedgerPurse.EARNINGS, KES));
+                ownerType, ownerUuid, LedgerAccountType.LIABILITY,
+                ownerType == LedgerOwnerType.USER ? LedgerPurse.COURSE_CREATOR : LedgerPurse.EARNINGS, KES));
     }
 
     private UUID platformFeeRevenue() {

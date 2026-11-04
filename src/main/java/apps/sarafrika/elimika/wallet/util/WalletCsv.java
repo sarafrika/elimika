@@ -8,7 +8,7 @@ import java.util.Objects;
 public final class WalletCsv {
 
     private static final String HEADER =
-            "Date (UTC),Type,Amount,Currency,Balance before,Balance after,Reference,Description";
+            "Date (UTC),Purse,Type,Amount,Currency,Balance before,Balance after,Reference,Description";
 
     private WalletCsv() {
     }
@@ -17,6 +17,7 @@ public final class WalletCsv {
         StringBuilder csv = new StringBuilder(HEADER).append('\n');
         for (UserWalletTransaction row : rows) {
             csv.append(cell(row.getCreatedDate())).append(',')
+                    .append(cell(row.getWallet() == null ? null : row.getWallet().getPurse())).append(',')
                     .append(cell(row.getTransactionType())).append(',')
                     .append(cell(row.getAmount())).append(',')
                     .append(cell(row.getCurrencyCode())).append(',')

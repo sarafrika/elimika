@@ -16,7 +16,12 @@ import org.springframework.data.domain.Pageable;
  */
 public interface WithdrawalService {
 
-    RequestedWithdrawal request(WalletOwner owner, BigDecimal amount, UUID payoutMethodUuid, String idempotencyKey);
+    /**
+     * Starts a withdrawal from one purse; {@code purse} may be null for an organisation (EARNINGS) or a person with
+     * a single funded purse. The daily limit counts every purse of the owner together.
+     */
+    RequestedWithdrawal request(WalletOwner owner, WalletPurse purse, BigDecimal amount, UUID payoutMethodUuid,
+                                String idempotencyKey);
 
     IssuedCode resendCode(WalletOwner owner, UUID withdrawalUuid);
 

@@ -21,6 +21,7 @@ import apps.sarafrika.elimika.systemconfig.dto.RuleContext;
 import apps.sarafrika.elimika.systemconfig.service.RuleEvaluationService;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import apps.sarafrika.elimika.wallet.service.WalletService;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
@@ -43,7 +44,8 @@ import org.springframework.util.StringUtils;
 
 /**
  * Pays each captured class sale line to the course creator and the delivery party (the hiring organisation
- * for a job class, otherwise the instructor), each net of their own platform fee; see {@link RevenueSplit}.
+ * for a job class, otherwise the instructor), each net of their own platform fee; see {@link RevenueSplit}. A person
+ * is paid into the purse of the leg (COURSE_CREATOR or INSTRUCTOR), so one person's roles keep separate balances.
  * Persistent and retried until clean: failures are rethrown and every share is idempotent on its reference.
  */
 @Component
@@ -112,9 +114,9 @@ public class OrderCaptureWalletCreditListener {
 
         RevenueSplit split = RevenueSplit.of(gross, parties.creatorPercentage(), feeRule.feeOnShare());
         String reference = reference(order, item);
-        SaleSplitDetail.Leg creator = pay(parties.creator(), split.creator(), order, reference + ":creator",
+        SaleSplitDetail.Leg creator = pay(parties.creator(), true, split.creator(), order, reference + ":creator",
                 parties.description());
-        SaleSplitDetail.Leg delivery = pay(parties.delivery(), split.delivery(), order, reference + ":delivery",
+        SaleSplitDetail.Leg delivery = pay(parties.delivery(), false, split.delivery(), order, reference + ":delivery",
                 parties.description());
         BigDecimal fee = creator.fee().add(delivery.fee());
         BigDecimal credited = creator.net().add(delivery.net());
@@ -122,9 +124,12 @@ public class OrderCaptureWalletCreditListener {
                 creator, parties.deliveryKind(), delivery, feeRule.snapshot(), settledAt));
     }
 
-    /** Settles one leg; an unpaid leg (nobody, or nothing, to pay) is retained and says why. */
-    private SaleSplitDetail.Leg pay(WalletOwner owner, RevenueSplit.Leg leg, OrderResponse order, String reference,
-                                    String description) {
+    /**
+     * Settles one leg into the earner's purse for it (a person's COURSE_CREATOR or INSTRUCTOR purse, an
+     * organisation's EARNINGS); an unpaid leg (nobody, or nothing, to pay) is retained and says why.
+     */
+    private SaleSplitDetail.Leg pay(WalletOwner owner, boolean creatorLeg, RevenueSplit.Leg leg, OrderResponse order,
+                                    String reference, String description) {
         if (owner == null) {
             return SaleSplitDetail.Leg.unpaid(null, null, SaleLegStatus.NO_EARNER);
         }
@@ -132,8 +137,9 @@ public class OrderCaptureWalletCreditListener {
         if (!leg.earnsAnything()) {
             return SaleSplitDetail.Leg.unpaid(ownerType, owner.uuid(), SaleLegStatus.NO_SHARE);
         }
+        WalletPurse purse = creatorLeg ? WalletPurse.creatorLegOf(owner.type()) : WalletPurse.deliveryLegOf(owner.type());
         boolean settledNow = walletService.settleSaleShare(
-                owner, leg.gross(), leg.platformFee(), order.getCurrencyCode(), reference, description);
+                owner, purse, leg.gross(), leg.platformFee(), order.getCurrencyCode(), reference, description);
         log.info("{} {} {} share {} for {} (fee {}) on order {}", settledNow ? "Settled" : "Already settled",
                 order.getCurrencyCode(), leg.gross(), reference, owner, leg.platformFee(), order.getId());
         return new SaleSplitDetail.Leg(ownerType, owner.uuid(), SaleLegStatus.PAID, leg.gross(), leg.platformFee(),

@@ -4,6 +4,8 @@ import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.wallet.enums.WithdrawalStatus;
 import apps.sarafrika.elimika.wallet.service.WalletOwner;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
+import apps.sarafrika.elimika.wallet.util.converter.WalletPurseConverter;
 import apps.sarafrika.elimika.wallet.util.converter.WalletOwnerTypeConverter;
 import apps.sarafrika.elimika.wallet.util.converter.WithdrawalStatusConverter;
 import jakarta.persistence.Column;
@@ -48,6 +50,11 @@ public class Withdrawal extends BaseEntity {
 
     @Column(name = "net_amount")
     private BigDecimal netAmount;
+
+    /** Which of the owner's purses this is paid from. */
+    @Convert(converter = WalletPurseConverter.class)
+    @Column(name = "purse")
+    private WalletPurse purse;
 
     @Column(name = "payout_method_uuid")
     private UUID payoutMethodUuid;

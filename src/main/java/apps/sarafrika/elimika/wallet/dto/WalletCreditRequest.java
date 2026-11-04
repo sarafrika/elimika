@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.wallet.dto;
 
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotNull;
@@ -44,6 +45,14 @@ public record WalletCreditRequest(
                 example = "Wallet deposit via M-Pesa"
         )
         @JsonProperty("description")
-        String description
+        String description,
+
+        @Schema(
+                description = "**[OPTIONAL]** The purse credited: COURSE_CREATOR, INSTRUCTOR or STUDENT. A deposit "
+                        + "defaults to STUDENT; a sale credit must name one.",
+                example = "STUDENT"
+        )
+        @JsonProperty("purse")
+        WalletPurse purse
 ) {
 }

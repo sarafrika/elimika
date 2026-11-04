@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.wallet.entity.Withdrawal;
 import apps.sarafrika.elimika.wallet.enums.WithdrawalStatus;
 import apps.sarafrika.elimika.wallet.service.WalletCheck;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
 import java.math.BigDecimal;
@@ -20,6 +21,8 @@ public record WithdrawalDTO(
         @JsonProperty("owner_uuid") UUID ownerUuid,
         @Schema(example = "WD-2026-000042") @JsonProperty("reference") String reference,
         @JsonProperty("status") WithdrawalStatus status,
+        @Schema(description = "The purse it is paid from; a failure or rejection puts the money back there")
+        @JsonProperty("purse") WalletPurse purse,
         @Schema(description = "Taken from the wallet") @JsonProperty("amount") BigDecimal amount,
         @Schema(description = "M-Pesa charge paid by the earner; zero when Elimika pays it")
         @JsonProperty("fee_amount") BigDecimal feeAmount,
@@ -58,7 +61,7 @@ public record WithdrawalDTO(
 
     /** With the wallet check, for admin views. */
     public static WithdrawalDTO from(Withdrawal w, WalletCheck check) {
-        return new WithdrawalDTO(w.getUuid(), w.getOwnerType(), w.getOwnerUuid(), w.getReference(), w.getStatus(), w.getAmount(), w.getFeeAmount(),
+        return new WithdrawalDTO(w.getUuid(), w.getOwnerType(), w.getOwnerUuid(), w.getReference(), w.getStatus(), w.getPurse(), w.getAmount(), w.getFeeAmount(),
                 w.getNetAmount(), w.getCurrencyCode(), w.getPayoutMethodUuid(), Msisdn.mask(w.getMsisdn()),
                 w.getRequestedByUserUuid(), w.getRequesterName(), w.reviewFlagList(), w.getSecondApproverUserUuid(), w.getRejectionReason(),
                 w.getFailureReason(), w.getMpesaReceipt(), w.getMpesaRecipientName(), w.getCreatedDate(),

@@ -16,6 +16,9 @@ public interface WalletLedgerComparison {
 
     UUID getUserUuid();
 
+    /** The purse this wallet row holds. */
+    String getPurse();
+
     String getCurrencyCode();
 
     BigDecimal getWalletBalance();

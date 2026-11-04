@@ -9,6 +9,7 @@ import static org.mockito.Mockito.when;
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
 import apps.sarafrika.elimika.wallet.service.WalletOwnerType;
+import apps.sarafrika.elimika.wallet.service.WalletPurse;
 import apps.sarafrika.elimika.wallet.entity.UserWallet;
 import apps.sarafrika.elimika.wallet.entity.UserWalletTransaction;
 import apps.sarafrika.elimika.wallet.ledger.LedgerPostingRequest;
@@ -60,13 +61,14 @@ class WalletServiceImplIdempotencyTest {
         when(transactionRepository.existsByReference(reference)).thenReturn(false);
         UserWallet wallet = new UserWallet();
         wallet.setOwnerUuid(userUuid);
+        wallet.setPurse(WalletPurse.INSTRUCTOR);
         wallet.setCurrencyCode("KES");
         wallet.setBalanceAmount(BigDecimal.ZERO);
-        when(userWalletRepository.findLocked(WalletOwnerType.USER, userUuid, "KES"))
+        when(userWalletRepository.findLocked(WalletOwnerType.USER, userUuid, WalletPurse.INSTRUCTOR, "KES"))
                 .thenReturn(Optional.of(wallet));
 
         boolean credited = walletService.creditSaleIdempotent(
-                userUuid, new BigDecimal("700.00"), "KES", reference, "desc");
+                userUuid, WalletPurse.INSTRUCTOR, new BigDecimal("700.00"), "KES", reference, "desc");
 
         assertThat(credited).isTrue();
         verify(transactionRepository).save(any(UserWalletTransaction.class));
@@ -78,7 +80,7 @@ class WalletServiceImplIdempotencyTest {
         when(transactionRepository.existsByReference(reference)).thenReturn(true);
 
         boolean credited = walletService.creditSaleIdempotent(
-                userUuid, new BigDecimal("700.00"), "KES", reference, "desc");
+                userUuid, WalletPurse.INSTRUCTOR, new BigDecimal("700.00"), "KES", reference, "desc");
 
         assertThat(credited).isFalse();
         verify(transactionRepository, never()).save(any(UserWalletTransaction.class));
