@@ -22,6 +22,13 @@ Use 4-space indentation and follow the existing Lombok patterns. Classes, contro
 - Treat UTC as the source of truth for all timestamps (migrations, auditing, cross-service messages). Convert external inputs to UTC immediately and only localize at the presentation layer.
 - After the version prefix, keep filenames lowercase with underscores (e.g., `__rename_enrollments_to_class_enrollments.sql`) so Flyway ordering remains predictable across filesystems.
 
+### Before Adding a Table or Column
+Two places holding the same fact drift apart and cause bugs that are very hard to trace. Before writing any migration that creates a table or adds a column:
+1. **Look for what already records it.** Search migrations and entities for the concept and its synonyms (e.g. split, share, settlement, fee, revenue, purchase; payout, withdrawal, disbursement): `grep -rniE 'word1|word2' src/main/resources/db/migration` and `git grep -nE '@Table|@Column\(name' -- src/main/java | grep -iE 'word1|word2'`. When a database is reachable, also list the live schema (`information_schema.columns`).
+2. **Extend, don't duplicate.** If a table already records the concept, add the missing columns there, or read it through its owning module's SPI. Never create a parallel table for the same fact, including in another module.
+3. **Don't copy derivable values.** Store a copy only when it must be frozen at a moment (e.g. the fee rule in force at purchase), and name it as a snapshot.
+4. **Say what you found.** In the task report or PR, state: "Schema check: found `<tables/columns>`; extending `<x>`" or "new table because `<reason>`".
+
 ## Testing Guidelines
 Place integration scenarios under `src/test/java/.../integration` and prefer Testcontainers for external dependencies. Run `./gradlew test` before any pull request and document notable new assertions, especially around Flyway migrations and critical business rules. Keep the Spring Modulith architecture tests active and ensure the project stays fully compliant with Spring Modulith role rules; reintroduce other unit tests only once they align with the refined module boundaries.
 
