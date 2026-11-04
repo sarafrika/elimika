@@ -34,6 +34,7 @@ public class EmailNotificationService {
     
     private final ObjectProvider<JavaMailSender> mailSenderProvider;
     private final EmailTemplateService templateService;
+    private final apps.sarafrika.elimika.notifications.template.ReceiptPdfRenderer receiptPdfRenderer;
     private final NotificationDeliveryLogRepository deliveryLogRepository;
 
     @Value("${spring.mail.host:}")
@@ -110,6 +111,13 @@ public class EmailNotificationService {
             
             // Attach logos as inline content
             attachLogos(helper);
+            receiptPdfRenderer.render(event).ifPresent(pdf -> {
+                try {
+                    helper.addAttachment(pdf.filename(), new org.springframework.core.io.ByteArrayResource(pdf.content()), "application/pdf");
+                } catch (jakarta.mail.MessagingException ex) {
+                    log.warn("Receipt PDF could not be attached to {}: {}", event.getNotificationId(), ex.getMessage());
+                }
+            });
             
             mailSender.send(message);
             

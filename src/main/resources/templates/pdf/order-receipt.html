@@ -1,0 +1,111 @@
+<html xmlns:th="http://www.thymeleaf.org" lang="en">
+<head>
+<title th:text="${'Receipt ' + orderDisplayId}">Receipt</title>
+<style>
+@page { size: A4; margin: 0; }
+body { margin: 0; font-family: Helvetica, Arial, sans-serif; color: #0B1736; font-size: 12px; }
+.page { position: relative; padding: 46px 56px 36px; }
+.band { position: absolute; top: 0; left: 0; right: 0; height: 8px; }
+.band td { height: 8px; padding: 0; }
+.stamp { position: absolute; right: 64px; top: 318px; border: 4px solid #a8d9c4; color: #a8d9c4; border-radius: 12px; padding: 4px 20px; font-size: 48px; font-weight: bold; letter-spacing: 6px; transform: rotate(-14deg); }
+.muted { color: #5B6474; }
+.label { font-size: 9px; font-weight: bold; letter-spacing: 1px; text-transform: uppercase; color: #5B6474; }
+.mono { font-family: Courier, monospace; font-weight: bold; }
+.chip { display: inline-block; padding: 3px 10px; border-radius: 10px; font-size: 10px; font-weight: bold; }
+.box { border: 1px solid #DCE2EC; border-radius: 8px; padding: 10px 12px; }
+table { border-collapse: collapse; width: 100%; }
+.items th { text-align: left; font-size: 9px; letter-spacing: 1px; text-transform: uppercase; color: #5B6474; padding: 8px 10px; border-bottom: 1.5px solid #0B1736; }
+.items td { padding: 12px 10px; border-bottom: 1px solid #E4E9F2; vertical-align: top; }
+.right { text-align: right; }
+</style>
+</head>
+<body>
+<div class="page">
+  <table class="band"><tr>
+    <td style="background: #1F75BA;"></td><td style="background: #72BE4A;"></td><td style="background: #F9AB25;"></td><td style="background: #ED463B;"></td><td style="background: #902A8A;"></td>
+  </tr></table>
+  <div class="stamp">PAID</div>
+
+  <table>
+    <tr>
+      <td style="vertical-align: top;">
+        <img th:if="${elimikaLogo != null}" th:src="${elimikaLogo}" alt="Elimika" style="height: 52px;" />
+        <div th:unless="${elimikaLogo != null}" style="font-size: 20px; font-weight: bold;">Elimika</div>
+        <table style="margin-top: 14px; width: auto;">
+          <tr>
+            <td style="vertical-align: top; padding-right: 10px;"><img th:if="${sarafrikaLogo != null}" th:src="${sarafrikaLogo}" alt="Sarafrika" style="height: 20px;" /></td>
+            <td class="muted" style="vertical-align: top; line-height: 1.6;">
+              <div style="font-weight: bold; color: #0B1736;" th:text="${sellerName}">Sarafrika Productions Ltd</div>
+              <div th:if="${sellerAddress != null}" th:text="${sellerAddress}">Address</div>
+              <div th:text="${(sellerKraPin != null ? 'KRA PIN ' + sellerKraPin + ' · ' : '') + supportEmail}">support</div>
+            </td>
+          </tr>
+        </table>
+      </td>
+      <td class="right" style="vertical-align: top;">
+        <div style="font-size: 26px; font-weight: bold;">Receipt</div>
+        <div class="mono" style="margin-top: 6px; font-size: 13px;" th:text="${orderDisplayId}">ELM-K7Q9PX</div>
+        <div style="margin-top: 6px;"><span class="chip" style="background: #E8F6EF; color: #0B6B45;">Paid in full</span></div>
+      </td>
+    </tr>
+  </table>
+
+  <div style="margin-top: 24px; padding: 16px 18px; border-radius: 10px; background: #F2FBF7; border: 1px solid #BFE6D4;">
+    <table>
+      <tr>
+        <td>
+          <div class="label" style="color: #0B6B45;">Amount received</div>
+          <div style="font-size: 28px; font-weight: bold; margin-top: 4px;" th:text="${amountLabel}">KES 0</div>
+        </td>
+        <td class="right" style="line-height: 1.6; color: #24543F;">
+          <div th:text="${paidAt}">date</div>
+          <div th:text="${'via M-Pesa' + (payerMasked != null ? ' from ' + payerMasked : '')}">via M-Pesa</div>
+        </td>
+      </tr>
+    </table>
+  </div>
+
+  <table style="margin-top: 18px;">
+    <tr>
+      <td style="width: 33%; padding-right: 6px;"><div class="box"><div class="label">Received from</div><div style="font-weight: bold; margin-top: 5px;" th:text="${recipientName}">Name</div><div class="muted" th:text="${recipientEmail}">email</div></div></td>
+      <td style="width: 33%; padding: 0 3px;"><div class="box"><div class="label">M-Pesa receipt</div><div class="mono" style="margin-top: 5px;" th:text="${mpesaReceipt != null ? mpesaReceipt : '—'}">UK42C120ZR</div><div class="muted">PayBill 4953892</div></div></td>
+      <td style="width: 33%; padding-left: 6px;"><div class="box"><div class="label">First session</div><div style="font-weight: bold; margin-top: 5px;" th:text="${firstSession != null ? firstSession : '—'}">Sat 14 Nov 09:00</div><div class="muted">East Africa Time</div></div></td>
+    </tr>
+  </table>
+
+  <table class="items" style="margin-top: 22px;">
+    <tr><th>Description</th><th class="right">Qty</th><th class="right">Amount</th></tr>
+    <tr th:each="item : ${items}">
+      <td><div style="font-weight: bold; font-size: 13px;" th:text="${item.title}">Class</div></td>
+      <td class="right" th:text="${item.quantity}">1</td>
+      <td class="right" style="font-weight: bold;" th:text="${currencyCode + ' ' + #numbers.formatInteger(item.total, 1, 'COMMA')}">KES 0</td>
+    </tr>
+  </table>
+
+  <table style="margin-top: 14px;">
+    <tr>
+      <td style="width: 60%;"></td>
+      <td>
+        <table>
+          <tr th:if="${vatNote != null}"><td class="muted" style="padding: 3px 0;">Tax</td><td class="right" th:text="${vatNote}">VAT</td></tr>
+          <tr><td class="muted" style="padding: 3px 0;">Paid</td><td class="right" th:text="${amountLabel}">KES 0</td></tr>
+          <tr><td style="padding-top: 8px; border-top: 1.5px solid #0B1736; font-weight: bold; font-size: 14px;">Balance</td><td class="right" style="padding-top: 8px; border-top: 1.5px solid #0B1736; font-weight: bold; font-size: 14px;" th:text="${currencyCode + ' 0'}">KES 0</td></tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+
+  <table style="margin-top: 70px; border-top: 1px solid #E4E9F2;">
+    <tr>
+      <td class="muted" style="padding-top: 12px; font-size: 10px; line-height: 1.6;">
+        Thank you for learning with Elimika. Keep this receipt for your records.<br />
+        Questions or refunds: <span th:text="${supportEmail}">support</span> · quote <span th:text="${orderDisplayId}">ELM</span>
+      </td>
+      <td class="right muted" style="padding-top: 12px; font-size: 10px; white-space: nowrap;">
+        Powered by <img th:if="${sarafrikaLogo != null}" th:src="${sarafrikaLogo}" alt="Sarafrika" style="height: 16px; vertical-align: middle;" />
+      </td>
+    </tr>
+  </table>
+</div>
+</body>
+</html>

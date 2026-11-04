@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html xmlns:th="http://www.thymeleaf.org" lang="en"
       th:replace="~{email/fragments/layout :: email('Payment receipt',
-                    ${currencyCode + ' ' + fmt.money(total) + ' paid' + (fmt.has(createdAt) ? ' on ' + fmt.date(createdAt) : '') + '. Keep this for your records.'},
+                    ${(amountLabel != null ? amountLabel : currencyCode + ' ' + fmt.money(total)) + ' paid' + (classTitle != null ? ' for ' + classTitle : '') + '. Your seat is confirmed.'},
                     'Receipt', 'blue', ~{::hero}, ~{::content},
                     'This receipt was sent because you made a payment on Elimika.')}">
 <body>
@@ -9,11 +9,11 @@
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
         <tr>
             <td align="center" style="text-align:center;">
-                <span th:style="'display:inline-block;font-size:13px;font-weight:700;padding:5px 12px;border-radius:999px;' + (${paymentStatus != null and #strings.equalsIgnoreCase(paymentStatus, 'PAID')} ? 'color:#0B6B45;background:#E8F6EF;' : 'color:#344054;background:#EEF0F3;')"
-                      th:text="${fmt.capitalize(#strings.toLowerCase(paymentStatus))}">Paid</span>
+                <span th:style="'display:inline-block;font-size:13px;font-weight:700;padding:5px 12px;border-radius:999px;' + (${paymentStatus != null and (#strings.equalsIgnoreCase(paymentStatus, 'PAID') or #strings.equalsIgnoreCase(paymentStatus, 'CAPTURED'))} ? 'color:#0B6B45;background:#E8F6EF;' : 'color:#344054;background:#EEF0F3;')"
+                      th:text="${paymentStatus != null and (#strings.equalsIgnoreCase(paymentStatus, 'PAID') or #strings.equalsIgnoreCase(paymentStatus, 'CAPTURED')) ? 'Payment received' : fmt.capitalize(#strings.toLowerCase(paymentStatus))}">Payment received</span>
                 <p style="margin:14px 0 4px;font-size:14px;color:#5B6474;">Amount paid</p>
                 <p class="h1" style="margin:0;font-size:38px;line-height:1.1;font-weight:800;letter-spacing:-0.02em;color:#0B1736;"
-                   th:text="${currencyCode + ' ' + fmt.money(total)}">KES 0.00</p>
+                   th:text="${amountLabel != null ? amountLabel : currencyCode + ' ' + fmt.money(total)}">KES 0</p>
                 <p style="margin:10px 0 0;font-size:14px;color:#5B6474;"
                    th:text="${(fmt.has(createdAt) ? fmt.dateTime(createdAt) + ' · ' : '') + 'Order ' + (orderDisplayId != null ? orderDisplayId : orderId)}">Date · Order</p>
             </td>
@@ -21,7 +21,7 @@
     </table>
 </th:block>
 <th:block th:fragment="content">
-    <p th:replace="~{email/fragments/layout :: para(${'Thanks, ' + fmt.firstName(recipientName) + '. Your payment went through and your access is ready.'})}"></p>
+    <p th:replace="~{email/fragments/layout :: para(${'Thanks, ' + fmt.firstName(recipientName) + '. Your payment went through and your seat' + (classTitle != null ? ' in ' + classTitle : '') + ' is confirmed.'})}"></p>
 
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;">
         <tr>
@@ -46,7 +46,22 @@
         </tr>
         <tr>
             <td style="padding:14px 0 0;border-top:1px solid #E4E9F2;font-size:16px;font-weight:800;color:#0B1736;" th:text="${'Total paid (' + currencyCode + ')'}">Total paid</td>
-            <td align="right" style="padding:14px 0 0;border-top:1px solid #E4E9F2;font-size:16px;font-weight:800;color:#0B1736;" th:text="${fmt.money(total)}">0.00</td>
+            <td align="right" style="padding:14px 0 0;border-top:1px solid #E4E9F2;font-size:16px;font-weight:800;color:#0B1736;" th:text="${amountLabel != null ? amountLabel : fmt.money(total)}">0.00</td>
+        </tr>
+    </table>
+
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:0 0 26px;border:1px solid #E4E9F2;border-radius:12px;">
+        <tr>
+            <td style="padding:11px 14px;border-bottom:1px solid #EEF1F6;font-size:14px;color:#5B6474;">Order</td>
+            <td align="right" style="padding:11px 14px;border-bottom:1px solid #EEF1F6;font-size:14px;font-weight:600;color:#0B1736;font-family:'JetBrains Mono',Menlo,monospace;" th:text="${orderDisplayId != null ? orderDisplayId : orderId}">ELM-K7Q9PX</td>
+        </tr>
+        <tr th:if="${mpesaReceipt != null}">
+            <td style="padding:11px 14px;border-bottom:1px solid #EEF1F6;font-size:14px;color:#5B6474;">M-Pesa receipt</td>
+            <td align="right" style="padding:11px 14px;border-bottom:1px solid #EEF1F6;font-size:14px;font-weight:600;color:#0B1736;font-family:'JetBrains Mono',Menlo,monospace;" th:text="${mpesaReceipt}">UK42C120ZR</td>
+        </tr>
+        <tr>
+            <td style="padding:11px 14px;font-size:14px;color:#5B6474;">Paid to</td>
+            <td align="right" style="padding:11px 14px;font-size:14px;color:#0B1736;">M-Pesa PayBill 4953892 · Sarafrika</td>
         </tr>
     </table>
 
@@ -60,7 +75,7 @@
         </tr>
     </table>
 
-    <table th:replace="~{email/fragments/layout :: button(${frontendUrl + '/dashboard/student/courses'}, 'Go to my courses')}"></table>
+    <table th:replace="~{email/fragments/layout :: button(${frontendUrl + '/dashboard/student/learning-hub'}, 'Go to my class')}"></table>
 
     <p style="margin:0;font-size:14px;line-height:1.6;color:#5B6474;">
         Something wrong with this charge? Write to

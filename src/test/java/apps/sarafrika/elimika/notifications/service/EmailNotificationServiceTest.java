@@ -37,6 +37,9 @@ class EmailNotificationServiceTest {
     @Mock
     private NotificationDeliveryLogRepository deliveryLogRepository;
 
+    @Mock
+    private apps.sarafrika.elimika.notifications.template.ReceiptPdfRenderer receiptPdfRenderer;
+
     @Test
     void sendEmailFailsSoftlyWhenMailSenderIsUnavailable() throws Exception {
         UUID notificationId = UUID.randomUUID();
@@ -45,6 +48,7 @@ class EmailNotificationServiceTest {
         EmailNotificationService service = new EmailNotificationService(
                 mailSenderProvider,
                 templateService,
+                receiptPdfRenderer,
                 deliveryLogRepository);
 
         when(mailSenderProvider.getIfAvailable()).thenReturn(null);

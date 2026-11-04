@@ -72,7 +72,8 @@ public class EmailTemplateService {
                     String.format("%s: %s", formatter.capitalize(value(vars, "changeTypeLabel", "updated")),
                             value(vars, "assessmentTitle", "an assessment"));
             case "order-payment-receipt" ->
-                    String.format("Receipt for order %s", value(vars, "orderDisplayId", value(vars, "orderId", "")).trim());
+                    String.format("Receipt for %s%s", value(vars, "orderDisplayId", value(vars, "orderId", "")).trim(),
+                            vars.get("amountLabel") == null ? "" : " · " + vars.get("amountLabel") + " paid");
             case "account-created" -> {
                 String first = formatter.firstName(event.getRecipientName());
                 yield first.isBlank() ? "Welcome to " + applicationName : "Welcome to " + applicationName + ", " + first;
@@ -154,6 +155,15 @@ public class EmailTemplateService {
         }
     }
     
+    /** Renders another template (e.g. a PDF body) with the same variables the email gets. */
+    public String renderDocument(String templatePath, NotificationEvent event, Map<String, Object> extra) {
+        Context context = createEmailContext(event);
+        if (extra != null) {
+            extra.forEach(context::setVariable);
+        }
+        return templateEngine.process(templatePath, context);
+    }
+
     /**
      * Create Thymeleaf context with all necessary variables
      */
