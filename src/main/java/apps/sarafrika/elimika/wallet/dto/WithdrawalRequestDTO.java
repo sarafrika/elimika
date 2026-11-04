@@ -22,8 +22,9 @@ public record WithdrawalRequestDTO(
                 requiredMode = Schema.RequiredMode.REQUIRED)
         @NotBlank @Size(max = 80)
         @JsonProperty("idempotency_key") String idempotencyKey,
-        @Schema(description = "The purse to withdraw from: COURSE_CREATOR, INSTRUCTOR or STUDENT for a person, EARNINGS "
-                + "for an organisation. May be left out by an organisation, or by a person with only one funded purse")
+        @Schema(description = "The purse to withdraw from: COURSE_CREATOR or INSTRUCTOR for a person (STUDENT is spend-only "
+                + "and refused with 400), EARNINGS for an organisation. May be left out by an organisation, or by a "
+                + "person with only one funded COURSE_CREATOR/INSTRUCTOR purse")
         @JsonProperty("purse") WalletPurse purse
 ) {
 }

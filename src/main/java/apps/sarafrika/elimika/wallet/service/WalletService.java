@@ -61,6 +61,12 @@ public interface WalletService {
     WalletPurse debitPurse(WalletOwner owner, WalletPurse requested, String currencyCode);
 
     /**
+     * The purse a withdrawal comes from, as {@link #debitPurse} but never STUDENT: an explicit STUDENT is refused
+     * with {@link WalletPurse#STUDENT_NOT_WITHDRAWABLE}, and a default ignores the STUDENT balance.
+     */
+    WalletPurse withdrawalPurse(WalletOwner owner, WalletPurse requested, String currencyCode);
+
+    /**
      * Pays one earner's sale share into {@code purse}: a SALE credit of {@code gross}, then a PLATFORM_FEE debit
      * from the same purse when the fee is above zero, in one transaction. Returns false when {@code reference} was
      * already settled.
@@ -116,7 +122,10 @@ public interface WalletService {
     WalletTransferResult transfer(UUID fromUserUuid, WalletPurse sourcePurse, UUID toUserUuid, BigDecimal amount,
                                   String currencyCode, String reference, String description);
 
-    /** Moves money between two purses of one owner: a TRANSFER_OUT and a TRANSFER_IN row, no fee. */
+    /**
+     * Moves money between two purses of one owner: a TRANSFER_OUT and a TRANSFER_IN row, no fee. Out of STUDENT is
+     * refused with {@link WalletPurse#STUDENT_NOT_MOVABLE}; into it is allowed.
+     */
     PurseTransferResult transferBetweenPurses(WalletOwner owner, WalletPurse from, WalletPurse to, BigDecimal amount,
                                               String currencyCode, String reference, String description);
 }

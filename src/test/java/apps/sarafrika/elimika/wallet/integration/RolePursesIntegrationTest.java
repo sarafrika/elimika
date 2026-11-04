@@ -10,6 +10,12 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import apps.sarafrika.elimika.shared.config.GlobalExceptionHandler;
+import apps.sarafrika.elimika.wallet.controller.WalletController;
+import apps.sarafrika.elimika.wallet.security.WalletSecurityService;
+import apps.sarafrika.elimika.wallet.service.SaleSplitService;
+import org.springframework.http.MediaType;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import apps.sarafrika.elimika.shared.config.JpaConfig;
 import apps.sarafrika.elimika.shared.currency.model.PlatformCurrency;
 import apps.sarafrika.elimika.shared.currency.service.CurrencyService;
@@ -88,7 +94,7 @@ import org.springframework.transaction.annotation.Transactional;
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-@Import({WalletServiceImpl.class, LedgerServiceImpl.class, WalletLedgerReconciliationJob.class, JpaConfig.class,
+@Import({apps.sarafrika.elimika.shared.sms.template.SmsTemplateService.class, WalletServiceImpl.class, LedgerServiceImpl.class, WalletLedgerReconciliationJob.class, JpaConfig.class,
         WithdrawalServiceImpl.class, PayoutSettingsService.class, OneTimeCodeService.class, WithdrawalNotifier.class,
         PayoutBatchServiceImpl.class, PayoutBatchSender.class, WithdrawalWalletChecksImpl.class,
         RolePursesIntegrationTest.Fakes.class})
@@ -173,6 +179,10 @@ class RolePursesIntegrationTest {
     private CurrencyService currencyService;
     @MockitoBean
     private DomainSecurityService domainSecurityService;
+    @MockitoBean
+    private WalletSecurityService walletSecurityService;
+    @MockitoBean
+    private SaleSplitService saleSplits;
 
     private WalletOwner person;
 
@@ -250,8 +260,8 @@ class RolePursesIntegrationTest {
         assertThatThrownBy(() -> walletService.transferBetweenPurses(person, WalletPurse.INSTRUCTOR,
                 WalletPurse.STUDENT, new BigDecimal("3600.01"), KES, null, null))
                 .isInstanceOf(IllegalStateException.class).hasMessageContaining("Insufficient");
-        assertThatThrownBy(() -> walletService.holdWithdrawal(person, WalletPurse.STUDENT, new BigDecimal("1"), KES,
-                "WD-X", "x")).isInstanceOf(IllegalStateException.class);
+        assertThatThrownBy(() -> walletService.holdWithdrawal(person, WalletPurse.INSTRUCTOR, new BigDecimal("3600.01"),
+                KES, "WD-X", "x")).isInstanceOf(IllegalStateException.class);
         assertThat(purse(WalletPurse.INSTRUCTOR)).isEqualByComparingTo("3600.00");
     }
 
@@ -332,6 +342,52 @@ class RolePursesIntegrationTest {
                 .isEqualByComparingTo("600.00");
         assertThat(walletService.totalsOf(person, KES).transferredOutTotal()).isEqualByComparingTo("600.00");
         assertThat(reconciliation.runOnce().isClean()).isTrue();
+    }
+
+    @Test
+    @DisplayName("the STUDENT purse is spend-only: never withdrawn, never moved out, never a default, but can be moved into")
+    void studentPurseIsSpendOnly() throws Exception {
+        walletService.transferBetweenPurses(person, WalletPurse.INSTRUCTOR, WalletPurse.STUDENT,
+                new BigDecimal("3600.00"), KES, null, null);
+        assertThat(purse(WalletPurse.STUDENT)).isEqualByComparingTo("3600.00");
+        PayoutMethod method = method(person);
+
+        assertThatThrownBy(() -> withdrawals.request(person, WalletPurse.STUDENT, new BigDecimal("500"),
+                method.getUuid(), "key-" + UUID.randomUUID()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(WalletPurse.STUDENT_NOT_WITHDRAWABLE);
+        assertThatThrownBy(() -> walletService.transferBetweenPurses(person, WalletPurse.STUDENT,
+                WalletPurse.COURSE_CREATOR, new BigDecimal("100.00"), KES, null, null))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage(WalletPurse.STUDENT_NOT_MOVABLE);
+        assertThatThrownBy(() -> walletService.holdWithdrawal(person, WalletPurse.STUDENT, BigDecimal.ONE, KES,
+                "WD-S", "x")).hasMessage(WalletPurse.STUDENT_NOT_WITHDRAWABLE);
+        assertThatThrownBy(() -> walletService.chargePayoutFee(person, WalletPurse.STUDENT, BigDecimal.ONE, KES,
+                "WD-S", "x")).hasMessage(WalletPurse.STUDENT_NOT_WITHDRAWABLE);
+
+        // COURSE_CREATOR and STUDENT are funded; the default ignores STUDENT, so COURSE_CREATOR it is.
+        Withdrawal requested = withdrawals.request(person, null, new BigDecimal("500"), method.getUuid(),
+                "key-" + UUID.randomUUID()).withdrawal();
+        assertThat(requested.getPurse()).isEqualTo(WalletPurse.COURSE_CREATOR);
+        assertThat(purse(WalletPurse.STUDENT)).isEqualByComparingTo("3600.00");
+
+        // Over HTTP: 400 with the message.
+        when(walletSecurityService.canWithdraw(person.uuid())).thenReturn(true);
+        MockMvc http = MockMvcBuilders.standaloneSetup(new WithdrawalController(withdrawals),
+                        new WalletController(walletService, walletSecurityService, saleSplits))
+                .setControllerAdvice(new GlobalExceptionHandler())
+                .build();
+        http.perform(post("/api/v1/wallets/{user}/withdrawals", person.uuid())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"amount\":500,\"payout_method_uuid\":\"" + method(person).getUuid()
+                                + "\",\"idempotency_key\":\"http-1\",\"purse\":\"STUDENT\"}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(WalletPurse.STUDENT_NOT_WITHDRAWABLE));
+        http.perform(post("/api/v1/wallets/{user}/purse-transfers", person.uuid())
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"from_purse\":\"STUDENT\",\"to_purse\":\"INSTRUCTOR\",\"amount\":100}"))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.message").value(WalletPurse.STUDENT_NOT_MOVABLE));
     }
 
     private BigDecimal purse(WalletPurse purse) {

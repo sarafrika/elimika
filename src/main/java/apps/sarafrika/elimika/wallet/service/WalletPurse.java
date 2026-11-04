@@ -17,7 +17,10 @@ public enum WalletPurse {
     /** A person's delivery legs of class sales they taught, net of the platform fee on them. */
     INSTRUCTOR,
 
-    /** A person's learner-side credit: deposits and transfers received from others. */
+    /**
+     * A person's learner-side credit: deposits, transfers received and moves from their other purses. Spend-only:
+     * it is never withdrawn and never moved to another purse, or it would become withdrawable.
+     */
     STUDENT,
 
     /** An organisation's earnings as the delivery party of the classes it hires for. */
@@ -28,6 +31,16 @@ public enum WalletPurse {
     /** The purses an owner of this type can hold, in display order. */
     public static List<WalletPurse> of(WalletOwnerType ownerType) {
         return ownerType == WalletOwnerType.ORGANISATION ? List.of(EARNINGS) : List.copyOf(USER_PURSES);
+    }
+
+    public static final String STUDENT_NOT_WITHDRAWABLE = "The STUDENT purse can only be spent on Elimika; "
+            + "it cannot be withdrawn. Choose your COURSE_CREATOR or INSTRUCTOR purse.";
+    public static final String STUDENT_NOT_MOVABLE = "The STUDENT purse can only be spent on Elimika; "
+            + "money in it cannot be moved to another purse.";
+
+    /** Whether money in this purse may be paid out or moved to another purse. */
+    public boolean isWithdrawable() {
+        return this != STUDENT;
     }
 
     public boolean isAllowedFor(WalletOwnerType ownerType) {

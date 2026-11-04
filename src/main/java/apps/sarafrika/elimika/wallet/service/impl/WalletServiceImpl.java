@@ -287,14 +287,29 @@ public class WalletServiceImpl implements WalletService {
     @Override
     @Transactional(readOnly = true)
     public WalletPurse debitPurse(WalletOwner owner, WalletPurse requested, String currencyCode) {
+        return choosePurse(owner, requested, currencyCode, false);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public WalletPurse withdrawalPurse(WalletOwner owner, WalletPurse requested, String currencyCode) {
+        return choosePurse(owner, requested, currencyCode, true);
+    }
+
+    private WalletPurse choosePurse(WalletOwner owner, WalletPurse requested, String currencyCode,
+                                    boolean withdrawableOnly) {
         if (requested != null) {
             requireFits(owner, requested);
+            if (withdrawableOnly && !requested.isWithdrawable()) {
+                throw new IllegalArgumentException(WalletPurse.STUDENT_NOT_WITHDRAWABLE);
+            }
             return requested;
         }
         if (owner.type() == WalletOwnerType.ORGANISATION) {
             return WalletPurse.EARNINGS;
         }
         List<UserWallet> funded = rowsOf(owner, resolveCurrencyCode(currencyCode)).stream()
+                .filter(wallet -> !withdrawableOnly || wallet.getPurse().isWithdrawable())
                 .filter(wallet -> wallet.getBalanceAmount().signum() > 0)
                 .sorted(Comparator.comparing(UserWallet::getPurse))
                 .toList();
@@ -308,7 +323,8 @@ public class WalletServiceImpl implements WalletService {
             return funded.getFirst().getPurse();
         }
         // Nothing funded: name the oldest row so the caller's own balance check explains the refusal.
-        return rowsOf(owner, resolveCurrencyCode(currencyCode)).stream().map(UserWallet::getPurse).findFirst()
+        return rowsOf(owner, resolveCurrencyCode(currencyCode)).stream().map(UserWallet::getPurse)
+                .filter(purse -> !withdrawableOnly || purse.isWithdrawable()).findFirst()
                 .orElse(WalletPurse.COURSE_CREATOR);
     }
 
@@ -316,6 +332,7 @@ public class WalletServiceImpl implements WalletService {
     @Transactional
     public UserWalletTransaction holdWithdrawal(WalletOwner owner, WalletPurse purse, BigDecimal netAmount,
                                                 String currencyCode, String reference, String description) {
+        requireWithdrawable(purse);
         String currency = resolveCurrencyCode(currencyCode);
         UserWallet wallet = lockOrCreateWallet(owner, purse, currency);
         UserWalletTransaction row = applyDebit(wallet, netAmount, WalletTransactionType.WITHDRAWAL, reference,
@@ -329,6 +346,7 @@ public class WalletServiceImpl implements WalletService {
     @Transactional
     public UserWalletTransaction chargePayoutFee(WalletOwner owner, WalletPurse purse, BigDecimal fee,
                                                  String currencyCode, String reference, String description) {
+        requireWithdrawable(purse);
         String currency = resolveCurrencyCode(currencyCode);
         UserWallet wallet = lockOrCreateWallet(owner, purse, currency);
         UserWalletTransaction row = applyDebit(wallet, fee, WalletTransactionType.PAYOUT_FEE, reference + ":fee",
@@ -546,6 +564,9 @@ public class WalletServiceImpl implements WalletService {
         }
         requireFits(owner, from);
         requireFits(owner, to);
+        if (!from.isWithdrawable()) {
+            throw new IllegalArgumentException(WalletPurse.STUDENT_NOT_MOVABLE);
+        }
         validateAmount(amount);
         String currency = resolveCurrencyCode(currencyCode);
         // Locked in purse order, so two opposite moves of one owner cannot deadlock.
@@ -582,6 +603,12 @@ public class WalletServiceImpl implements WalletService {
             held.put((WalletPurse) row[0], (BigDecimal) row[1]);
         }
         return held;
+    }
+
+    private static void requireWithdrawable(WalletPurse purse) {
+        if (purse != null && !purse.isWithdrawable()) {
+            throw new IllegalArgumentException(WalletPurse.STUDENT_NOT_WITHDRAWABLE);
+        }
     }
 
     private static void requireFits(WalletOwner owner, WalletPurse purse) {

@@ -1,3 +1,4 @@
+-- OBSOLETE: predates role purses (V202611042152); it writes one wallet row per owner and no longer fits the purse unique key. Do not run.
 -- One-off: pay creators what past class sales retained, and move a job class's instructor credit to the hiring
 -- organisation. Preview: psql -v ON_ERROR_STOP=1 -f this.sql   Apply: add -v apply=1. Re-runs skip settled lines.
 \if :{?apply}

@@ -10,7 +10,8 @@ import java.math.BigDecimal;
 
 @Schema(name = "PurseTransferRequest", description = "Move money between two of one person's own purses; no fee")
 public record PurseTransferRequestDTO(
-        @Schema(example = "COURSE_CREATOR", requiredMode = Schema.RequiredMode.REQUIRED)
+        @Schema(description = "COURSE_CREATOR or INSTRUCTOR; STUDENT is spend-only and refused with 400",
+                example = "COURSE_CREATOR", requiredMode = Schema.RequiredMode.REQUIRED)
         @NotNull(message = "Choose the purse to move from")
         @JsonProperty("from_purse") WalletPurse fromPurse,
         @Schema(example = "INSTRUCTOR", requiredMode = Schema.RequiredMode.REQUIRED)

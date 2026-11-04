@@ -1,4 +1,4 @@
--- Read-only preview of the role purse backfill (V202611042055__split_wallets_into_role_purses.sql).
+-- Read-only preview of the role purse backfill (V202611042152__split_wallets_into_role_purses.sql).
 --
 -- Usage, against staging before deploying:
 --   psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f scripts/role-purse-backfill-preview.sql > role-purse-preview.txt

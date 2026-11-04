@@ -133,7 +133,7 @@ public class WithdrawalServiceImpl implements WithdrawalService {
         }
         PayoutMethod method = usableMethod(owner, payoutMethodUuid);
         String currency = walletService.balanceOf(owner, null).currencyCode();
-        WalletPurse from = walletService.debitPurse(owner, purse, currency);
+        WalletPurse from = walletService.withdrawalPurse(owner, purse, currency);
         BigDecimal available = walletService.balanceOf(owner, from, currency).balanceAmount();
         if (amount.compareTo(available) > 0) {
             throw new IllegalArgumentException("You can withdraw up to " + kes(available) + " from this purse.");

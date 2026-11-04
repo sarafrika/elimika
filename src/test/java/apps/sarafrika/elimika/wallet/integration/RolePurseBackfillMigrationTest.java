@@ -36,8 +36,8 @@ import org.springframework.test.annotation.DirtiesContext;
 @DisplayName("Role purse backfill")
 class RolePurseBackfillMigrationTest {
 
-    private static final String BEFORE_PURSES = "202611042024";
-    private static final String MIGRATION = "src/main/resources/db/migration/V202611042055__split_wallets_into_role_purses.sql";
+    private static final String BEFORE_PURSES = "202611042151";
+    private static final String MIGRATION = "src/main/resources/db/migration/V202611042152__split_wallets_into_role_purses.sql";
     private static final String PREVIEW = "scripts/role-purse-backfill-preview.sql";
     private static final String ANN = "a0000000-0000-0000-0000-00000000000a";
     private static final String FAY = "a0000000-0000-0000-0000-00000000000f";
