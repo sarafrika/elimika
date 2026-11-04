@@ -1,3 +1,10 @@
+# [2.189.0](https://github.com/sarafrika/elimika/compare/v2.188.0...v2.189.0) (2026-11-04)
+
+
+### Features
+
+* **commerce:** give orders short Sqids order numbers used as the M-Pesa account reference ([2c286d3](https://github.com/sarafrika/elimika/commit/2c286d3336f17e9ffc3266e143c4adb7e0225aad))
+
 # [2.188.0](https://github.com/sarafrika/elimika/compare/v2.187.0...v2.188.0) (2026-10-28)
 
 
