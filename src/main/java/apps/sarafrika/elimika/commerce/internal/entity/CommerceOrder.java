@@ -96,6 +96,9 @@ public class CommerceOrder extends BaseEntity {
     @Column(name = "prompt_msisdn")
     private String promptMsisdn;
 
+    @Column(name = "prompt_sent_at")
+    private LocalDateTime promptSentAt;
+
     @JdbcTypeCode(SqlTypes.JSON)
     @Column(name = "metadata_json")
     private String metadataJson;

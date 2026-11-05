@@ -140,6 +140,7 @@ public class InternalOrderServiceImpl implements InternalOrderService {
         // reads the checkout id it was given; it never chooses one.
         CommerceOrder order = loadBuyersOrder(orderId);
         order.setCheckoutRequestId(checkoutRequestId);
+        order.setPromptSentAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
         if (promptMsisdn != null) {
             order.setPromptMsisdn(apps.sarafrika.elimika.shared.sms.Msisdn.normalise(promptMsisdn).orElse(null));
         }
@@ -276,19 +277,10 @@ public class InternalOrderServiceImpl implements InternalOrderService {
         payment.setAmount(order.getTotalAmount());
         payment.setCurrencyCode(order.getCurrencyCode());
         payment.setExternalReference(order.getCheckoutRequestId());
-        payment.setProviderReceipt(mpesaReceiptOrNull(providerReceipt));
+        payment.setProviderReceipt(MpesaReceipts.orNull(providerReceipt));
         payment.setPayerMsisdn(apps.sarafrika.elimika.shared.sms.Msisdn.normalise(payerMsisdn).orElse(null));
         payment.setProcessedAt(java.time.LocalDateTime.now(java.time.ZoneOffset.UTC));
         paymentRepository.save(payment);
     }
 
-    private static final java.util.regex.Pattern MPESA_RECEIPT = java.util.regex.Pattern.compile("[A-Z0-9]{10}");
-
-    /**
-     * Only a real M-Pesa receipt (10 capitals and digits, e.g. UK5AB1C2D3). Until Safaricom's callback
-     * arrives the gateway reports the STK CheckoutRequestID there, which must never reach a receipt.
-     */
-    static String mpesaReceiptOrNull(String value) {
-        return value != null && MPESA_RECEIPT.matcher(value.trim()).matches() ? value.trim() : null;
-    }
 }

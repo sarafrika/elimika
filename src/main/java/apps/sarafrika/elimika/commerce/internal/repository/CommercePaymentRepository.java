@@ -82,4 +82,8 @@ public interface CommercePaymentRepository extends JpaRepository<CommercePayment
             @Param("status") PaymentStatus status,
             Pageable pageable
     );
+
+    /** Captured payments still missing their M-Pesa receipt, for the late-receipt backfill. */
+    java.util.List<CommercePayment> findByStatusAndProviderReceiptIsNullAndExternalReferenceIsNotNullAndProcessedAtAfter(
+            PaymentStatus status, LocalDateTime since);
 }

@@ -48,6 +48,10 @@ class MpesaPaymentReconciliationSchedulerTest {
     private StudentLookupService studentLookupService;
     @Mock
     private apps.sarafrika.elimika.commerce.order.service.OrderReceiptNotifier receiptNotifier;
+    @Mock
+    private apps.sarafrika.elimika.commerce.internal.repository.CommercePaymentRepository paymentRepository;
+    @Mock
+    private apps.sarafrika.elimika.commerce.payment.client.MpesaGatewayClient mpesaGatewayClient;
 
     private MpesaPaymentReconciliationScheduler scheduler;
 
@@ -56,14 +60,15 @@ class MpesaPaymentReconciliationSchedulerTest {
         scheduler = new MpesaPaymentReconciliationScheduler(orderRepository, orderPaymentService,
                 classEnrolmentGateService,
                 new LearnerResolver(domainSecurityService, studentGuardianLookupService, studentLookupService),
-                new ObjectMapper(), receiptNotifier);
+                new ObjectMapper(), receiptNotifier, paymentRepository, mpesaGatewayClient);
     }
 
     @Test
-    void anUnpaidOrderPastTheWindowIsCancelledAndGivesBackItsSeat() {
+    void aFailedPromptPastFiveMinutesIsCancelledAndTheBuyerToldNothingWasCharged() {
         CommerceOrder order = order("ws_CO_1", 10);
         when(orderRepository.findByPaymentStatusAndCheckoutRequestIdIsNotNullAndPlacedAtBefore(any(), any()))
                 .thenReturn(List.of(order));
+        answer(order, "FAILED");
 
         scheduler.settleUnresolvedPayments();
 
@@ -71,6 +76,71 @@ class MpesaPaymentReconciliationSchedulerTest {
         assertThat(order.getStatus()).isEqualTo(OrderStatus.CANCELLED);
         verify(classEnrolmentGateService).releaseSeats(CLASS, BUYER);
         verify(receiptNotifier).sendSeatReleased("ELM-K7Q9PX", null, "254712345678");
+    }
+
+    @Test
+    void aPromptStillPendingAfterFiveMinutesKeepsItsSeatBecauseTheCallbackMayHaveBeenLost() {
+        CommerceOrder order = order("ws_CO_4", 10);
+        when(orderRepository.findByPaymentStatusAndCheckoutRequestIdIsNotNullAndPlacedAtBefore(any(), any()))
+                .thenReturn(List.of(order));
+        answer(order, "PENDING");
+
+        scheduler.settleUnresolvedPayments();
+
+        assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.AWAITING_PAYMENT);
+        verify(classEnrolmentGateService, never()).releaseSeats(any(), any());
+        verify(receiptNotifier, never()).sendSeatReleased(any(), any(), any());
+    }
+
+    @Test
+    void aPromptPendingForFifteenMinutesReleasesTheSeatButNeverClaimsNothingWasCharged() {
+        CommerceOrder order = order("ws_CO_5", 20);
+        when(orderRepository.findByPaymentStatusAndCheckoutRequestIdIsNotNullAndPlacedAtBefore(any(), any()))
+                .thenReturn(List.of(order));
+        answer(order, "PENDING");
+
+        scheduler.settleUnresolvedPayments();
+
+        assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.CANCELED);
+        verify(classEnrolmentGateService).releaseSeats(CLASS, BUYER);
+        verify(receiptNotifier, never()).sendSeatReleased(any(), any(), any());
+    }
+
+    @Test
+    void aResentPromptGetsItsOwnFiveMinutes() {
+        CommerceOrder order = order("ws_CO_6", 10);
+        order.setPromptSentAt(LocalDateTime.now(ZoneOffset.UTC).minusMinutes(2));
+        when(orderRepository.findByPaymentStatusAndCheckoutRequestIdIsNotNullAndPlacedAtBefore(any(), any()))
+                .thenReturn(List.of(order));
+        answer(order, "FAILED");
+
+        scheduler.settleUnresolvedPayments();
+
+        assertThat(order.getPaymentStatus()).isEqualTo(PaymentStatus.AWAITING_PAYMENT);
+    }
+
+    @Test
+    void aReceiptThatArrivesAfterCaptureIsFilledInButACheckoutIdNeverIs() {
+        var late = new apps.sarafrika.elimika.commerce.internal.entity.CommercePayment();
+        late.setExternalReference("ws_CO_7");
+        var stillMissing = new apps.sarafrika.elimika.commerce.internal.entity.CommercePayment();
+        stillMissing.setExternalReference("ws_CO_8");
+        when(paymentRepository.findByStatusAndProviderReceiptIsNullAndExternalReferenceIsNotNullAndProcessedAtAfter(any(), any()))
+                .thenReturn(List.of(late, stillMissing));
+        when(mpesaGatewayClient.getPayment("ws_CO_7"))
+                .thenReturn(new apps.sarafrika.elimika.commerce.payment.client.dto.MpesaPaymentStatusResponse("SUCCESS", "UK5AB1C2D3", null));
+        when(mpesaGatewayClient.getPayment("ws_CO_8"))
+                .thenReturn(new apps.sarafrika.elimika.commerce.payment.client.dto.MpesaPaymentStatusResponse("SUCCESS", "ws_CO_8", null));
+
+        scheduler.backfillMissingReceipts();
+
+        assertThat(late.getProviderReceipt()).isEqualTo("UK5AB1C2D3");
+        assertThat(stillMissing.getProviderReceipt()).isNull();
+    }
+
+    private void answer(CommerceOrder order, String status) {
+        when(orderPaymentService.getPaymentStatus(order.getUuid().toString()))
+                .thenReturn(new apps.sarafrika.elimika.commerce.payment.dto.PaymentStatusResponse(status));
     }
 
     @Test

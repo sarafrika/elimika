@@ -33,8 +33,10 @@ import java.util.UUID;
  *
  * <h2>Cadence</h2>
  * Unpaid orders are re-queried every five seconds, so a payment is confirmed within seconds even
- * with the tab closed. Past five minutes the order is cancelled and its held seats released; for an
- * hour after that it is still re-checked once a minute, in case M-Pesa confirms late.
+ * with the tab closed. Windows run from the latest prompt: five minutes after M-Pesa answers that it
+ * failed, or fifteen while it still says pending (its own Safaricom query needs that long when a
+ * callback is lost). Only a failed answer may tell the buyer nothing was charged. For an hour after
+ * cancelling it is still re-checked once a minute, in case M-Pesa confirms late.
  */
 @Component
 @RequiredArgsConstructor
@@ -43,6 +45,8 @@ class MpesaPaymentReconciliationScheduler {
 
     private static final int UNRESOLVED_AFTER_SECONDS = 5;
     private static final int GIVE_UP_AFTER_MINUTES = 5;
+    private static final int GIVE_UP_WHILE_PENDING_MINUTES = 15;
+    private static final java.util.Set<String> FAILED_ANSWERS = java.util.Set.of("FAILED", "CANCELLED", "CANCELED");
     private static final int LATE_CONFIRMATION_MINUTES = 60;
     private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {};
 
@@ -52,6 +56,8 @@ class MpesaPaymentReconciliationScheduler {
     private final LearnerResolver learnerResolver;
     private final ObjectMapper objectMapper;
     private final apps.sarafrika.elimika.commerce.order.service.OrderReceiptNotifier receiptNotifier;
+    private final apps.sarafrika.elimika.commerce.internal.repository.CommercePaymentRepository paymentRepository;
+    private final apps.sarafrika.elimika.commerce.payment.client.MpesaGatewayClient mpesaGatewayClient;
 
     @Scheduled(
             initialDelayString = "${commerce.payment.reconciliation.initial-delay:PT60S}",
@@ -96,16 +102,16 @@ class MpesaPaymentReconciliationScheduler {
             if (orderId == null) {
                 continue;
             }
+            String answer = null;
             try {
                 // Asking for the status is what captures it, so this is both the question and the
                 // settlement. Enrolment follows from the same event the browser path publishes.
-                orderPaymentService.getPaymentStatus(orderId);
+                var status = orderPaymentService.getPaymentStatus(orderId);
+                answer = status == null || status.status() == null ? null : status.status().toUpperCase(java.util.Locale.ROOT);
             } catch (Exception e) {
                 log.warn("Could not settle payment for order {}: {}", orderId, e.getMessage());
             }
-            if (order.getPlacedAt() != null && order.getPlacedAt().isBefore(giveUpBefore)) {
-                abandon(order);
-            }
+            decideHold(order, answer, now);
         }
 
         // A prompt that never started can never be paid; cancel it once the same window has passed.
@@ -113,7 +119,59 @@ class MpesaPaymentReconciliationScheduler {
                 PaymentStatus.AWAITING_PAYMENT, giveUpBefore).forEach(this::abandon);
     }
 
+    /**
+     * Cancels only on a final failed answer after five minutes, or after fifteen with no answer; a
+     * paid or refused order is never touched here. Times run from the latest prompt.
+     */
+    void decideHold(CommerceOrder order, String answer, LocalDateTime now) {
+        LocalDateTime since = order.getPromptSentAt() != null ? order.getPromptSentAt() : order.getPlacedAt();
+        if (since == null || "CAPTURED".equals(answer) || "SUCCESS".equals(answer) || "REFUSED".equals(answer)) {
+            return;
+        }
+        boolean failed = answer != null && FAILED_ANSWERS.contains(answer);
+        if (failed && since.isBefore(now.minusMinutes(GIVE_UP_AFTER_MINUTES))) {
+            abandon(order, true);
+        } else if (!failed && since.isBefore(now.minusMinutes(GIVE_UP_WHILE_PENDING_MINUTES))) {
+            log.warn("Order {} still has no final M-Pesa answer {} minutes after its prompt; releasing the seat"
+                    + " and re-checking for an hour", order.getOrderNumber(), GIVE_UP_WHILE_PENDING_MINUTES);
+            abandon(order, false);
+        }
+    }
+
+    /**
+     * Fills the receipt of payments captured before M-Pesa had one (its query path carries none; the
+     * receipt comes with a later C2B confirmation). Receipts already sent simply lacked the code.
+     */
+    @Scheduled(initialDelayString = "PT90S", fixedDelayString = "PT60S")
+    @Transactional
+    void backfillMissingReceipts() {
+        try {
+            LocalDateTime since = LocalDateTime.now(ZoneOffset.UTC).minusHours(48);
+            for (var payment : paymentRepository.findByStatusAndProviderReceiptIsNullAndExternalReferenceIsNotNullAndProcessedAtAfter(
+                    PaymentStatus.CAPTURED, since)) {
+                try {
+                    String receipt = apps.sarafrika.elimika.commerce.internal.service.impl.MpesaReceipts.orNull(
+                            mpesaGatewayClient.getPayment(payment.getExternalReference()).transactionId());
+                    if (receipt != null) {
+                        payment.setProviderReceipt(receipt);
+                        paymentRepository.save(payment);
+                        log.info("Attached late M-Pesa receipt {} to payment {}", receipt, payment.getExternalReference());
+                    }
+                } catch (Exception e) {
+                    log.debug("Receipt not yet available for {}: {}", payment.getExternalReference(), e.getMessage());
+                }
+            }
+        } catch (Exception ex) {
+            log.warn("Receipt backfill could not run: {}", ex.getMessage());
+        }
+    }
+
     private void abandon(CommerceOrder order) {
+        abandon(order, true);
+    }
+
+    /** {@code confirmedUnpaid}: M-Pesa said the prompt failed, so the buyer may be told nothing was charged. */
+    private void abandon(CommerceOrder order, boolean confirmedUnpaid) {
         if (order.getPaymentStatus() != PaymentStatus.AWAITING_PAYMENT) {
             return;
         }
@@ -123,7 +181,7 @@ class MpesaPaymentReconciliationScheduler {
         releaseHeldSeats(order);
         log.info("Abandoned unpaid order {} past the STK window and released its held seats", order.getOrderNumber());
         // The seat-hold window ran out: one of the only two moments a buyer is messaged.
-        if (order.getPromptMsisdn() != null) {
+        if (confirmedUnpaid && order.getPromptMsisdn() != null) {
             try {
                 receiptNotifier.sendSeatReleased(order.getOrderNumber(), firstTitle(order), order.getPromptMsisdn());
             } catch (Exception ex) {
