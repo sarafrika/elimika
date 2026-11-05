@@ -91,6 +91,12 @@ public class InternalOrderServiceImpl implements InternalOrderService {
 
     @Override
     @Transactional(readOnly = true)
+    public OrderResponse getOrderForSignedLink(String orderId) {
+        return mapper.toOrderResponse(findOrder(orderId, order -> true));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
     public Page<OrderResponse> listOrdersForCurrentUser(Pageable pageable) {
         UUID callerUuid = domainSecurityService.getCurrentUserUuid();
         if (callerUuid == null) {

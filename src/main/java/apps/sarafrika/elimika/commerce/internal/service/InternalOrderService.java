@@ -15,6 +15,9 @@ public interface InternalOrderService {
 
     OrderResponse getOrder(String orderId);
 
+    /** For a verified signed receipt link only: the order with no caller check (the link is the proof). */
+    OrderResponse getOrderForSignedLink(String orderId);
+
     /** The caller's own orders, paid or not, newest first; empty for an anonymous caller. */
     Page<OrderResponse> listOrdersForCurrentUser(Pageable pageable);
 

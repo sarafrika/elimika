@@ -34,7 +34,7 @@ public class PublicReceiptController {
         if (!receiptLinks.verify(orderId, token)) {
             throw new ResourceNotFoundException("Receipt not found");
         }
-        OrderResponse order = orderService.getOrder(orderId);
+        OrderResponse order = orderService.getOrderForSignedLink(orderId);
         byte[] pdf = receiptNotifier.receiptPdf(order).orElseThrow(() -> new ResourceNotFoundException("Receipt not found"));
         return ResponseEntity.ok()
                 .header(HttpHeaders.CONTENT_DISPOSITION, ContentDisposition.inline()

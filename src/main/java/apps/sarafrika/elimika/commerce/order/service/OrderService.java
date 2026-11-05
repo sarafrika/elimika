@@ -14,6 +14,9 @@ public interface OrderService {
 
     OrderResponse getOrder(String orderId);
 
+    /** For a verified signed receipt link only: the order with no caller check (the link is the proof). */
+    OrderResponse getOrderForSignedLink(String orderId);
+
     /** The signed-in buyer's own orders, newest first. */
     Page<OrderResponse> listMyOrders(Pageable pageable);
 }

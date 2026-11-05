@@ -59,6 +59,11 @@ public class OrderServiceImpl implements OrderService {
     }
 
     @Override
+    public OrderResponse getOrderForSignedLink(String orderId) {
+        return internalOrderService.getOrderForSignedLink(orderId);
+    }
+
+    @Override
     public Page<OrderResponse> listMyOrders(Pageable pageable) {
         return internalOrderService.listOrdersForCurrentUser(pageable);
     }
