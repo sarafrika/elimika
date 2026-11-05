@@ -1,3 +1,11 @@
+## [2.194.2](https://github.com/sarafrika/elimika/compare/v2.194.1...v2.194.2) (2026-11-05)
+
+
+### Bug Fixes
+
+* **commerce:** store only a real M-Pesa receipt, never the STK checkout request id the gateway reports before its callback ([1dd61f2](https://github.com/sarafrika/elimika/commit/1dd61f28369d53fc9996fe1de156af3d4a951b4e))
+* **notifications:** render async emails with the app class loader so receipt templates resolve in the packaged jar ([12bda13](https://github.com/sarafrika/elimika/commit/12bda130703721c91c2e2d783d87c0a9d8fa68fa))
+
 ## [2.194.1](https://github.com/sarafrika/elimika/compare/v2.194.0...v2.194.1) (2026-11-05)
 
 
