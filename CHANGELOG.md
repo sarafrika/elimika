@@ -1,3 +1,10 @@
+## [2.194.3](https://github.com/sarafrika/elimika/compare/v2.194.2...v2.194.3) (2026-11-05)
+
+
+### Bug Fixes
+
+* **commerce:** hold a paid-but-unconfirmed seat until M-Pesa answers, time holds from the latest prompt and backfill late receipts ([423fdf3](https://github.com/sarafrika/elimika/commit/423fdf373a7e15221341f984d6d2ae1efaad04f5))
+
 ## [2.194.2](https://github.com/sarafrika/elimika/compare/v2.194.1...v2.194.2) (2026-11-05)
 
 
