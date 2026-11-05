@@ -21,6 +21,7 @@ import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 import org.junit.jupiter.api.BeforeEach;
@@ -48,6 +49,7 @@ class OrderReceiptNotifierTest {
     @Mock private SmsSender smsSender;
     @Mock private apps.sarafrika.elimika.shared.spi.ClassScheduleService classScheduleService;
     @Mock private SmsTemplateRepository templateRepository;
+    @Mock private apps.sarafrika.elimika.notifications.spi.ReceiptDocumentService receiptDocuments;
     private OrderReceiptNotifier notifier;
 
     private final UUID buyer = UUID.randomUUID();
@@ -55,7 +57,7 @@ class OrderReceiptNotifierTest {
     @BeforeEach
     void setUp() {
         notifier = new OrderReceiptNotifier(eventPublisher, userLookupService, paymentRepository, smsSender,
-                new SmsTemplateService(templateRepository, smsSender), classScheduleService);
+                new SmsTemplateService(templateRepository, smsSender), classScheduleService, receiptDocuments);
         lenient().when(templateRepository.findByTemplateKey(anyString())).thenReturn(Optional.empty());
         lenient().when(userLookupService.getUserEmail(buyer)).thenReturn(Optional.of(EMAIL));
         lenient().when(userLookupService.getUserFullName(buyer)).thenReturn(Optional.of("Buyer"));
@@ -72,6 +74,25 @@ class OrderReceiptNotifierTest {
         notifier.sendReceipt(order("AWAITING_PAYMENT"));
 
         verifyNoInteractions(eventPublisher, smsSender);
+    }
+
+    @Test
+    void anUnpaidOrderHasNoReceiptToDownload() {
+        assertThat(notifier.receiptPdf(order("AWAITING_PAYMENT"))).isEmpty();
+        verifyNoInteractions(receiptDocuments);
+    }
+
+    @Test
+    void aPaidOrdersReceiptIsRenderedForTheBuyerWithTheMpesaReceipt() {
+        when(receiptDocuments.renderOrderReceipt(eq("Buyer"), eq(EMAIL), any())).thenReturn(Optional.of(new byte[] {1}));
+
+        assertThat(notifier.receiptPdf(order("CAPTURED"))).isPresent();
+
+        @SuppressWarnings("unchecked")
+        ArgumentCaptor<Map<String, Object>> vars = ArgumentCaptor.forClass(Map.class);
+        verify(receiptDocuments).renderOrderReceipt(eq("Buyer"), eq(EMAIL), vars.capture());
+        assertThat(vars.getValue()).containsEntry("mpesaReceipt", "UK42C120ZR").containsKey("paidAt")
+                .containsEntry("payerMasked", apps.sarafrika.elimika.shared.sms.Msisdn.mask("254712345678"));
     }
 
     @Test

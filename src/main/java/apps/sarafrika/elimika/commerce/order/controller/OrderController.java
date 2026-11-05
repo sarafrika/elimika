@@ -35,6 +35,8 @@ public class OrderController {
     public static final String API_ROOT_PATH = "/api/v1/commerce/orders";
 
     private final OrderService orderService;
+    private final apps.sarafrika.elimika.commerce.order.service.OrderReceiptNotifier receiptNotifier;
+    private final apps.sarafrika.elimika.shared.security.DomainSecurityService domainSecurityService;
 
     @Operation(
             summary = "Complete checkout",
@@ -78,5 +80,26 @@ public class OrderController {
             @PathVariable String orderId) {
         OrderResponse order = orderService.getOrder(orderId);
         return ResponseEntity.ok(ApiResponse.success(order, "Order retrieved successfully"));
+    }
+
+    @Operation(summary = "Download the payment receipt PDF",
+            description = "The buyer's (or a platform admin's) branded receipt for a paid order; 404 for anyone else or an unpaid order")
+    @GetMapping(value = "/{orderId}/receipt.pdf", produces = "application/pdf")
+    public ResponseEntity<byte[]> downloadReceipt(@PathVariable String orderId) {
+        OrderResponse order = orderService.getOrder(orderId);
+        java.util.UUID me = domainSecurityService.getCurrentUserUuid();
+        boolean allowed = order != null && me != null
+                && (me.equals(order.getUserUuid()) || domainSecurityService.isPlatformAdmin());
+        if (!allowed) {
+            throw new apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException("Order not found");
+        }
+        byte[] pdf = receiptNotifier.receiptPdf(order).orElseThrow(() ->
+                new apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException("This order has no receipt until it is paid"));
+        return ResponseEntity.ok()
+                .header(org.springframework.http.HttpHeaders.CONTENT_DISPOSITION, org.springframework.http.ContentDisposition
+                        .attachment().filename("Elimika-receipt-" + order.getDisplayId() + ".pdf").build().toString())
+                .header(org.springframework.http.HttpHeaders.CACHE_CONTROL, "private, no-store")
+                .contentType(org.springframework.http.MediaType.APPLICATION_PDF)
+                .body(pdf);
     }
 }

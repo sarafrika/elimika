@@ -20,7 +20,7 @@ import org.springframework.util.StringUtils;
 @Component
 @RequiredArgsConstructor
 @Slf4j
-public class ReceiptPdfRenderer {
+public class ReceiptPdfRenderer implements apps.sarafrika.elimika.notifications.spi.ReceiptDocumentService {
 
     static final String TEMPLATE = "pdf/order-receipt";
     /** The same artwork the emails embed, so the PDF is branded exactly like the message it rides on. */
@@ -43,15 +43,22 @@ public class ReceiptPdfRenderer {
         if (event.getNotificationType() != NotificationType.ORDER_PAYMENT_RECEIPT) {
             return Optional.empty();
         }
+        Map<String, Object> vars = event.getTemplateVariables() == null ? Map.of() : event.getTemplateVariables();
+        return renderOrderReceipt(event.getRecipientName(), event.getRecipientEmail(), vars)
+                .map(pdf -> new Attachment(filename(vars), pdf));
+    }
+
+    @Override
+    public Optional<byte[]> renderOrderReceipt(String recipientName, String recipientEmail, Map<String, Object> variables) {
         try {
-            Map<String, Object> seller = new HashMap<>();
+            Map<String, Object> seller = new HashMap<>(variables);
             seller.put("sellerName", legalName);
             seller.put("sellerAddress", StringUtils.hasText(address) ? address : null);
             seller.put("sellerKraPin", StringUtils.hasText(kraPin) ? kraPin : null);
             seller.put("vatNote", StringUtils.hasText(vatNote) ? vatNote : null);
             seller.put("elimikaLogo", dataUri(ELIMIKA_LOGO));
             seller.put("sarafrikaLogo", dataUri(SARAFRIKA_LOGO));
-            String html = templateService.renderDocument(TEMPLATE, event, seller);
+            String html = templateService.renderDocument(TEMPLATE, recipientName, recipientEmail, seller);
 
             ByteArrayOutputStream out = new ByteArrayOutputStream();
             PdfRendererBuilder builder = new PdfRendererBuilder();
@@ -60,14 +67,17 @@ public class ReceiptPdfRenderer {
             builder.toStream(out);
             builder.run();
 
-            Object order = event.getTemplateVariables() == null ? null : event.getTemplateVariables().get("orderDisplayId");
-            String name = "Elimika-receipt-" + (order == null ? "order" : order) + ".pdf";
-            return Optional.of(new Attachment(name, out.toByteArray()));
+            return Optional.of(out.toByteArray());
         } catch (Exception ex) {
             // The email still goes out without the PDF rather than not at all.
-            log.error("Could not render the receipt PDF for notification {}: {}", event.getNotificationId(), ex.getMessage(), ex);
+            log.error("Could not render the receipt PDF for order {}: {}", variables.get("orderDisplayId"), ex.getMessage(), ex);
             return Optional.empty();
         }
+    }
+
+    public static String filename(Map<String, Object> variables) {
+        Object order = variables.get("orderDisplayId");
+        return "Elimika-receipt-" + (order == null ? "order" : order) + ".pdf";
     }
 
     private static String dataUri(String path) {

@@ -47,6 +47,7 @@ public class OrderReceiptNotifier {
     private final SmsSender smsSender;
     private final apps.sarafrika.elimika.shared.sms.template.SmsTemplateService smsTemplates;
     private final apps.sarafrika.elimika.shared.spi.ClassScheduleService classScheduleService;
+    private final apps.sarafrika.elimika.notifications.spi.ReceiptDocumentService receiptDocuments;
 
     private static final java.time.ZoneId NAIROBI = java.time.ZoneId.of("Africa/Nairobi");
 
@@ -106,16 +107,7 @@ public class OrderReceiptNotifier {
             log.warn("No email on file for the buyer of order {}; email receipt skipped", order.getDisplayId());
             return;
         }
-        Map<String, Object> variables = receiptVariables(order, amount, classTitle, receipt);
-        if (firstSession != null) {
-            variables.put("firstSession", firstSession);
-        }
-        variables.put("paidAt", java.time.ZonedDateTime.now(java.time.ZoneId.of("Africa/Nairobi"))
-                .format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm 'EAT'", Locale.ENGLISH)));
-        paymentRepository.findFirstByOrderUuidAndStatus(UUID.fromString(order.getId()), PaymentStatus.CAPTURED)
-                .map(CommercePayment::getPayerMsisdn)
-                .flatMap(Msisdn::normalise)
-                .ifPresent(msisdn -> variables.put("payerMasked", Msisdn.mask(msisdn)));
+        Map<String, Object> variables = documentVariables(order, amount, classTitle, receipt, firstSession);
         eventPublisher.publishEvent(new NotificationRequestedEvent(
                 UUID.randomUUID(),
                 buyer,
@@ -133,6 +125,41 @@ public class OrderReceiptNotifier {
                 LocalDateTime.now(ZoneOffset.UTC),
                 findOrganization(buyer),
                 null));
+    }
+
+    /** The PDF receipt for a captured order, the same one its receipt email carried. */
+    public Optional<byte[]> receiptPdf(OrderResponse order) {
+        if (order == null || !"CAPTURED".equalsIgnoreCase(order.getPaymentStatus())) {
+            return Optional.empty();
+        }
+        String receipt = parseUuid(order.getId())
+                .flatMap(uuid -> paymentRepository.findFirstByOrderUuidAndStatus(uuid, PaymentStatus.CAPTURED))
+                .map(CommercePayment::getProviderReceipt).orElse(null);
+        Map<String, Object> variables = documentVariables(order, amountLabel(order.getCurrencyCode(), order.getTotal()),
+                classTitle(order), receipt, firstSession(order));
+        UUID buyer = order.getUserUuid();
+        String email = buyer == null ? null : userLookupService.getUserEmail(buyer).orElse(null);
+        String name = buyer == null ? null : userLookupService.getUserFullName(buyer).orElse(email);
+        return receiptDocuments.renderOrderReceipt(name, email, variables);
+    }
+
+    /** Everything the receipt email and PDF show; "paid at" is when the payment was captured. */
+    private Map<String, Object> documentVariables(OrderResponse order, String amount, String classTitle, String receipt,
+                                                  String firstSession) {
+        Map<String, Object> variables = receiptVariables(order, amount, classTitle, receipt);
+        if (firstSession != null) {
+            variables.put("firstSession", firstSession);
+        }
+        Optional<CommercePayment> payment = parseUuid(order.getId())
+                .flatMap(uuid -> paymentRepository.findFirstByOrderUuidAndStatus(uuid, PaymentStatus.CAPTURED));
+        LocalDateTime paidUtc = payment.map(p -> p.getLastModifiedDate() != null ? p.getLastModifiedDate() : p.getCreatedDate())
+                .orElse(LocalDateTime.now(ZoneOffset.UTC));
+        variables.put("paidAt", paidUtc.atZone(ZoneOffset.UTC).withZoneSameInstant(NAIROBI)
+                .format(java.time.format.DateTimeFormatter.ofPattern("d MMM yyyy, HH:mm 'EAT'", Locale.ENGLISH)));
+        payment.map(CommercePayment::getPayerMsisdn)
+                .flatMap(Msisdn::normalise)
+                .ifPresent(msisdn -> variables.put("payerMasked", Msisdn.mask(msisdn)));
+        return variables;
     }
 
     /** Values for the payment SMS; the class title is cut to {@value #SMS_CLASS_TITLE_MAX} to stay in one segment. */

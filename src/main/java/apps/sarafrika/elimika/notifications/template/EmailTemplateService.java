@@ -164,10 +164,23 @@ public class EmailTemplateService {
         return templateEngine.process(templatePath, context);
     }
 
+    /** Renders a document for a named recipient without a notification behind it (e.g. a download). */
+    public String renderDocument(String templatePath, String recipientName, String recipientEmail, Map<String, Object> variables) {
+        Context context = baseContext(recipientName, recipientEmail);
+        normalizeTemplateVariables(variables).forEach(context::setVariable);
+        return templateEngine.process(templatePath, context);
+    }
+
     /**
      * Create Thymeleaf context with all necessary variables
      */
     private Context createEmailContext(NotificationEvent event) {
+        Context context = baseContext(event.getRecipientName(), event.getRecipientEmail());
+        normalizeTemplateVariables(event.getTemplateVariables()).forEach(context::setVariable);
+        return context;
+    }
+
+    private Context baseContext(String recipientName, String recipientEmail) {
         Context context = new Context();
         
         // Add system variables
@@ -180,14 +193,8 @@ public class EmailTemplateService {
         context.setVariable("fmt", formatter);
         context.setVariable("tones", TONES);
         
-        // Add recipient information
-        context.setVariable("recipientName", event.getRecipientName());
-        context.setVariable("recipientEmail", event.getRecipientEmail());
-        
-        // Add all template-specific variables
-        Map<String, Object> templateVars = normalizeTemplateVariables(event.getTemplateVariables());
-        templateVars.forEach(context::setVariable);
-        
+        context.setVariable("recipientName", recipientName);
+        context.setVariable("recipientEmail", recipientEmail);
         return context;
     }
 
