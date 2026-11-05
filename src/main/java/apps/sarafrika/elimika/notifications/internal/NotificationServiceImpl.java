@@ -48,7 +48,7 @@ public class NotificationServiceImpl implements NotificationService {
             }
         }
 
-        return CompletableFuture.supplyAsync(() -> {
+        return AppClassLoaderAsync.supply(() -> {
             boolean delivered = false;
             NotificationResult lastResult = NotificationResult.pending(event.getNotificationId(), "notification");
 

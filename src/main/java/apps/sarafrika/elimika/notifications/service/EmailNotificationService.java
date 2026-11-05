@@ -21,6 +21,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import apps.sarafrika.elimika.notifications.internal.AppClassLoaderAsync;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -50,7 +51,7 @@ public class EmailNotificationService {
      * Send an email notification asynchronously
      */
     public CompletableFuture<NotificationResult> sendEmail(NotificationEvent event) {
-        return CompletableFuture.supplyAsync(() -> {
+        return AppClassLoaderAsync.supply(() -> {
             try {
                 return sendEmailSync(event);
             } catch (Exception e) {
