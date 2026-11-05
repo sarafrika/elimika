@@ -1,3 +1,10 @@
+## [2.194.1](https://github.com/sarafrika/elimika/compare/v2.194.0...v2.194.1) (2026-11-05)
+
+
+### Bug Fixes
+
+* **commerce:** load the order behind a verified receipt link without a signed-in caller ([e601dd7](https://github.com/sarafrika/elimika/commit/e601dd7688bb6f7c66386fc0b5a45a5b36dd9618))
+
 # [2.194.0](https://github.com/sarafrika/elimika/compare/v2.193.0...v2.194.0) (2026-11-05)
 
 
