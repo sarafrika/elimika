@@ -77,6 +77,11 @@
 
     <table th:replace="~{email/fragments/layout :: button(${frontendUrl + '/dashboard/student/learning-hub'}, 'Go to my class')}"></table>
 
+    <p th:if="${receiptUrl != null}" style="margin:0 0 12px;font-size:14px;line-height:1.6;color:#5B6474;">
+        Your PDF receipt is attached. You can also
+        <a th:href="${receiptUrl}" style="color:#0061ED;font-weight:600;">download it here</a>, no sign-in needed.
+    </p>
+
     <p style="margin:0;font-size:14px;line-height:1.6;color:#5B6474;">
         Something wrong with this charge? Write to
         <a th:href="${'mailto:' + supportEmail}" style="color:#0061ED;font-weight:600;" th:text="${supportEmail}">support</a>

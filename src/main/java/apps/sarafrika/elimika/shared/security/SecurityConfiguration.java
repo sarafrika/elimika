@@ -158,6 +158,8 @@ public class SecurityConfiguration {
                             // Real-user timing beacons; the controller rate-limits anonymous callers per IP.
                             .requestMatchers(HttpMethod.POST, "/api/v1/perf/rum").permitAll()
                             .requestMatchers(HttpMethod.GET, "/api/v1/organisations").permitAll()
+                            // Signed receipt links from payment emails; the token is checked in the controller.
+                            .requestMatchers(HttpMethod.GET, "/api/v1/public/receipts/**").permitAll()
                             // Credential/profile documents stay authenticated; all other
                             // stored media is public (UUID-named, unguessable keys)
                             .requestMatchers(HttpMethod.GET, "/api/v1/files/profile_documents/**").authenticated()

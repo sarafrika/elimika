@@ -48,6 +48,7 @@ public class OrderReceiptNotifier {
     private final apps.sarafrika.elimika.shared.sms.template.SmsTemplateService smsTemplates;
     private final apps.sarafrika.elimika.shared.spi.ClassScheduleService classScheduleService;
     private final apps.sarafrika.elimika.notifications.spi.ReceiptDocumentService receiptDocuments;
+    private final ReceiptLinks receiptLinks;
 
     private static final java.time.ZoneId NAIROBI = java.time.ZoneId.of("Africa/Nairobi");
 
@@ -108,6 +109,7 @@ public class OrderReceiptNotifier {
             return;
         }
         Map<String, Object> variables = documentVariables(order, amount, classTitle, receipt, firstSession);
+        receiptLinks.url(order.getId()).ifPresent(url -> variables.put("receiptUrl", url));
         eventPublisher.publishEvent(new NotificationRequestedEvent(
                 UUID.randomUUID(),
                 buyer,

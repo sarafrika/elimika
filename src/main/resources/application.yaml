@@ -197,6 +197,10 @@ logging:
       max-history: 90
 
 commerce:
+  # Signs the no-sign-in receipt links in payment emails; changing it breaks links already sent.
+  receipt-link:
+    secret: ${COMMERCE_RECEIPT_LINK_SECRET:${encryption.secret-key:}}
+    api-base-url: ${COMMERCE_RECEIPT_LINK_API_BASE_URL:${storage.base-url}}
   internal:
     enabled: ${COMMERCE_INTERNAL_ENABLED:false}
     default-currency: ${COMMERCE_INTERNAL_DEFAULT_CURRENCY:KES}

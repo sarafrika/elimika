@@ -57,7 +57,8 @@ class OrderReceiptNotifierTest {
     @BeforeEach
     void setUp() {
         notifier = new OrderReceiptNotifier(eventPublisher, userLookupService, paymentRepository, smsSender,
-                new SmsTemplateService(templateRepository, smsSender), classScheduleService, receiptDocuments);
+                new SmsTemplateService(templateRepository, smsSender), classScheduleService, receiptDocuments,
+                new ReceiptLinks("test-secret", "https://api.example.com"));
         lenient().when(templateRepository.findByTemplateKey(anyString())).thenReturn(Optional.empty());
         lenient().when(userLookupService.getUserEmail(buyer)).thenReturn(Optional.of(EMAIL));
         lenient().when(userLookupService.getUserFullName(buyer)).thenReturn(Optional.of("Buyer"));
@@ -117,6 +118,8 @@ class OrderReceiptNotifierTest {
         assertThat(captor.getValue().recipientEmail()).isEqualTo(EMAIL);
         assertThat(captor.getValue().body()).isEqualTo("We received KES 10,500 for Flower Gardening - Sat cohort. Your seat is confirmed.");
         assertThat(captor.getValue().templateVariables()).containsEntry("mpesaReceipt", "UK42C120ZR");
+        assertThat((String) captor.getValue().templateVariables().get("receiptUrl"))
+                .startsWith("https://api.example.com/api/v1/public/receipts/" + ORDER + ".pdf?t=");
     }
 
     @Test
