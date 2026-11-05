@@ -1,3 +1,16 @@
+# [2.194.0](https://github.com/sarafrika/elimika/compare/v2.193.0...v2.194.0) (2026-11-05)
+
+
+### Bug Fixes
+
+* **wallet:** fill the instructor leg of sale splits from legacy class sale credits ([4c36294](https://github.com/sarafrika/elimika/commit/4c36294a5940045ce9dc7e66fc3bd15fbc3e115d))
+
+
+### Features
+
+* **commerce:** add signed no-sign-in receipt PDF links to payment emails ([beb1a05](https://github.com/sarafrika/elimika/commit/beb1a0545a98a8361aa12a106b10ea537e137dd1))
+* **commerce:** let buyers download the PDF receipt of a paid order and stamp it with the capture time ([71590bf](https://github.com/sarafrika/elimika/commit/71590bf0b773645396725eca17e6c000a8731b2c))
+
 # [2.193.0](https://github.com/sarafrika/elimika/compare/v2.192.0...v2.193.0) (2026-11-04)
 
 
