@@ -1,3 +1,10 @@
+## [2.194.4](https://github.com/sarafrika/elimika/compare/v2.194.3...v2.194.4) (2026-11-11)
+
+
+### Bug Fixes
+
+* **wallet:** use working account balance for B2C payouts ([9f3e85b](https://github.com/sarafrika/elimika/commit/9f3e85b0919a86e61d6c2777a470b826a548d7f7))
+
 ## [2.194.3](https://github.com/sarafrika/elimika/compare/v2.194.2...v2.194.3) (2026-11-05)
 
 
