@@ -209,14 +209,14 @@ public class PayoutBatchServiceImpl implements PayoutBatchService {
                         + " a wallet issue (ledger mismatch or a wallet that does not back what is held). "
                         + "Check those wallets, remove the rows, or approve with acknowledge_wallet_issues.");
             }
-            BigDecimal utility = payoutFloat.map(PayoutFloat::utilityAccountFunds).orElse(null);
-            if (utility == null && !overrideUnknownFloat) {
+            BigDecimal working = payoutFloat.map(PayoutFloat::workingAccountFunds).orElse(null);
+            if (working == null && !overrideUnknownFloat) {
                 throw new IllegalStateException("The payout float is unknown right now, so this batch of "
                         + WithdrawalServiceImpl.kes(batch.getTotalAmount()) + " cannot be checked against it. "
                         + "Try again shortly, or approve with override_unknown_float to release it anyway.");
             }
-            if (utility != null && batch.getTotalAmount().compareTo(utility) > 0) {
-                throw new IllegalStateException("The payout float is " + WithdrawalServiceImpl.kes(utility)
+            if (working != null && batch.getTotalAmount().compareTo(working) > 0) {
+                throw new IllegalStateException("The payout float is " + WithdrawalServiceImpl.kes(working)
                         + " but this batch needs " + WithdrawalServiceImpl.kes(batch.getTotalAmount())
                         + ". Top up the float or remove rows before approving.");
             }
@@ -224,13 +224,14 @@ public class PayoutBatchServiceImpl implements PayoutBatchService {
             batch.setApprovedByUserUuid(actor);
             batch.setApprovedByName(actorName);
             batch.setApprovedAt(now);
-            batch.setFloatAtApproval(utility);
-            batch.setFloatOverride(utility == null);
+            batch.setFloatAtApproval(working);
+            batch.setFloatOverride(working == null);
             batch.setStatus(PayoutBatchStatus.RELEASED);
             batch.setReleasedAt(now);
             batchRepository.save(batch);
             Map<String, Object> extra = new HashMap<>();
-            extra.put("override_unknown_float", utility == null);
+            extra.put("override_unknown_float", working == null);
+            extra.put("float_account", "WORKING");
             extra.put("acknowledge_wallet_issues", acknowledgeWalletIssues && walletIssues.issues() > 0);
             extra.put("wallet_issue_count", walletIssues.issues());
             payoutFloat.map(PayoutFloat::reportedAt).ifPresent(at -> extra.put("float_reported_at", at.toString()));
@@ -250,7 +251,7 @@ public class PayoutBatchServiceImpl implements PayoutBatchService {
                         "Approved by an Elimika admin in a payout batch", rowExtra);
             }
             log.info("Payout batch {} released by {}: {} rows, {} (float {}, override {}, wallet issues {})",
-                    batch.getUuid(), actor, batch.getRowCount(), batch.getTotalAmount(), utility, utility == null,
+                    batch.getUuid(), actor, batch.getRowCount(), batch.getTotalAmount(), working, working == null,
                     walletIssues.issues());
             return batch;
         });

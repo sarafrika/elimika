@@ -12,7 +12,7 @@ public record PayoutSummaryDTO(
         @JsonProperty("in_flight_count") long inFlightCount,
         @JsonProperty("paid_today_amount") BigDecimal paidTodayAmount,
         @JsonProperty("failed_count") long failedCount,
-        @Schema(description = "M-Pesa payout float as last reported; null when unknown")
+        @Schema(description = "M-Pesa B2C Working account balance as last reported; null when unknown")
         @JsonProperty("float_amount") BigDecimal floatAmount,
         @JsonProperty("float_reported_at") OffsetDateTime floatReportedAt,
         @Schema(description = "False while payouts are not configured (no gateway or payout shortcode)")
