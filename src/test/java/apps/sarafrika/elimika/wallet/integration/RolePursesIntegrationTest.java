@@ -153,7 +153,7 @@ class RolePursesIntegrationTest {
 
                 @Override
                 public Optional<PayoutFloat> currentFloat() {
-                    return Optional.of(new PayoutFloat(BigDecimal.ZERO, new BigDecimal("10000000"),
+                    return Optional.of(new PayoutFloat(new BigDecimal("10000000"), BigDecimal.ZERO,
                             OffsetDateTime.now(ZoneOffset.UTC)));
                 }
             };

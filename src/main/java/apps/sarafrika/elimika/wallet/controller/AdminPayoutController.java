@@ -68,7 +68,7 @@ public class AdminPayoutController {
                 withdrawalRepository.sumNetCompletedSince(WithdrawalStatus.PAID,
                         LocalDate.now(ZoneOffset.UTC).atStartOfDay().atOffset(ZoneOffset.UTC)),
                 withdrawalRepository.countByStatus(WithdrawalStatus.FAILED),
-                payoutFloat.map(MobileMoneyPayoutGateway.PayoutFloat::workingAccountFunds).orElse(null),
+                payoutFloat.map(MobileMoneyPayoutGateway.PayoutFloat::utilityAccountFunds).orElse(null),
                 payoutFloat.map(MobileMoneyPayoutGateway.PayoutFloat::reportedAt).orElse(null),
                 gateway.isConfigured());
         return ResponseEntity.ok(ApiResponse.success(summary, "Payout summary retrieved successfully"));

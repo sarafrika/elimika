@@ -35,10 +35,6 @@ public interface MobileMoneyPayoutGateway {
                          OffsetDateTime completedAt) {
     }
 
-    /**
-     * @param utilityAccountFunds the shortcode's Utility balance as M-Pesa reported it
-     * @param workingAccountFunds the balance available for B2C disbursements
-     */
     record PayoutFloat(BigDecimal utilityAccountFunds, BigDecimal workingAccountFunds, OffsetDateTime reportedAt) {
     }
 }

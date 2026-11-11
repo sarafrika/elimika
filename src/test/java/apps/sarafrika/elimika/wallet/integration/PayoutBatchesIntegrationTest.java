@@ -568,8 +568,8 @@ class PayoutBatchesIntegrationTest {
         return uuid;
     }
 
-    private static MobileMoneyPayoutGateway.PayoutFloat floatOf(String working) {
-        return new MobileMoneyPayoutGateway.PayoutFloat(BigDecimal.ZERO, new BigDecimal(working),
+    private static MobileMoneyPayoutGateway.PayoutFloat floatOf(String utility) {
+        return new MobileMoneyPayoutGateway.PayoutFloat(new BigDecimal(utility), BigDecimal.ZERO,
                 OffsetDateTime.now(ZoneOffset.UTC));
     }
 

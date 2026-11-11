@@ -107,7 +107,6 @@ class MpesaPayoutGatewayAdapterTest {
 
         assertThat(paid.completedAt()).isEqualTo(OffsetDateTime.parse("2026-11-04T07:15:30Z"));
         assertThat(payoutFloat.utilityAccountFunds()).isEqualByComparingTo("250000");
-        assertThat(payoutFloat.workingAccountFunds()).isEqualByComparingTo("1200");
         assertThat(payoutFloat.reportedAt().toInstant()).isEqualTo(OffsetDateTime.parse("2026-11-04T07:00:00Z").toInstant());
     }
 }

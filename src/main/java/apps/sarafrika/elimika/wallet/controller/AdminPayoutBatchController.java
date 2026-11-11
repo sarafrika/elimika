@@ -130,7 +130,7 @@ public class AdminPayoutBatchController {
     @PostMapping("/{batchUuid}/approve")
     @Operation(operationId = "approvePayoutBatch", summary = "Approve a batch and release it to M-Pesa",
             description = "Refused (409) for whoever built or submitted the batch, when the batch total exceeds the "
-                    + "payout float's working funds, when the float is unknown unless override_unknown_float is "
+                    + "payout float's utility funds, when the float is unknown unless override_unknown_float is "
                     + "true, and when any row carries a wallet flag (wallet_issue_count above zero) unless "
                     + "acknowledge_wallet_issues is true, which the approval audit records. On approval every row "
                     + "moves to SENDING and is paid a few at a time.")
