@@ -2535,7 +2535,8 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 contact.map(BranchContact::name).orElse(null),
                 contact.map(BranchContact::phone).orElse(null),
                 contact.map(BranchContact::email).orElse(null)
-        ).withHiringDetails(job.getRequirements(), job.getMembershipPreference());
+        ).withHiringDetails(job.getRequirements(), job.getMembershipPreference() != null
+                ? job.getMembershipPreference() : JobMembershipPreference.ANY);
     }
 
     /** Memoised per branch so a page of jobs looks each distinct branch up once. */
