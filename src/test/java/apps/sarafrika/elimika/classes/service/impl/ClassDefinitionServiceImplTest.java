@@ -1,5 +1,9 @@
 package apps.sarafrika.elimika.classes.service.impl;
 
+import apps.sarafrika.elimika.resourcing.spi.ResourceType;
+import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
+import apps.sarafrika.elimika.classes.model.ClassDefinitionResource;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO;
 import apps.sarafrika.elimika.availability.spi.AvailabilityService;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
@@ -731,6 +735,52 @@ class ClassDefinitionServiceImplTest {
         assertThat(saved.get().getLocationName()).isEqualTo("Main Campus · Kasarani, Nairobi");
         assertThat(saved.get().getLocationLatitude()).isEqualTo(BRANCH_LATITUDE);
         assertThat(saved.get().getLocationLongitude()).isEqualTo(BRANCH_LONGITUDE);
+    }
+
+    @Test
+    void createBooksTheVenueAndEquipmentPickedForADirectClass() {
+        UUID organisationUuid = UUID.randomUUID();
+        UUID venueUuid = UUID.randomUUID();
+        UUID projectorUuid = UUID.randomUUID();
+        ClassDefinitionDTO request = sampleClassDefinition(organisationUuid, BRANCH_UUID, LocationType.IN_PERSON,
+                null, null, null);
+        when(trainingBranchLookupService.findBranch(organisationUuid, BRANCH_UUID)).thenReturn(Optional.of(
+                new BranchLocation(BRANCH_UUID, organisationUuid, "Main Campus", null,
+                        BRANCH_LATITUDE, BRANCH_LONGITUDE, true)));
+        when(resourceLookupService.getResource(venueUuid)).thenReturn(Optional.of(new ResourceSummary(venueUuid,
+                organisationUuid, BRANCH_UUID, ResourceType.VENUE, "Studio A", 40, 1, true)));
+        when(resourceLookupService.getResource(projectorUuid)).thenReturn(Optional.of(new ResourceSummary(projectorUuid,
+                organisationUuid, BRANCH_UUID, ResourceType.EQUIPMENT_POOL, "Projector", null, 3, true)));
+        AtomicReference<ClassDefinition> saved = stubSuccessfulCreate(request);
+
+        service.createClassDefinition(request, List.of(
+                new ClassMarketplaceJobResourceDTO(venueUuid, 1, null, null, null),
+                new ClassMarketplaceJobResourceDTO(projectorUuid, 1, null, null, null)));
+
+        assertThat(saved.get().getVenueResourceUuid()).isEqualTo(venueUuid);
+        verify(classDefinitionResourceRepository).saveAll(argThat(rows -> {
+            List<ClassDefinitionResource> captured = StreamSupport.stream(rows.spliterator(), false).toList();
+            assertThat(captured).extracting(ClassDefinitionResource::getResourceUuid).containsExactly(projectorUuid);
+            return true;
+        }));
+        verify(resourceBookingService, org.mockito.Mockito.atLeastOnce())
+                .createConfirmedBookingsForInstance(eq(saved.get().getUuid()), any(), any(), any(), any());
+    }
+
+    @Test
+    void createRefusesEquipmentFromAnotherBranch() {
+        UUID organisationUuid = UUID.randomUUID();
+        UUID projectorUuid = UUID.randomUUID();
+        ClassDefinitionDTO request = sampleClassDefinition(organisationUuid, BRANCH_UUID, LocationType.IN_PERSON,
+                null, null, null);
+        when(resourceLookupService.getResource(projectorUuid)).thenReturn(Optional.of(new ResourceSummary(projectorUuid,
+                organisationUuid, UUID.randomUUID(), ResourceType.EQUIPMENT_POOL, "Projector", null, 3, true)));
+
+        assertThatThrownBy(() -> service.createClassDefinition(request, List.of(
+                new ClassMarketplaceJobResourceDTO(projectorUuid, 1, null, null, null))))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessage("Resource 'Projector' is not at the class's branch");
+        verify(classDefinitionRepository, never()).save(any());
     }
 
     @Test

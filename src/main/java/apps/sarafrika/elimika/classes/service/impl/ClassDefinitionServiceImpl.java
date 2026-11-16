@@ -33,6 +33,12 @@ import apps.sarafrika.elimika.course.spi.CourseInfoService;
 import apps.sarafrika.elimika.course.spi.CourseTrainingApprovalSpi;
 import apps.sarafrika.elimika.classes.exception.SchedulingConflictException;
 import apps.sarafrika.elimika.classes.model.ClassDefinitionResource;
+import java.util.Set;
+import java.util.ArrayList;
+import java.util.HashSet;
+import apps.sarafrika.elimika.resourcing.spi.ResourceType;
+import apps.sarafrika.elimika.resourcing.spi.ResourceSummary;
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO;
 import apps.sarafrika.elimika.classes.repository.ClassDefinitionResourceRepository;
 import apps.sarafrika.elimika.classes.util.RecurrencePatterns;
 import apps.sarafrika.elimika.classes.util.enums.ConflictResolutionStrategy;
@@ -125,7 +131,22 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
 
     @Override
     public ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinitionDTO) {
-        log.debug("Creating class definition with title: {}", classDefinitionDTO.title());
+        return createClassDefinition(classDefinitionDTO, List.of());
+    }
+
+    @Override
+    public ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO requestedDefinition,
+                                                           List<ClassMarketplaceJobResourceDTO> resources) {
+        log.debug("Creating class definition with title: {}", requestedDefinition.title());
+        List<ResourceSummary> requestedResources = resolveClassResources(requestedDefinition, resources);
+        UUID venueUuid = requestedResources.stream()
+                .filter(resource -> resource.resourceType() == ResourceType.VENUE)
+                .map(ResourceSummary::uuid)
+                .findFirst()
+                .orElse(requestedDefinition.venueResourceUuid());
+        ClassDefinitionDTO classDefinitionDTO = venueUuid == null
+                ? requestedDefinition
+                : requestedDefinition.withResourceLinks(venueUuid, requestedDefinition.marketplaceJobUuid());
 
         if (classDefinitionDTO.sessionTemplates() == null || classDefinitionDTO.sessionTemplates().isEmpty()) {
             throw new IllegalArgumentException("At least one session template must be provided");
@@ -171,6 +192,8 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                     String.format("Conflicts detected for class %s", result.title()),
                     schedulingOutcome.conflicts());
         }
+        saveClassEquipment(result.uuid(), requestedResources);
+        bookClassResourcesForInstances(result.uuid(), schedulingOutcome.scheduledInstances());
         bookVenueForInstances(result, schedulingOutcome.scheduledInstances());
         
         // Publish domain event
@@ -253,6 +276,61 @@ public class ClassDefinitionServiceImpl implements ClassDefinitionServiceInterfa
                 schedulingOutcome.scheduledInstances(),
                 schedulingOutcome.conflicts()
         );
+    }
+
+    /**
+     * Checks the venue and equipment a direct create asks for: each must be active, the
+     * organisation's and at the class's branch, with at most one venue.
+     */
+    private List<ResourceSummary> resolveClassResources(ClassDefinitionDTO definition,
+                                                        List<ClassMarketplaceJobResourceDTO> resources) {
+        if (resources == null || resources.isEmpty()) {
+            return List.of();
+        }
+        if (definition.organisationUuid() == null || definition.branchUuid() == null) {
+            throw new IllegalArgumentException("Resources can only be booked for an organisation class with a branch");
+        }
+        Set<UUID> seen = new HashSet<>();
+        List<ResourceSummary> resolved = new ArrayList<>();
+        for (ClassMarketplaceJobResourceDTO resource : resources) {
+            if (resource == null || resource.resourceUuid() == null || !seen.add(resource.resourceUuid())) {
+                throw new IllegalArgumentException("Each resource must have a resource_uuid and appear once");
+            }
+            ResourceSummary summary = resourceLookupService.getResource(resource.resourceUuid())
+                    .orElseThrow(() -> new ResourceNotFoundException(String.format(
+                            "Organisation resource with UUID %s not found", resource.resourceUuid())));
+            if (!definition.organisationUuid().equals(summary.organisationUuid())
+                    || !definition.branchUuid().equals(summary.branchUuid())) {
+                throw new IllegalArgumentException(String.format(
+                        "Resource '%s' is not at the class's branch", summary.name()));
+            }
+            if (!summary.active()) {
+                throw new IllegalArgumentException(String.format(
+                        "Resource '%s' is deactivated and cannot be booked", summary.name()));
+            }
+            resolved.add(summary);
+        }
+        if (resolved.stream().filter(summary -> summary.resourceType() == ResourceType.VENUE).count() > 1) {
+            throw new IllegalArgumentException("A class can book at most one venue");
+        }
+        return resolved;
+    }
+
+    /** Equipment rows the class books every session; the venue is booked through its own column. */
+    private void saveClassEquipment(UUID classDefinitionUuid, List<ResourceSummary> resources) {
+        List<ClassDefinitionResource> rows = resources.stream()
+                .filter(resource -> resource.resourceType() != ResourceType.VENUE)
+                .map(resource -> {
+                    ClassDefinitionResource row = new ClassDefinitionResource();
+                    row.setClassDefinitionUuid(classDefinitionUuid);
+                    row.setResourceUuid(resource.uuid());
+                    row.setQuantity(1);
+                    return row;
+                })
+                .toList();
+        if (!rows.isEmpty()) {
+            classDefinitionResourceRepository.saveAll(rows);
+        }
     }
 
     /**

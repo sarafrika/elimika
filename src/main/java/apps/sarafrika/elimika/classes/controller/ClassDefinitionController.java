@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.controller;
 
+import apps.sarafrika.elimika.resourcing.spi.ResourceBookingConflictException;
 import apps.sarafrika.elimika.classes.dto.ClassBatchSummaryDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionCreateRequestDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
@@ -110,11 +111,15 @@ public class ClassDefinitionController {
         log.debug("REST request to create class definition: {}", request.title());
 
         try {
-            ClassDefinitionResponseDTO result = classDefinitionService.createClassDefinition(request.toClassDefinitionDTO());
+            ClassDefinitionResponseDTO result = classDefinitionService.createClassDefinition(
+                    request.toClassDefinitionDTO(), request.resources());
             return ResponseEntity.status(201).body(ApiResponse.success(result, "Class definition created successfully"));
         } catch (SchedulingConflictException e) {
             log.warn("Scheduling conflicts while creating class definition {}: {}", request.title(), e.getMessage());
             return ResponseEntity.status(409).body(ApiResponse.error("Scheduling conflicts detected", e.getConflicts()));
+        } catch (ResourceBookingConflictException e) {
+            log.warn("Resource conflicts while creating class definition {}: {}", request.title(), e.getMessage());
+            return ResponseEntity.status(409).body(ApiResponse.error("Resource conflicts detected", e.getReport().conflicts()));
         }
     }
 

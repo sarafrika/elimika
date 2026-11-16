@@ -1,5 +1,6 @@
 package apps.sarafrika.elimika.classes.service;
 
+import apps.sarafrika.elimika.classes.dto.ClassMarketplaceJobResourceDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionResponseDTO;
 import apps.sarafrika.elimika.classes.dto.ClassDefinitionDTO;
 import apps.sarafrika.elimika.classes.dto.ClassSchedulingConflictDTO;
@@ -27,6 +28,9 @@ import java.util.UUID;
 public interface ClassDefinitionServiceInterface {
 
     ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinition);
+
+    ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinition,
+                                                     List<ClassMarketplaceJobResourceDTO> resources);
 
     ClassDefinitionResponseDTO createClassDefinition(ClassDefinitionDTO classDefinition,
                                                      MultipartFile thumbnail,

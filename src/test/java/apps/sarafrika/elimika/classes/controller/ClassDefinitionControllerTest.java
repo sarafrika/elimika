@@ -229,7 +229,7 @@ class ClassDefinitionControllerTest {
                 ))
         );
 
-        when(classDefinitionService.createClassDefinition(any(ClassDefinitionDTO.class)))
+        when(classDefinitionService.createClassDefinition(any(ClassDefinitionDTO.class), any()))
                 .thenReturn(new ClassDefinitionResponseDTO(source));
 
         mockMvc.perform(post("/api/v1/classes")
@@ -238,7 +238,7 @@ class ClassDefinitionControllerTest {
                 .andExpect(status().isCreated());
 
         ArgumentCaptor<ClassDefinitionDTO> captor = ArgumentCaptor.forClass(ClassDefinitionDTO.class);
-        verify(classDefinitionService).createClassDefinition(captor.capture());
+        verify(classDefinitionService).createClassDefinition(captor.capture(), any());
 
         ClassDefinitionDTO forwarded = captor.getValue();
         assertEquals(classEnd, forwarded.defaultEndTime());

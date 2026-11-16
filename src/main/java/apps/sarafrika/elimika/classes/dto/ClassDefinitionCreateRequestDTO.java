@@ -201,8 +201,18 @@ public record ClassDefinitionCreateRequestDTO(
         @NotNull(message = "session_templates is required")
         @Size(min = 1, message = "At least one session template is required")
         @JsonProperty("session_templates")
-        List<ClassSessionTemplateDTO> sessionTemplates
+        List<ClassSessionTemplateDTO> sessionTemplates,
+
+        @Schema(description = "**[OPTIONAL]** Branch venue (at most one) and equipment to book for every session. Resources must be active and at the class's branch; a clash is refused with 409.", nullable = true)
+        @Valid
+        @JsonProperty("resources")
+        List<ClassMarketplaceJobResourceDTO> resources
 ) {
+
+    /** Every field but the resources to book. */
+    public ClassDefinitionCreateRequestDTO(String title, String description, String thumbnailUrl, String promotionalVideoUrl, UUID defaultInstructorUuid, UUID organisationUuid, UUID branchUuid, UUID courseUuid, UUID programUuid, BigDecimal salePrice, BigDecimal instructorPay, RateBasis rateBasis, ClassVisibility classVisibility, SessionFormat sessionFormat, LocalDateTime defaultStartTime, LocalDateTime defaultEndTime, LocalDate academicPeriodStartDate, LocalDate academicPeriodEndDate, LocalDate registrationPeriodStartDate, LocalDate registrationPeriodEndDate, Integer classReminderMinutes, String classColor, LocationType locationType, String locationName, BigDecimal locationLatitude, BigDecimal locationLongitude, String meetingLink, Integer maxParticipants, Boolean allowWaitlist, Boolean isActive, List<ClassSessionTemplateDTO> sessionTemplates) {
+        this(title, description, thumbnailUrl, promotionalVideoUrl, defaultInstructorUuid, organisationUuid, branchUuid, courseUuid, programUuid, salePrice, instructorPay, rateBasis, classVisibility, sessionFormat, defaultStartTime, defaultEndTime, academicPeriodStartDate, academicPeriodEndDate, registrationPeriodStartDate, registrationPeriodEndDate, classReminderMinutes, classColor, locationType, locationName, locationLatitude, locationLongitude, meetingLink, maxParticipants, allowWaitlist, isActive, sessionTemplates, null);
+    }
 
     public ClassDefinitionDTO toClassDefinitionDTO() {
         return toClassDefinitionDTO(courseUuid, programUuid);
