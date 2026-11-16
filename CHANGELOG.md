@@ -1,3 +1,21 @@
+# [2.195.0](https://github.com/sarafrika/elimika/compare/v2.194.4...v2.195.0) (2026-11-16)
+
+
+### Bug Fixes
+
+* **classes:** let job membership preference be null and read it as any ([77502cb](https://github.com/sarafrika/elimika/commit/77502cb788722efccabd9693d8833ddadcdfb839))
+
+
+### Features
+
+* **classes:** add job hiring details and accept edits when creating a class from a job ([fd75238](https://github.com/sarafrika/elimika/commit/fd752380baa3acc30dde5b648264038e27085c7a))
+* **classes:** book venue and equipment when an organisation creates a class directly ([00c5aeb](https://github.com/sarafrika/elimika/commit/00c5aeb8fc937b3b554f5f59c20c5409bff13ef1))
+
+
+### Reverts
+
+* **wallet:** restore utility balance for B2C payouts ([834e72d](https://github.com/sarafrika/elimika/commit/834e72d09d0c0406a33fc6be2bb64156fe63ad49))
+
 ## [2.194.4](https://github.com/sarafrika/elimika/compare/v2.194.3...v2.194.4) (2026-11-11)
 
 
