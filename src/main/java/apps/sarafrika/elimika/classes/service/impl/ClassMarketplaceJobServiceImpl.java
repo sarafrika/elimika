@@ -82,6 +82,7 @@ import apps.sarafrika.elimika.tenancy.spi.OrganisationLookupService;
 import apps.sarafrika.elimika.tenancy.spi.StudentGroupLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
+import apps.sarafrika.elimika.shared.enums.JobMembershipPreference;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.search.NearMe;
 import apps.sarafrika.elimika.shared.search.SearchFilter;
@@ -236,7 +237,14 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         ClassMarketplaceJob job = getJobEntity(jobUuid);
         ensureJobOpen(job);
         requireOrganisationManagerAccess(job.getOrganisationUuid());
+        return toJobDTO(reviseJobDraft(job, request));
+    }
 
+    /**
+     * Rewrites the job from a full request, then re-holds its resources and applicants' time
+     * against the new schedule; a clash surfaces as a resource booking conflict.
+     */
+    private ClassMarketplaceJob reviseJobDraft(ClassMarketplaceJob job, ClassMarketplaceJobRequestDTO request) {
         if (!job.getOrganisationUuid().equals(request.organisationUuid())) {
             throw new IllegalArgumentException("organisation_uuid cannot be changed after a marketplace job has been created");
         }
@@ -245,13 +253,12 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         applyJobDraft(job, request, location);
         ClassMarketplaceJob saved = jobRepository.save(job);
         replaceSessionTemplates(saved.getUuid(), request.sessionTemplates());
-        resourceBookingService.releaseHoldsForJob(jobUuid, "Job updated; holds re-evaluated");
-        instructorTimeHoldService.releaseHoldsForJob(jobUuid, "Job updated; holds re-evaluated");
+        resourceBookingService.releaseHoldsForJob(saved.getUuid(), "Job updated; holds re-evaluated");
+        instructorTimeHoldService.releaseHoldsForJob(saved.getUuid(), "Job updated; holds re-evaluated");
         replaceJobResources(saved.getUuid(), request.resources());
         holdJobResources(saved, request.resources());
         rebuildInstructorHoldsForActiveApplications(saved);
-
-        return toJobDTO(saved);
+        return saved;
     }
 
     @Override
@@ -1239,13 +1246,21 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
     }
 
     @Override
-    public ClassDefinitionDTO createClassForJob(UUID jobUuid) {
+    public ClassDefinitionDTO createClassForJob(UUID jobUuid, ClassMarketplaceJobRequestDTO changes) {
         ClassMarketplaceJob job = getJobEntity(jobUuid);
         requireOrganisationManagerAccess(job.getOrganisationUuid());
 
         if (job.getStatus() != ClassMarketplaceJobStatus.AWAITING_CLASS) {
             throw new IllegalStateException(
                     "A class can only be created once an applicant has been hired for this job.");
+        }
+
+        // Edits made while creating the class are written onto the job first, so its holds and
+        // the instructor's diary are re-checked against what will actually be scheduled.
+        if (changes != null) {
+            UUID preferredInstructorUuid = job.getPreferredInstructorUuid();
+            reviseJobDraft(job, changes);
+            job.setPreferredInstructorUuid(preferredInstructorUuid);
         }
 
         // A job posted with a preferred instructor, or one assigned before assignment folded into
@@ -1334,6 +1349,10 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
         job.setRemindViaEmail(request.remindViaEmail());
         job.setRemindViaSms(request.remindViaSms());
         job.setRemindViaPush(request.remindViaPush());
+        job.setRequirements(request.requirements() == null || request.requirements().isBlank()
+                ? null : request.requirements().trim());
+        job.setMembershipPreference(request.membershipPreference() != null
+                ? request.membershipPreference() : JobMembershipPreference.ANY);
     }
 
     /**
@@ -2516,7 +2535,7 @@ public class ClassMarketplaceJobServiceImpl implements ClassMarketplaceJobServic
                 contact.map(BranchContact::name).orElse(null),
                 contact.map(BranchContact::phone).orElse(null),
                 contact.map(BranchContact::email).orElse(null)
-        );
+        ).withHiringDetails(job.getRequirements(), job.getMembershipPreference());
     }
 
     /** Memoised per branch so a page of jobs looks each distinct branch up once. */

@@ -397,11 +397,13 @@ public class ClassMarketplaceJobController {
     }
 
     @Operation(summary = "Create the class for a job whose applicant has been hired",
-            description = "Creating the class is what assigns the hired instructor: it stamps their application assigned, converts their time holds and fills the job. There is no separate assign call. Refused with 409 when the hired instructor no longer has an approved rate for the job's rate basis that its pay covers.")
+            description = "Assigns the hired instructor, converts holds and fills the job. An optional body edits the job first; holds are re-checked.\nRefused with 409 on schedule or resource clashes, or when the instructor's approved rate no longer covers the pay.")
     @PostMapping("/{jobUuid}/class")
-    public ResponseEntity<ApiResponse<ClassDefinitionDTO>> createClassForJob(@PathVariable UUID jobUuid) {
+    public ResponseEntity<ApiResponse<ClassDefinitionDTO>> createClassForJob(
+            @PathVariable UUID jobUuid,
+            @Valid @RequestBody(required = false) ClassMarketplaceJobRequestDTO changes) {
         try {
-            ClassDefinitionDTO classDefinition = classMarketplaceJobService.createClassForJob(jobUuid);
+            ClassDefinitionDTO classDefinition = classMarketplaceJobService.createClassForJob(jobUuid, changes);
             return ResponseEntity.status(HttpStatus.CREATED)
                     .body(ApiResponse.success(classDefinition, "Class created from marketplace job successfully"));
         } catch (SchedulingConflictException e) {

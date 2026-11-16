@@ -232,7 +232,7 @@ class ClassMarketplaceJobControllerTest {
     void createClassForJobReturnsConflictWhenSchedulingFails() throws Exception {
         UUID jobUuid = UUID.randomUUID();
 
-        when(classMarketplaceJobService.createClassForJob(any(UUID.class)))
+        when(classMarketplaceJobService.createClassForJob(any(UUID.class), any()))
                 .thenThrow(new SchedulingConflictException(
                         "Conflicts detected",
                         List.of(new ClassSchedulingConflictDTO(

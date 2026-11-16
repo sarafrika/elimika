@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.classes.dto;
 
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
+import apps.sarafrika.elimika.shared.enums.JobMembershipPreference;
 import apps.sarafrika.elimika.shared.enums.ClassServiceType;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
@@ -199,7 +200,15 @@ public record ClassMarketplaceJobDTO(
 
         @Schema(description = "**[READ-ONLY]** On a near-me listing (near=lat,lng) only: how far the job is from the searched point, as a coarse band. Never metres.", example = "2-5 km", allowableValues = {"<2 km", "2-5 km", "5-10 km", "10-25 km", ">25 km"}, accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
         @JsonProperty(value = "distance_band", access = JsonProperty.Access.READ_ONLY)
-        String distanceBand
+        String distanceBand,
+
+        @Schema(description = "**[READ-ONLY]** Minimum qualifications, experience or certifications asked of applicants.", accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
+        @JsonProperty(value = "requirements", access = JsonProperty.Access.READ_ONLY)
+        String requirements,
+
+        @Schema(description = "**[READ-ONLY]** Who may be hired: any instructor, or only the organisation's own.", accessMode = Schema.AccessMode.READ_ONLY, nullable = true)
+        @JsonProperty(value = "membership_preference", access = JsonProperty.Access.READ_ONLY)
+        JobMembershipPreference membershipPreference
 ) {
 
     /** Every field but the near-me distance band. */
@@ -260,12 +269,17 @@ public record ClassMarketplaceJobDTO(
             String contactPhone,
             String contactEmail
     ) {
-        this(uuid, organisationUuid, courseUuid, programUuid, title, description, salePrice, instructorPay, rateBasis, status, classVisibility, sessionFormat, defaultStartTime, defaultEndTime, academicPeriodStartDate, academicPeriodEndDate, registrationPeriodStartDate, registrationPeriodEndDate, classReminderMinutes, classColor, thumbnailUrl, locationType, locationName, locationLatitude, locationLongitude, meetingLink, maxParticipants, allowWaitlist, assignedInstructorUuid, assignedApplicationUuid, assignedClassDefinitionUuid, filledAt, sessionTemplates, resources, createdDate, updatedDate, createdBy, updatedBy, serviceType, preferredInstructorUuid, targetGroups, targetGroupUuids, categoryUuid, remindStudents, remindInstructor, remindViaEmail, remindViaSms, remindViaPush, branchUuid, branchName, applicationCount, hiredInstructorUuid, contactName, contactPhone, contactEmail, null);
+        this(uuid, organisationUuid, courseUuid, programUuid, title, description, salePrice, instructorPay, rateBasis, status, classVisibility, sessionFormat, defaultStartTime, defaultEndTime, academicPeriodStartDate, academicPeriodEndDate, registrationPeriodStartDate, registrationPeriodEndDate, classReminderMinutes, classColor, thumbnailUrl, locationType, locationName, locationLatitude, locationLongitude, meetingLink, maxParticipants, allowWaitlist, assignedInstructorUuid, assignedApplicationUuid, assignedClassDefinitionUuid, filledAt, sessionTemplates, resources, createdDate, updatedDate, createdBy, updatedBy, serviceType, preferredInstructorUuid, targetGroups, targetGroupUuids, categoryUuid, remindStudents, remindInstructor, remindViaEmail, remindViaSms, remindViaPush, branchUuid, branchName, applicationCount, hiredInstructorUuid, contactName, contactPhone, contactEmail, null, null, null);
     }
 
     /** A near-me row: the distance band, and the job's coordinates rounded to town level. */
     public ClassMarketplaceJobDTO forNearMe(String band) {
-        return new ClassMarketplaceJobDTO(uuid, organisationUuid, courseUuid, programUuid, title, description, salePrice, instructorPay, rateBasis, status, classVisibility, sessionFormat, defaultStartTime, defaultEndTime, academicPeriodStartDate, academicPeriodEndDate, registrationPeriodStartDate, registrationPeriodEndDate, classReminderMinutes, classColor, thumbnailUrl, locationType, locationName, CoordinatePrecision.toPublic(locationLatitude), CoordinatePrecision.toPublic(locationLongitude), meetingLink, maxParticipants, allowWaitlist, assignedInstructorUuid, assignedApplicationUuid, assignedClassDefinitionUuid, filledAt, sessionTemplates, resources, createdDate, updatedDate, createdBy, updatedBy, serviceType, preferredInstructorUuid, targetGroups, targetGroupUuids, categoryUuid, remindStudents, remindInstructor, remindViaEmail, remindViaSms, remindViaPush, branchUuid, branchName, applicationCount, hiredInstructorUuid, contactName, contactPhone, contactEmail, band);
+        return new ClassMarketplaceJobDTO(uuid, organisationUuid, courseUuid, programUuid, title, description, salePrice, instructorPay, rateBasis, status, classVisibility, sessionFormat, defaultStartTime, defaultEndTime, academicPeriodStartDate, academicPeriodEndDate, registrationPeriodStartDate, registrationPeriodEndDate, classReminderMinutes, classColor, thumbnailUrl, locationType, locationName, CoordinatePrecision.toPublic(locationLatitude), CoordinatePrecision.toPublic(locationLongitude), meetingLink, maxParticipants, allowWaitlist, assignedInstructorUuid, assignedApplicationUuid, assignedClassDefinitionUuid, filledAt, sessionTemplates, resources, createdDate, updatedDate, createdBy, updatedBy, serviceType, preferredInstructorUuid, targetGroups, targetGroupUuids, categoryUuid, remindStudents, remindInstructor, remindViaEmail, remindViaSms, remindViaPush, branchUuid, branchName, applicationCount, hiredInstructorUuid, contactName, contactPhone, contactEmail, band, requirements, membershipPreference);
+    }
+
+    /** The same job carrying its hiring details. */
+    public ClassMarketplaceJobDTO withHiringDetails(String jobRequirements, JobMembershipPreference preference) {
+        return new ClassMarketplaceJobDTO(uuid, organisationUuid, courseUuid, programUuid, title, description, salePrice, instructorPay, rateBasis, status, classVisibility, sessionFormat, defaultStartTime, defaultEndTime, academicPeriodStartDate, academicPeriodEndDate, registrationPeriodStartDate, registrationPeriodEndDate, classReminderMinutes, classColor, thumbnailUrl, locationType, locationName, locationLatitude, locationLongitude, meetingLink, maxParticipants, allowWaitlist, assignedInstructorUuid, assignedApplicationUuid, assignedClassDefinitionUuid, filledAt, sessionTemplates, resources, createdDate, updatedDate, createdBy, updatedBy, serviceType, preferredInstructorUuid, targetGroups, targetGroupUuids, categoryUuid, remindStudents, remindInstructor, remindViaEmail, remindViaSms, remindViaPush, branchUuid, branchName, applicationCount, hiredInstructorUuid, contactName, contactPhone, contactEmail, distanceBand, jobRequirements, preference);
     }
 
     @JsonProperty(value = "duration_minutes", access = JsonProperty.Access.READ_ONLY)

@@ -121,5 +121,5 @@ public interface ClassMarketplaceJobServiceInterface {
      * Creates the job's class, which is also what assigns the hired instructor to it. Only a job
      * that already holds a hire can reach this, so nobody is assigned without being hired first.
      */
-    ClassDefinitionDTO createClassForJob(UUID jobUuid);
+    ClassDefinitionDTO createClassForJob(UUID jobUuid, ClassMarketplaceJobRequestDTO changes);
 }

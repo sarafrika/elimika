@@ -34,6 +34,7 @@ import apps.sarafrika.elimika.course.spi.InstructorTrainingApprovals;
 import apps.sarafrika.elimika.instructor.spi.InstructorLookupService;
 import apps.sarafrika.elimika.shared.enums.ClassServiceType;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
+import apps.sarafrika.elimika.shared.enums.JobMembershipPreference;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
@@ -943,7 +944,7 @@ class ClassMarketplaceJobServiceImplTest {
         assertThat(job.getAssignedInstructorUuid()).isNull();
         assertThat(hiredApplication.getReviewedAt()).isBetween(beforeHire, afterHire);
 
-        ClassDefinitionDTO created = service.createClassForJob(job.getUuid());
+        ClassDefinitionDTO created = service.createClassForJob(job.getUuid(), null);
 
         assertThat(created.uuid()).isEqualTo(classDefinitionUuid);
         assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
@@ -1174,7 +1175,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(userLookupService.getUserEmail(recipientUserUuid)).thenReturn(Optional.of("instructor@example.com"));
         when(userLookupService.getUserFullName(recipientUserUuid)).thenReturn(Optional.of("Jane Instructor"));
 
-        service.createClassForJob(job.getUuid());
+        service.createClassForJob(job.getUuid(), null);
 
         assertThat(hiredApplication.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.ASSIGNED);
         assertThat(job.getAssignedInstructorUuid()).isEqualTo(instructorUuid);
@@ -1397,7 +1398,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(instructorLookupService.getInstructorUserUuid(instructorUuid))
                 .thenReturn(Optional.of(UUID.randomUUID()));
 
-        service.createClassForJob(job.getUuid());
+        service.createClassForJob(job.getUuid(), null);
 
         @SuppressWarnings("unchecked")
         ArgumentCaptor<List<ClassMarketplaceJobApplicationStatus>> statuses =
@@ -1440,7 +1441,7 @@ class ClassMarketplaceJobServiceImplTest {
                 .thenReturn(List.of());
         when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(UUID.randomUUID()));
 
-        ClassDefinitionDTO created = service.createClassForJob(job.getUuid());
+        ClassDefinitionDTO created = service.createClassForJob(job.getUuid(), null);
         assertThat(created.uuid()).isEqualTo(classDefinitionUuid);
         assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
         assertThat(job.getAssignedInstructorUuid()).isEqualTo(instructorUuid);
@@ -2349,7 +2350,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
         allowOrganisationAccess(currentUserUuid, job.getOrganisationUuid());
 
-        assertThatThrownBy(() -> service.createClassForJob(job.getUuid()))
+        assertThatThrownBy(() -> service.createClassForJob(job.getUuid(), null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("once an applicant has been hired");
 
@@ -2373,7 +2374,7 @@ class ClassMarketplaceJobServiceImplTest {
                 .thenReturn(Optional.of(offered));
 
         // Assignment stays gated on the hire: an offer is not a commitment.
-        assertThatThrownBy(() -> service.createClassForJob(job.getUuid()))
+        assertThatThrownBy(() -> service.createClassForJob(job.getUuid(), null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("at the offered stage");
 
@@ -2551,7 +2552,7 @@ class ClassMarketplaceJobServiceImplTest {
 
         when(instructorLookupService.getInstructorUserUuid(instructorUuid)).thenReturn(Optional.of(UUID.randomUUID()));
 
-        service.createClassForJob(job.getUuid());
+        service.createClassForJob(job.getUuid(), null);
 
         assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
         assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.ASSIGNED);
@@ -2598,7 +2599,7 @@ class ClassMarketplaceJobServiceImplTest {
                         LocalDateTime.of(2026, 5, 16, 12, 0),
                         SchedulingStatus.SCHEDULED)));
 
-        assertThatThrownBy(() -> service.createClassForJob(job.getUuid()))
+        assertThatThrownBy(() -> service.createClassForJob(job.getUuid(), null))
                 .isInstanceOf(SchedulingConflictException.class);
 
         assertThat(application.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.HIRED);
@@ -3194,7 +3195,7 @@ class ClassMarketplaceJobServiceImplTest {
                 job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_SESSION))
                 .thenReturn(Optional.empty());
 
-        assertThatThrownBy(() -> service.createClassForJob(job.getUuid()))
+        assertThatThrownBy(() -> service.createClassForJob(job.getUuid(), null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("This instructor has no approved per session rate for this course yet.");
         assertThat(hired.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.HIRED);
@@ -3213,7 +3214,7 @@ class ClassMarketplaceJobServiceImplTest {
                 job.getCourseUuid(), instructorUuid, SessionFormat.GROUP, LocationType.HYBRID, RateBasis.PER_HOUR))
                 .thenReturn(Optional.of(new BigDecimal("260.00")));
 
-        assertThatThrownBy(() -> service.createClassForJob(job.getUuid()))
+        assertThatThrownBy(() -> service.createClassForJob(job.getUuid(), null))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessage("Jane Mwangi's approved rate of KES 260.00 per hour is above this job's pay of KES 240.00.");
         assertThat(hired.getStatus()).isEqualTo(ClassMarketplaceJobApplicationStatus.HIRED);
@@ -3455,7 +3456,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(instructorLookupService.getInstructorUserUuid(instructorUuid))
                 .thenReturn(Optional.of(UUID.randomUUID()));
 
-        service.createClassForJob(job.getUuid());
+        service.createClassForJob(job.getUuid(), null);
 
         // Membership is the hire's doing; the class must never rewrite a role the instructor holds.
         assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
@@ -3650,7 +3651,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(instructorLookupService.getInstructorUserUuid(instructorUuid))
                 .thenReturn(Optional.of(UUID.randomUUID()));
 
-        service.createClassForJob(job.getUuid());
+        service.createClassForJob(job.getUuid(), null);
 
         assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
         // The job's own holds are excluded by uuid, so hiring never conflicts with itself.
@@ -3686,7 +3687,7 @@ class ClassMarketplaceJobServiceImplTest {
                         LocalDateTime.of(2026, 5, 2, 10, 0),
                         LocalDateTime.of(2026, 5, 2, 11, 0))));
 
-        assertThatThrownBy(() -> service.createClassForJob(job.getUuid()))
+        assertThatThrownBy(() -> service.createClassForJob(job.getUuid(), null))
                 .isInstanceOfSatisfying(SchedulingConflictException.class, ex -> {
                     assertThat(ex.getConflicts()).hasSize(1);
                     assertThat(ex.getConflicts().getFirst().requestedStart())
@@ -3727,7 +3728,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(instructorLookupService.getInstructorUserUuid(instructorUuid))
                 .thenReturn(Optional.of(UUID.randomUUID()));
 
-        service.createClassForJob(job.getUuid());
+        service.createClassForJob(job.getUuid(), null);
 
         ArgumentCaptor<InstructorTimeHoldRequest> hireCaptor =
                 ArgumentCaptor.forClass(InstructorTimeHoldRequest.class);
@@ -3862,7 +3863,7 @@ class ClassMarketplaceJobServiceImplTest {
                 .thenReturn(List.of(instance));
         when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
 
-        service.createClassForJob(job.getUuid());
+        service.createClassForJob(job.getUuid(), null);
 
         // Same windows the resource holds are confirmed against; unscheduled ones are
         // released inside the hold service, which InstructorTimeHoldServiceImplTest pins.
@@ -4366,6 +4367,118 @@ class ClassMarketplaceJobServiceImplTest {
     }
 
     @Test
+    void updateJobStoresTheHiringDetails() {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = withHiringDetails(sampleRequest(null, programUuid),
+                "  ABRSM Grade 8, three years teaching  ", JobMembershipPreference.ORGANISATION_ONLY);
+        ClassMarketplaceJob job = sampleProgramJob();
+        job.setOrganisationUuid(request.organisationUuid());
+        job.setProgramUuid(programUuid);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowProgramJob(request, programUuid);
+        when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        var updated = service.updateJob(job.getUuid(), request);
+
+        assertThat(job.getRequirements()).isEqualTo("ABRSM Grade 8, three years teaching");
+        assertThat(job.getMembershipPreference()).isEqualTo(JobMembershipPreference.ORGANISATION_ONLY);
+        assertThat(updated.requirements()).isEqualTo("ABRSM Grade 8, three years teaching");
+        assertThat(updated.membershipPreference()).isEqualTo(JobMembershipPreference.ORGANISATION_ONLY);
+    }
+
+    @Test
+    void updateJobWithoutAMembershipPreferenceOpensItToAnyInstructor() {
+        UUID programUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO request = sampleRequest(null, programUuid);
+        ClassMarketplaceJob job = sampleProgramJob();
+        job.setOrganisationUuid(request.organisationUuid());
+        job.setProgramUuid(programUuid);
+        job.setMembershipPreference(JobMembershipPreference.ORGANISATION_ONLY);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowProgramJob(request, programUuid);
+        when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+
+        service.updateJob(job.getUuid(), request);
+
+        assertThat(job.getMembershipPreference()).isEqualTo(JobMembershipPreference.ANY);
+        assertThat(job.getRequirements()).isNull();
+    }
+
+    @Test
+    void creatingTheClassWithChangesRevisesTheJobAndReHoldsBeforeProvisioning() {
+        UUID programUuid = UUID.randomUUID();
+        UUID instructorUuid = UUID.randomUUID();
+        UUID preferredInstructorUuid = UUID.randomUUID();
+        UUID classDefinitionUuid = UUID.randomUUID();
+        ClassMarketplaceJobRequestDTO changes = sampleRequest(null, programUuid);
+        ClassMarketplaceJob job = sampleProgramJob();
+        job.setOrganisationUuid(changes.organisationUuid());
+        job.setProgramUuid(programUuid);
+        job.setStatus(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        job.setAssignedInstructorUuid(instructorUuid);
+        job.setPreferredInstructorUuid(preferredInstructorUuid);
+        job.setMaxParticipants(5);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowProgramJob(changes, programUuid);
+        when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(classDefinitionService.createClassDefinition(any(ClassDefinitionDTO.class)))
+                .thenReturn(new ClassDefinitionResponseDTO(createdClassDefinition(classDefinitionUuid, instructorUuid, job)));
+
+        service.createClassForJob(job.getUuid(), changes);
+
+        // The edits land on the job and its holds are re-taken before the class is made from it.
+        assertThat(job.getMaxParticipants()).isEqualTo(changes.maxParticipants());
+        assertThat(job.getPreferredInstructorUuid()).isEqualTo(preferredInstructorUuid);
+        assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
+        InOrder order = inOrder(resourceBookingService, classDefinitionService);
+        order.verify(resourceBookingService).releaseHoldsForJob(job.getUuid(), "Job updated; holds re-evaluated");
+        order.verify(classDefinitionService).createClassDefinition(any(ClassDefinitionDTO.class));
+        order.verify(resourceBookingService).confirmHoldsForJob(eq(job.getUuid()), eq(classDefinitionUuid), any());
+    }
+
+    @Test
+    void creatingTheClassWithoutChangesLeavesTheJobsHoldsAlone() {
+        UUID instructorUuid = UUID.randomUUID();
+        UUID classDefinitionUuid = UUID.randomUUID();
+        ClassMarketplaceJob job = sampleProgramJob();
+        job.setStatus(ClassMarketplaceJobStatus.AWAITING_CLASS);
+        job.setAssignedInstructorUuid(instructorUuid);
+
+        when(jobRepository.findByUuid(job.getUuid())).thenReturn(Optional.of(job));
+        allowOrganisationAccess(UUID.randomUUID(), job.getOrganisationUuid());
+        when(jobRepository.save(any(ClassMarketplaceJob.class))).thenAnswer(invocation -> invocation.getArgument(0));
+        when(sessionTemplateRepository.findByJobUuidOrderByCreatedDateAsc(job.getUuid()))
+                .thenReturn(List.of(sampleSessionTemplate(job.getUuid())));
+        when(classDefinitionService.createClassDefinition(any(ClassDefinitionDTO.class)))
+                .thenReturn(new ClassDefinitionResponseDTO(createdClassDefinition(classDefinitionUuid, instructorUuid, job)));
+
+        service.createClassForJob(job.getUuid(), null);
+
+        verify(resourceBookingService, never()).releaseHoldsForJob(any(), any());
+        assertThat(job.getStatus()).isEqualTo(ClassMarketplaceJobStatus.FILLED);
+    }
+
+    private ClassMarketplaceJobRequestDTO withHiringDetails(ClassMarketplaceJobRequestDTO base, String requirements,
+                                                            JobMembershipPreference preference) {
+        return new ClassMarketplaceJobRequestDTO(
+                base.organisationUuid(), base.courseUuid(), base.programUuid(), base.title(), base.description(),
+                base.classVisibility(), base.sessionFormat(), base.defaultStartTime(), base.defaultEndTime(),
+                base.academicPeriodStartDate(), base.academicPeriodEndDate(), base.registrationPeriodStartDate(),
+                base.registrationPeriodEndDate(), base.classReminderMinutes(), base.classColor(), base.locationType(),
+                base.locationName(), base.locationLatitude(), base.locationLongitude(), base.meetingLink(),
+                base.maxParticipants(), base.allowWaitlist(), base.salePrice(), base.instructorPay(), base.rateBasis(),
+                base.sessionTemplates(), base.resources(), base.serviceType(), base.preferredInstructorUuid(),
+                base.targetGroups(), base.targetGroupUuids(), base.categoryUuid(), base.remindStudents(),
+                base.remindInstructor(), base.remindViaEmail(), base.remindViaSms(), base.remindViaPush(), base.branchUuid(),
+                requirements, preference);
+    }
+
+    @Test
     void updateJobMovedToAnotherBranchWithTheOldLocationEchoedBackTakesTheNewBranchPin() {
         UUID programUuid = UUID.randomUUID();
         UUID newBranchUuid = UUID.randomUUID();
@@ -4569,7 +4682,7 @@ class ClassMarketplaceJobServiceImplTest {
         when(classDefinitionService.createClassDefinition(any(ClassDefinitionDTO.class)))
                 .thenReturn(new ClassDefinitionResponseDTO(createdClassDefinition(classDefinitionUuid, instructorUuid, job)));
 
-        service.createClassForJob(job.getUuid());
+        service.createClassForJob(job.getUuid(), null);
 
         ArgumentCaptor<ClassDefinitionDTO> classCaptor = ArgumentCaptor.forClass(ClassDefinitionDTO.class);
         verify(classDefinitionService).createClassDefinition(classCaptor.capture());

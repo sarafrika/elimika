@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.classes.dto;
 
 import apps.sarafrika.elimika.shared.enums.ClassServiceType;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
+import apps.sarafrika.elimika.shared.enums.JobMembershipPreference;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.validation.ValidTimeRange;
@@ -258,8 +259,36 @@ public record ClassMarketplaceJobRequestDTO(
         @Schema(description = "**[REQUIRED]** Training branch the class is delivered at. Its location pin becomes the job's location for IN_PERSON and HYBRID delivery.", requiredMode = Schema.RequiredMode.REQUIRED)
         @JsonProperty("branch_uuid")
         @NotNull(message = "branch_uuid is required")
-        UUID branchUuid
+        UUID branchUuid,
+
+        @Schema(description = "**[OPTIONAL]** Minimum qualifications, experience or certifications asked of applicants.", nullable = true, maxLength = 500)
+        @JsonProperty("requirements")
+        @Size(max = 500, message = "requirements must not exceed 500 characters")
+        String requirements,
+
+        @Schema(description = "**[OPTIONAL]** Who may be hired: any instructor, or only the organisation's own. Defaults to ANY.", nullable = true)
+        @JsonProperty("membership_preference")
+        JobMembershipPreference membershipPreference
 ) {
+
+    /** Every field but the hiring details, which default to none and ANY. */
+    public ClassMarketplaceJobRequestDTO(UUID organisationUuid, UUID courseUuid, UUID programUuid, String title, String description,
+            ClassVisibility classVisibility, SessionFormat sessionFormat, LocalDateTime defaultStartTime, LocalDateTime defaultEndTime,
+            LocalDate academicPeriodStartDate, LocalDate academicPeriodEndDate, LocalDate registrationPeriodStartDate,
+            LocalDate registrationPeriodEndDate, Integer classReminderMinutes, String classColor, LocationType locationType,
+            String locationName, BigDecimal locationLatitude, BigDecimal locationLongitude, String meetingLink,
+            Integer maxParticipants, Boolean allowWaitlist, BigDecimal salePrice, BigDecimal instructorPay,
+            apps.sarafrika.elimika.shared.utils.enums.RateBasis rateBasis, List<ClassSessionTemplateDTO> sessionTemplates,
+            List<ClassMarketplaceJobResourceDTO> resources, ClassServiceType serviceType, UUID preferredInstructorUuid,
+            List<String> targetGroups, List<UUID> targetGroupUuids, UUID categoryUuid, Boolean remindStudents,
+            Boolean remindInstructor, Boolean remindViaEmail, Boolean remindViaSms, Boolean remindViaPush, UUID branchUuid) {
+        this(organisationUuid, courseUuid, programUuid, title, description, classVisibility, sessionFormat, defaultStartTime,
+                defaultEndTime, academicPeriodStartDate, academicPeriodEndDate, registrationPeriodStartDate,
+                registrationPeriodEndDate, classReminderMinutes, classColor, locationType, locationName, locationLatitude,
+                locationLongitude, meetingLink, maxParticipants, allowWaitlist, salePrice, instructorPay, rateBasis,
+                sessionTemplates, resources, serviceType, preferredInstructorUuid, targetGroups, targetGroupUuids, categoryUuid,
+                remindStudents, remindInstructor, remindViaEmail, remindViaSms, remindViaPush, branchUuid, null, null);
+    }
 
     @JsonIgnore
     @AssertTrue(message = "Exactly one of course_uuid or program_uuid is required")

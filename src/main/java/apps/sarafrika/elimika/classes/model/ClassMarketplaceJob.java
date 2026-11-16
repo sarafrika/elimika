@@ -3,12 +3,14 @@ package apps.sarafrika.elimika.classes.model;
 import apps.sarafrika.elimika.classes.util.converter.ClassMarketplaceJobStatusConverter;
 import apps.sarafrika.elimika.classes.util.converter.ClassServiceTypeConverter;
 import apps.sarafrika.elimika.classes.util.converter.ClassVisibilityConverter;
+import apps.sarafrika.elimika.classes.util.converter.JobMembershipPreferenceConverter;
 import apps.sarafrika.elimika.classes.util.converter.LocationTypeConverter;
 import apps.sarafrika.elimika.classes.util.converter.SessionFormatConverter;
 import apps.sarafrika.elimika.classes.util.converter.StringListCsvConverter;
 import apps.sarafrika.elimika.classes.util.converter.UuidListCsvConverter;
 import apps.sarafrika.elimika.classes.util.enums.ClassMarketplaceJobStatus;
 import apps.sarafrika.elimika.shared.enums.ClassServiceType;
+import apps.sarafrika.elimika.shared.enums.JobMembershipPreference;
 import apps.sarafrika.elimika.shared.enums.ClassVisibility;
 import apps.sarafrika.elimika.shared.enums.LocationType;
 import apps.sarafrika.elimika.shared.enums.SessionFormat;
@@ -134,6 +136,13 @@ public class ClassMarketplaceJob extends BaseEntity {
 
     @Column(name = "preferred_instructor_uuid")
     private UUID preferredInstructorUuid;
+
+    @Column(name = "requirements")
+    private String requirements;
+
+    @Convert(converter = JobMembershipPreferenceConverter.class)
+    @Column(name = "membership_preference")
+    private JobMembershipPreference membershipPreference;
 
     @Convert(converter = StringListCsvConverter.class)
     @Column(name = "target_groups")
