@@ -1,3 +1,10 @@
+## [2.195.1](https://github.com/sarafrika/elimika/compare/v2.195.0...v2.195.1) (2026-11-18)
+
+
+### Bug Fixes
+
+* **coursecreator:** let admins reject a self-registered course creator still in draft ([cc48092](https://github.com/sarafrika/elimika/commit/cc4809204e156d7a0cc7245a4fccf374e6e369cc))
+
 # [2.195.0](https://github.com/sarafrika/elimika/compare/v2.194.4...v2.195.0) (2026-11-16)
 
 
