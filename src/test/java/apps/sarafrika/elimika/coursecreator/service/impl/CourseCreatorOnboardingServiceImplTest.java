@@ -136,7 +136,18 @@ class CourseCreatorOnboardingServiceImplTest {
     }
 
     @Test
+    void draftProfileCanBeRejected() {
+        service.moderate(creatorUuid, "reject", "Portfolio links are broken");
+
+        ArgumentCaptor<ProfileModerationDecidedEvent> event = ArgumentCaptor.forClass(ProfileModerationDecidedEvent.class);
+        verify(applicationEventPublisher).publishEvent(event.capture());
+        assertThat(event.getValue().status()).isEqualTo(DomainApprovalStatus.REJECTED);
+        assertThat(creator.getVerificationStatus()).isEqualTo(CourseCreatorVerificationStatus.REJECTED);
+    }
+
+    @Test
     void rejectionAndRevocationOnlyApplyToTheMatchingState() {
+        creator.setVerificationStatus(CourseCreatorVerificationStatus.REJECTED);
         assertThatThrownBy(() -> service.moderate(creatorUuid, "reject", null)).isInstanceOf(IllegalStateException.class);
         assertThatThrownBy(() -> service.moderate(creatorUuid, "revoke", null)).isInstanceOf(IllegalStateException.class);
 

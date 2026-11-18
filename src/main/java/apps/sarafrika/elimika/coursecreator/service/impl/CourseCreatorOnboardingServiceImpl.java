@@ -93,8 +93,9 @@ public class CourseCreatorOnboardingServiceImpl implements CourseCreatorOnboardi
                 yield DomainApprovalStatus.APPROVED;
             }
             case "reject" -> {
-                if (current != CourseCreatorVerificationStatus.SUBMITTED) {
-                    throw new IllegalStateException("Only a submitted course creator profile can be rejected.");
+                // Self-registered profiles stay DRAFT until submitted, but their domain is already pending review.
+                if (current != CourseCreatorVerificationStatus.SUBMITTED && current != CourseCreatorVerificationStatus.DRAFT) {
+                    throw new IllegalStateException("Only a course creator profile awaiting review can be rejected.");
                 }
                 applyDecision(creator, CourseCreatorVerificationStatus.REJECTED, false, reason);
                 yield DomainApprovalStatus.REJECTED;
