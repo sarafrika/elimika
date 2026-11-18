@@ -1,3 +1,10 @@
+## [2.195.2](https://github.com/sarafrika/elimika/compare/v2.195.1...v2.195.2) (2026-11-18)
+
+
+### Bug Fixes
+
+* **tenancy:** report organisation_user only for org admin affiliations ([48c4d21](https://github.com/sarafrika/elimika/commit/48c4d2144c83a0b3c4b62251b5b0117f8f87abf1))
+
 ## [2.195.1](https://github.com/sarafrika/elimika/compare/v2.195.0...v2.195.1) (2026-11-18)
 
 
