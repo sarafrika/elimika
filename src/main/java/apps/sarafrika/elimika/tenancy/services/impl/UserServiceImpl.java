@@ -491,16 +491,18 @@ public class UserServiceImpl implements UserService {
             }
         }
 
-        // Get domains from organisation mappings (for context)
+        // Organisation mappings: only an org admin/manager mapping opens the organisation portal;
+        // student, instructor and parent affiliations never do.
         List<UserOrganisationDomainMapping> orgMappings =
                 userOrganisationDomainMappingRepository.findActiveByUser(userUuid);
-        if (!orgMappings.isEmpty()) {
-            allDomains.add("organisation_user");
-        }
         for (UserOrganisationDomainMapping mapping : orgMappings) {
             UserDomain domain = userDomainRepository.findByUuid(mapping.getDomainUuid())
                     .orElse(null);
             if (domain != null) {
+                if ("admin".equals(domain.getDomainName())
+                        || "organisation_user".equals(domain.getDomainName())) {
+                    allDomains.add("organisation_user");
+                }
                 // Avoid promoting organisation-level admins to platform admins
                 if ("admin".equals(domain.getDomainName()) && !hasSystemAdminDomain) {
                     continue;
