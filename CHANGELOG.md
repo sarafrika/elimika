@@ -1,3 +1,10 @@
+# [2.196.0](https://github.com/sarafrika/elimika/compare/v2.195.2...v2.196.0) (2026-11-20)
+
+
+### Features
+
+* **tenancy:** bootstrap a default admin per new database and retire it once a real admin signs in ([e8e56d4](https://github.com/sarafrika/elimika/commit/e8e56d420e25f238ae6d9640ea08c47e474bc56a))
+
 ## [2.195.2](https://github.com/sarafrika/elimika/compare/v2.195.1...v2.195.2) (2026-11-18)
 
 
