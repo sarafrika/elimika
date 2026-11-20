@@ -1,3 +1,10 @@
+## [2.196.1](https://github.com/sarafrika/elimika/compare/v2.196.0...v2.196.1) (2026-11-20)
+
+
+### Bug Fixes
+
+* **tenancy:** send phone, dob and gender when creating the default admin in strict Keycloak realms ([6ecb42a](https://github.com/sarafrika/elimika/commit/6ecb42a0718d594b87434df6416af8154b25df2f))
+
 # [2.196.0](https://github.com/sarafrika/elimika/compare/v2.195.2...v2.196.0) (2026-11-20)
 
 
