@@ -21,5 +21,8 @@ public class AdminBootstrapProperties {
     private String middleName;
     private String lastName = "Administrator";
     private String phoneNumber;
+    /** ISO date; realms whose user profile requires dob/gender/phone reject the account without them. */
+    private String dateOfBirth;
+    private String gender;
     private String password;
 }

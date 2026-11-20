@@ -126,6 +126,9 @@ app:
       middle-name: ${APP_BOOTSTRAP_ADMIN_MIDDLE_NAME:}
       last-name: ${APP_BOOTSTRAP_ADMIN_LAST_NAME:Administrator}
       phone-number: ${APP_BOOTSTRAP_ADMIN_PHONE_NUMBER:}
+      # Needed where the Keycloak realm requires them (staging's sarafrika realm does).
+      date-of-birth: ${APP_BOOTSTRAP_ADMIN_DATE_OF_BIRTH:}
+      gender: ${APP_BOOTSTRAP_ADMIN_GENDER:}
       password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}
 
   keycloak:

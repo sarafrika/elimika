@@ -21,6 +21,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.security.SecureRandom;
+import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
@@ -138,7 +139,10 @@ public class AdminBootstrapRunner implements ApplicationRunner {
                 firstName,
                 blankToNull(properties.getMiddleName()),
                 lastName,
-                blankToNull(properties.getPhoneNumber())
+                blankToNull(properties.getPhoneNumber()),
+                Optional.ofNullable(blankToNull(properties.getDateOfBirth())).map(LocalDate::parse).orElse(null),
+                Optional.ofNullable(blankToNull(properties.getGender()))
+                        .map(gender -> gender.toUpperCase(Locale.ROOT)).orElse(null)
         );
     }
 
@@ -181,7 +185,7 @@ public class AdminBootstrapRunner implements ApplicationRunner {
         UserRepresentation representation = existingKeycloakUser.orElseGet(() -> {
             String id = keycloakUserService.registerUser(new KeycloakRegistration(
                     admin.email(), admin.firstName(), admin.middleName(), admin.lastName(),
-                    admin.phoneNumber(), null, null), keycloakRealm);
+                    admin.phoneNumber(), admin.dateOfBirth(), admin.gender()), keycloakRealm);
             return keycloakUserService.getUserById(id, keycloakRealm)
                     .orElseThrow(() -> new IllegalStateException("Keycloak lost the default admin it just created"));
         });
@@ -256,7 +260,9 @@ public class AdminBootstrapRunner implements ApplicationRunner {
             String firstName,
             String middleName,
             String lastName,
-            String phoneNumber
+            String phoneNumber,
+            LocalDate dateOfBirth,
+            String gender
     ) {
     }
 }

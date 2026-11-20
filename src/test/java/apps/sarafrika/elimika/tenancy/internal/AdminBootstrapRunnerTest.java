@@ -80,6 +80,9 @@ class AdminBootstrapRunnerTest {
     @Test
     void newDatabaseGetsADefaultAdminThatCanLogInAndApprove() {
         properties.setPassword("Configured#123");
+        properties.setPhoneNumber("+254700000001");
+        properties.setDateOfBirth("1990-01-01");
+        properties.setGender("female");
         UserRepresentation created = keycloakUser("kc-new", false);
         UUID domainUuid = adminDomain();
 
@@ -101,6 +104,11 @@ class AdminBootstrapRunnerTest {
         verify(keycloakUserService).updateUser("kc-new", created, "elimika");
         verify(keycloakUserService).setTemporaryPassword("kc-new", "Configured#123", "elimika");
         verify(keycloakUserService, never()).createUser(any());
+        ArgumentCaptor<KeycloakRegistration> registration = ArgumentCaptor.forClass(KeycloakRegistration.class);
+        verify(keycloakUserService).registerUser(registration.capture(), eq("elimika"));
+        assertThat(registration.getValue().phoneNumber()).isEqualTo("+254700000001");
+        assertThat(registration.getValue().dateOfBirth()).isEqualTo(java.time.LocalDate.of(1990, 1, 1));
+        assertThat(registration.getValue().gender()).isEqualTo("FEMALE");
 
         ArgumentCaptor<UserDomainMapping> mapping = ArgumentCaptor.forClass(UserDomainMapping.class);
         verify(userDomainMappingRepository).save(mapping.capture());
