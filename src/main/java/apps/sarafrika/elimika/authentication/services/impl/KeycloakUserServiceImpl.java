@@ -12,6 +12,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.keycloak.admin.client.Keycloak;
 import org.keycloak.admin.client.resource.UserResource;
 import org.keycloak.admin.client.resource.UsersResource;
+import org.keycloak.representations.idm.CredentialRepresentation;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.ApplicationEventPublisher;
@@ -187,6 +188,20 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         } catch (Exception e) {
             log.error("Failed to logout user", e);
             throw new KeycloakException("Logout failed: " + e.getMessage());
+        }
+    }
+
+    @Override
+    public void setTemporaryPassword(String userId, String password, String realm) {
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(password);
+        credential.setTemporary(true);
+        try {
+            getUsersResource(realm).get(userId).resetPassword(credential);
+        } catch (Exception e) {
+            log.error("Failed to set temporary password", e);
+            throw new KeycloakException("Password reset failed: " + e.getMessage());
         }
     }
 

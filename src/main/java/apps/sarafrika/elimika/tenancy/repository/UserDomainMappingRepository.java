@@ -27,4 +27,8 @@ public interface UserDomainMappingRepository extends JpaRepository<UserDomainMap
     List<UserDomainMapping> findByUserUuidAndUserDomainUuid(UUID userUuid, UUID domainUuid);
 
     long countByUserDomainUuid(UUID domainUuid);
+
+    List<UserDomainMapping> findByUserDomainUuidAndStatus(UUID domainUuid, DomainApprovalStatus status);
+
+    boolean existsByUserUuidAndUserDomainUuidAndStatus(UUID userUuid, UUID domainUuid, DomainApprovalStatus status);
 }

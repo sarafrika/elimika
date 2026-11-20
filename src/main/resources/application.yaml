@@ -116,14 +116,17 @@ app:
     sweep-dangling-refs: ${APP_MEDIA_SWEEP_DANGLING_REFS:false}
     sweep-max-missing-ratio: ${APP_MEDIA_SWEEP_MAX_MISSING_RATIO:0.5}
 
+  # Every new database gets this admin so approvals can start; it is disabled for good once a
+  # real admin signs in. A blank password is generated and logged once (always temporary).
   bootstrap:
     admin:
-      enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:false}
-      email: ${APP_BOOTSTRAP_ADMIN_EMAIL:}
-      first-name: ${APP_BOOTSTRAP_ADMIN_FIRST_NAME:}
+      enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:true}
+      email: ${APP_BOOTSTRAP_ADMIN_EMAIL:admin@elimika.local}
+      first-name: ${APP_BOOTSTRAP_ADMIN_FIRST_NAME:Elimika}
       middle-name: ${APP_BOOTSTRAP_ADMIN_MIDDLE_NAME:}
-      last-name: ${APP_BOOTSTRAP_ADMIN_LAST_NAME:}
+      last-name: ${APP_BOOTSTRAP_ADMIN_LAST_NAME:Administrator}
       phone-number: ${APP_BOOTSTRAP_ADMIN_PHONE_NUMBER:}
+      password: ${APP_BOOTSTRAP_ADMIN_PASSWORD:}
 
   keycloak:
     serverUrl: ${APP_KEYCLOAK_SERVERURL:http://localhost:8080}

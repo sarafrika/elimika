@@ -83,4 +83,7 @@ public interface KeycloakUserService {
      * @param realm the Keycloak realm
      */
     void logoutUser(String userId, String realm);
+
+    /** Replaces the user's password with a temporary one they must change at next login. */
+    void setTemporaryPassword(String userId, String password, String realm);
 }

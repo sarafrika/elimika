@@ -1,9 +1,11 @@
 package apps.sarafrika.elimika.tenancy.service.impl;
 
+import apps.sarafrika.elimika.tenancy.internal.BootstrapAdminSuccession;
 import apps.sarafrika.elimika.tenancy.services.UserService;
 import apps.sarafrika.elimika.tenancy.services.UserSyncService;
 import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 import org.keycloak.representations.idm.UserRepresentation;
 import org.springframework.stereotype.Service;
 
@@ -19,10 +21,12 @@ import org.springframework.stereotype.Service;
  */
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class UserManagementServiceImpl implements UserManagementService {
 
     private final UserService userService;
     private final UserSyncService userSyncService;
+    private final BootstrapAdminSuccession bootstrapAdminSuccession;
 
     @Override
     public void createUser(UserRepresentation userRep) {
@@ -32,5 +36,12 @@ public class UserManagementServiceImpl implements UserManagementService {
     @Override
     public void ensureUserExists(String keycloakUserId, String realm) {
         userSyncService.ensureUserExists(keycloakUserId, realm);
+        if (bootstrapAdminSuccession.isActive()) {
+            try {
+                bootstrapAdminSuccession.onAuthenticated(keycloakUserId);
+            } catch (RuntimeException e) {
+                log.error("Could not hand over from the default admin; will retry on next sign-in", e);
+            }
+        }
     }
 }

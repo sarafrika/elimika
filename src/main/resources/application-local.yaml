@@ -30,7 +30,7 @@ app:
       # KeyCloakJwtAuthenticationConverter reads from resource_access.elimika-backend.roles.
       clientId: ${APP_KEYCLOAK_ADMIN_CLIENTID:elimika-backend}
       clientSecret: ${APP_KEYCLOAK_ADMIN_CLIENTSECRET:elimika-local-backend-secret}
-  # qa-admin@elimika.local becomes the platform admin through the app's own bootstrap runner (idempotent).
+  # qa-admin@elimika.local is the default admin here; its realm password is kept (it is already enabled).
   bootstrap:
     admin:
       enabled: ${APP_BOOTSTRAP_ADMIN_ENABLED:true}

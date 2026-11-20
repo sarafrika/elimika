@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.tenancy.internal;
 
+import apps.sarafrika.elimika.authentication.spi.KeycloakRegistration;
 import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
-import apps.sarafrika.elimika.shared.event.user.UserCreationEvent;
 import apps.sarafrika.elimika.shared.utils.enums.DomainApprovalStatus;
 import apps.sarafrika.elimika.tenancy.config.AdminBootstrapProperties;
 import apps.sarafrika.elimika.tenancy.entity.User;
@@ -18,18 +18,27 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
+import java.security.SecureRandom;
+import java.util.List;
 import java.util.Locale;
 import java.util.Objects;
 import java.util.Optional;
 
+/**
+ * Gives every new database a default admin who can log in and approve, until a real admin takes
+ * over (see {@link BootstrapAdminSuccession}). Once retired it stays off for that database.
+ */
 @Component
 @RequiredArgsConstructor
 @Slf4j
 public class AdminBootstrapRunner implements ApplicationRunner {
 
-    private static final String ADMIN_DOMAIN = "admin";
+    private static final String PASSWORD_ALPHABET =
+            "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789!@#$%*-_";
+    private static final int GENERATED_PASSWORD_LENGTH = 20;
+    private static final SecureRandom RANDOM = new SecureRandom();
 
     private final AdminBootstrapProperties properties;
     private final KeycloakUserService keycloakUserService;
@@ -37,27 +46,85 @@ public class AdminBootstrapRunner implements ApplicationRunner {
     private final UserDomainRepository userDomainRepository;
     private final UserDomainMappingRepository userDomainMappingRepository;
     private final UserNumberService userNumberService;
+    private final BootstrapAdminSuccession succession;
+    private final TransactionTemplate transactionTemplate;
 
     @Value("${app.keycloak.realm}")
     private String keycloakRealm;
 
     @Override
-    @Transactional
     public void run(ApplicationArguments args) {
         if (!properties.isEnabled()) {
             return;
         }
+        try {
+            transactionTemplate.executeWithoutResult(status -> bootstrap());
+        } catch (RuntimeException e) {
+            log.error("Default admin bootstrap failed; it will be retried on the next start", e);
+        }
+    }
 
+    private void bootstrap() {
         BootstrapAdmin admin = validatedAdmin();
+        Optional<User> existing = userRepository.findByEmailIgnoreCase(admin.email());
+
+        if (existing.isPresent() && !existing.get().isActive()) {
+            log.info("Default admin {} is retired in this database; leaving it disabled", admin.email());
+            return;
+        }
+
+        Optional<User> successor = succession.findUsableAdmin();
+        if (successor.isPresent()) {
+            if (existing.isPresent()) {
+                succession.retire(existing.get(), successor.get());
+            } else {
+                log.info("Default admin skipped; real admins are already present");
+            }
+            return;
+        }
+
         Optional<UserRepresentation> keycloakUser = keycloakUserService.getUserByUsername(admin.email(), keycloakRealm);
+        // A password is issued only when the Keycloak account is created or re-enabled, so a live
+        // account (e.g. the local qa-admin) keeps the credentials its owner already knows.
+        boolean activating = keycloakUser.isEmpty() || !Boolean.TRUE.equals(keycloakUser.get().isEnabled());
+
         User user = resolveLocalUser(admin, keycloakUser);
-        UserRepresentation representation = syncKeycloakUser(admin, user, keycloakUser);
+        UserRepresentation representation = syncKeycloakUser(admin, keycloakUser, activating);
         String keycloakId = requiredKeycloakId(representation);
 
         syncLocalUser(user, admin, keycloakId);
         assignAdminDomain(user);
 
-        log.info("Platform admin bootstrap completed for {}", admin.email());
+        if (activating) {
+            issueTemporaryPassword(admin.email(), keycloakId);
+        }
+        succession.markActive();
+        log.info("Default admin {} is active until a real admin signs in", admin.email());
+    }
+
+    private void issueTemporaryPassword(String email, String keycloakId) {
+        String configured = blankToNull(properties.getPassword());
+        String password = configured != null ? configured : generatePassword();
+        keycloakUserService.setTemporaryPassword(keycloakId, password, keycloakRealm);
+        if (configured != null) {
+            log.warn("Default admin {} ready; log in with APP_BOOTSTRAP_ADMIN_PASSWORD (must be changed)", email);
+        } else {
+            log.warn("""
+
+                    ==================== DEFAULT ADMIN ====================
+                      Email:              {}
+                      Temporary password: {}
+                      You will be asked to change it at first login.
+                    =======================================================""", email, password);
+        }
+    }
+
+    static String generatePassword() {
+        StringBuilder password = new StringBuilder(GENERATED_PASSWORD_LENGTH);
+        for (int i = 0; i < GENERATED_PASSWORD_LENGTH; i++) {
+            password.append(PASSWORD_ALPHABET.charAt(RANDOM.nextInt(PASSWORD_ALPHABET.length())));
+        }
+        return password.toString();
     }
 
     private BootstrapAdmin validatedAdmin() {
@@ -105,33 +172,31 @@ public class AdminBootstrapRunner implements ApplicationRunner {
         return userRepository.save(user);
     }
 
+    /** Creates the Keycloak user without emailing it; only (re)activation touches its login state. */
     private UserRepresentation syncKeycloakUser(
             BootstrapAdmin admin,
-            User user,
-            Optional<UserRepresentation> existingKeycloakUser
+            Optional<UserRepresentation> existingKeycloakUser,
+            boolean activating
     ) {
-        if (existingKeycloakUser.isPresent()) {
-            UserRepresentation representation = existingKeycloakUser.get();
-            String keycloakId = requiredKeycloakId(representation);
-            representation.setFirstName(admin.firstName());
-            representation.setLastName(admin.lastName());
-            representation.setEmail(admin.email());
-            representation.setUsername(admin.email());
+        UserRepresentation representation = existingKeycloakUser.orElseGet(() -> {
+            String id = keycloakUserService.registerUser(new KeycloakRegistration(
+                    admin.email(), admin.firstName(), admin.middleName(), admin.lastName(),
+                    admin.phoneNumber(), null, null), keycloakRealm);
+            return keycloakUserService.getUserById(id, keycloakRealm)
+                    .orElseThrow(() -> new IllegalStateException("Keycloak lost the default admin it just created"));
+        });
+        String keycloakId = requiredKeycloakId(representation);
+        representation.setFirstName(admin.firstName());
+        representation.setLastName(admin.lastName());
+        representation.setEmail(admin.email());
+        representation.setUsername(admin.email());
+        if (activating) {
             representation.setEnabled(true);
-            keycloakUserService.updateUser(keycloakId, representation, keycloakRealm);
-            return representation;
+            representation.setEmailVerified(true);
+            representation.setRequiredActions(List.of("UPDATE_PASSWORD"));
         }
-
-        return keycloakUserService.createUser(new UserCreationEvent(
-                admin.email(),
-                admin.firstName(),
-                admin.lastName(),
-                admin.email(),
-                true,
-                null,
-                keycloakRealm,
-                user.getUuid()
-        ));
+        keycloakUserService.updateUser(keycloakId, representation, keycloakRealm);
+        return representation;
     }
 
     private void syncLocalUser(User user, BootstrapAdmin admin, String keycloakId) {
@@ -153,7 +218,7 @@ public class AdminBootstrapRunner implements ApplicationRunner {
     }
 
     private void assignAdminDomain(User user) {
-        UserDomain adminDomain = userDomainRepository.findByDomainName(ADMIN_DOMAIN)
+        UserDomain adminDomain = userDomainRepository.findByDomainName(BootstrapAdminSuccession.ADMIN_DOMAIN)
                 .orElseThrow(() -> new IllegalStateException("Admin user domain is not configured"));
 
         if (userDomainMappingRepository.existsByUserUuidAndUserDomainUuid(user.getUuid(), adminDomain.getUuid())) {
