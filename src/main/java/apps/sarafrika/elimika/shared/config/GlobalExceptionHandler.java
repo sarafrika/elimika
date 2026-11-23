@@ -15,11 +15,12 @@ import apps.sarafrika.elimika.shared.exceptions.UserNotFoundException;
 import apps.sarafrika.elimika.shared.search.SearchUnavailableException;
 import apps.sarafrika.elimika.shared.utils.ValidationErrorUtil;
 import apps.sarafrika.elimika.student.spi.StudentAgeGateException;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonMappingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.exc.MismatchedInputException;
-import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
+import tools.jackson.core.JacksonException;
+import tools.jackson.databind.DatabindException;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+import tools.jackson.databind.exc.MismatchedInputException;
+import tools.jackson.databind.exc.ValueInstantiationException;
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
@@ -63,7 +64,7 @@ public class GlobalExceptionHandler {
     private static final String DATABASE_BUSY_RETRY_AFTER_SECONDS = "2";
 
     /** Plain mapper: only used to print enum constants the way clients send them ({@code @JsonValue}). */
-    private static final ObjectMapper JSON_VALUES = new ObjectMapper();
+    private static final ObjectMapper JSON_VALUES = JsonMapper.builder().build();
 
     /**
      * No pooled database connection became free within the Hikari acquire timeout. This is overload, not a
@@ -376,14 +377,14 @@ public class GlobalExceptionHandler {
      */
     private Map<String, String> unreadableFieldError(HttpMessageNotReadableException ex) {
         Throwable current = ex;
-        while (current != null && !(current instanceof JsonMappingException)) {
+        while (current != null && !(current instanceof DatabindException)) {
             current = current.getCause();
         }
-        if (!(current instanceof JsonMappingException mapping)) {
+        if (!(current instanceof DatabindException mapping)) {
             return null;
         }
         String field = mapping.getPath().stream()
-                .map(JsonMappingException.Reference::getFieldName)
+                .map(JacksonException.Reference::getPropertyName)
                 .filter(Objects::nonNull)
                 .reduce((first, second) -> second)
                 .orElse(null);
@@ -400,7 +401,7 @@ public class GlobalExceptionHandler {
         return Map.of(field, field + " has an invalid value");
     }
 
-    private static Class<?> targetType(JsonMappingException ex) {
+    private static Class<?> targetType(DatabindException ex) {
         if (ex instanceof MismatchedInputException mismatch) {
             return mismatch.getTargetType();
         }
@@ -413,7 +414,7 @@ public class GlobalExceptionHandler {
     private static String jsonValue(Object enumConstant) {
         try {
             return JSON_VALUES.writeValueAsString(enumConstant).replace("\"", "");
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             return enumConstant.toString();
         }
     }

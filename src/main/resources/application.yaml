@@ -82,8 +82,9 @@ spring:
   jackson:
     # All instants are emitted/consumed as UTC ISO-8601 (see JacksonConfig).
     time-zone: UTC
-    serialization:
-      write-dates-as-timestamps: false
+    datatype:
+      datetime:
+        write-dates-as-timestamps: false
     mapper:
       accept-case-insensitive-enums: true
 
