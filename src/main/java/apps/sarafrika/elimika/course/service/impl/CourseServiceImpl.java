@@ -12,6 +12,7 @@ import apps.sarafrika.elimika.course.internal.search.CatalogueSearchScopes;
 import apps.sarafrika.elimika.course.internal.search.CourseSearchSource;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.repository.CourseCategoryMappingRepository;
+import apps.sarafrika.elimika.course.repository.CoursePrerequisiteRepository;
 import apps.sarafrika.elimika.course.model.Lesson;
 import apps.sarafrika.elimika.course.repository.CourseRepository;
 import apps.sarafrika.elimika.course.repository.CourseReviewRepository;
@@ -30,6 +31,7 @@ import apps.sarafrika.elimika.course.service.LessonService;
 import apps.sarafrika.elimika.course.util.CourseRevenueShareValidator;
 import apps.sarafrika.elimika.course.util.CourseSpecificationBuilder;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.course.util.enums.CoursePrerequisiteType;
 import apps.sarafrika.elimika.course.util.enums.EnrollmentStatus;
 import apps.sarafrika.elimika.course.util.enums.ModerationAction;
 import apps.sarafrika.elimika.course.util.enums.ModerationContentType;
@@ -78,6 +80,7 @@ public class CourseServiceImpl implements CourseService {
     private final LessonRepository lessonRepository;
     private final CourseReviewRepository courseReviewRepository;
     private final CourseCategoryMappingRepository mappingRepository;
+    private final CoursePrerequisiteRepository prerequisiteRepository;
     private final CourseSpecificationBuilder courseSpecificationBuilder;
     private final LessonService lessonService;
     private final CourseEnrollmentService courseEnrollmentService;
@@ -348,6 +351,7 @@ public class CourseServiceImpl implements CourseService {
                 || differs(dto.description(), baseline.getDescription())
                 || differs(dto.objectives(), baseline.getObjectives())
                 || differs(dto.prerequisites(), baseline.getPrerequisites())
+                || differs(dto.prerequisiteType(), baseline.getPrerequisiteType())
                 || differs(dto.difficultyUuid(), baseline.getDifficultyUuid())
                 || differs(dto.durationHours(), baseline.getDurationHours())
                 || differs(dto.durationMinutes(), baseline.getDurationMinutes())
@@ -396,6 +400,19 @@ public class CourseServiceImpl implements CourseService {
 
     private static UUID liveUuidOf(Course course) {
         return course.getParentCourseUuid() != null ? course.getParentCourseUuid() : course.getUuid();
+    }
+
+    /**
+     * The course list only applies to {@code COURSES}. Any other type drops the course's rows in the same
+     * transaction, so the learner notice, search and recommendations never read a stale list. On a live
+     * course this runs on the draft, and promotion carries the empty set over.
+     */
+    private void clearPrerequisiteCoursesUnlessListed(Course course) {
+        if (course.getPrerequisiteType() == CoursePrerequisiteType.COURSES || course.getUuid() == null) {
+            return;
+        }
+        prerequisiteRepository.deleteAll(prerequisiteRepository.findByCourseUuidOrderByIdAsc(course.getUuid()));
+        prerequisiteRepository.flush();
     }
 
     private boolean differs(Object incoming, Object current) {
@@ -859,6 +876,10 @@ public class CourseServiceImpl implements CourseService {
         }
         if (dto.prerequisites() != null) {
             existingCourse.setPrerequisites(dto.prerequisites());
+        }
+        if (dto.prerequisiteType() != null) {
+            existingCourse.setPrerequisiteType(dto.prerequisiteType());
+            clearPrerequisiteCoursesUnlessListed(existingCourse);
         }
         if (dto.courseCode() != null) {
             String code = CourseFactory.normalizeCode(dto.courseCode());

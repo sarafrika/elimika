@@ -165,10 +165,82 @@ class CoursePrerequisiteIntegrationTest {
                 + "FROM course_version_snapshots WHERE course_uuid = ?", String.class, live)).isEqualTo(prior.toString());
     }
 
+    @Test
+    @DisplayName("prerequisite_type defaults to NONE, is set on update, and is kept when an update omits it")
+    void prerequisiteTypeIsStoredOnTheCourse() throws Exception {
+        UUID course = course(ownerCreator, "draft", false);
+
+        mockMvc.perform(get("/api/v1/courses/" + course).with(jwt(OWNER)))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.prerequisite_type").value("NONE"));
+
+        putCourse(course, ", \"prerequisite_type\": \"instructor_permission\"")
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.prerequisite_type").value("INSTRUCTOR_PERMISSION"));
+
+        putCourse(course, "").andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("SELECT prerequisite_type FROM courses WHERE uuid = ?", String.class, course))
+                .isEqualTo("INSTRUCTOR_PERMISSION");
+    }
+
+    @Test
+    @DisplayName("on a live approved course a prerequisite_type change waits on the draft until promotion")
+    void liveCoursePrerequisiteTypeRoutesThroughTheDraft() throws Exception {
+        UUID live = course(ownerCreator, "published", true);
+
+        putCourse(live, ", \"prerequisite_type\": \"COURSES\"").andExpect(status().isOk());
+        assertThat(jdbc.queryForObject("SELECT prerequisite_type FROM courses WHERE uuid = ?", String.class, live))
+                .isEqualTo("NONE");
+
+        UUID pendingEdit = jdbc.queryForObject(
+                "SELECT uuid FROM course_pending_edits WHERE course_uuid = ? AND status = 'pending'", UUID.class, live);
+        courseDraftService.promote(live, pendingEdit);
+
+        assertThat(jdbc.queryForObject("SELECT prerequisite_type FROM courses WHERE uuid = ?", String.class, live))
+                .isEqualTo("COURSES");
+    }
+
+    @Test
+    @DisplayName("moving off COURSES drops the course list; on a live course only once the edit is approved")
+    void leavingCoursesClearsTheList() throws Exception {
+        UUID course = course(ownerCreator, "draft", false);
+        UUID prior = course(ownerCreator, "published", false);
+        putCourse(course, ", \"prerequisite_type\": \"COURSES\"").andExpect(status().isOk());
+        putPrerequisites(OWNER, course, body(prior, true)).andExpect(status().isOk());
+
+        // Re-sending COURSES keeps the list.
+        putCourse(course, ", \"prerequisite_type\": \"COURSES\"").andExpect(status().isOk());
+        assertThat(count(course)).isEqualTo(1);
+
+        putCourse(course, ", \"prerequisite_type\": \"INSTRUCTOR_PERMISSION\"").andExpect(status().isOk());
+        assertThat(count(course)).isZero();
+
+        UUID live = course(ownerCreator, "published", true);
+        jdbc.update("UPDATE courses SET prerequisite_type = 'COURSES' WHERE uuid = ?", live);
+        jdbc.update("INSERT INTO course_prerequisites (uuid, course_uuid, prerequisite_course_uuid, is_mandatory, "
+                + "created_by) VALUES (?, ?, ?, true, 'test')", UUID.randomUUID(), live, prior);
+
+        putCourse(live, ", \"prerequisite_type\": \"NONE\"").andExpect(status().isOk());
+        assertThat(count(live)).isEqualTo(1);
+
+        UUID pendingEdit = jdbc.queryForObject(
+                "SELECT uuid FROM course_pending_edits WHERE course_uuid = ? AND status = 'pending'", UUID.class, live);
+        courseDraftService.promote(live, pendingEdit);
+        assertThat(count(live)).isZero();
+    }
+
     // ----------------------------------------------------------------- plumbing
 
     private ResultActions putPrerequisites(String subject, UUID course, String body) throws Exception {
         return mockMvc.perform(put(url(course)).with(jwt(subject)).contentType(MediaType.APPLICATION_JSON).content(body));
+    }
+
+    private ResultActions putCourse(UUID course, String extraFields) throws Exception {
+        String json = "{\"name\": \"Course " + course.toString().substring(0, 8) + "\", "
+                + "\"course_creator_uuid\": \"" + ownerCreator + "\", \"status\": \"draft\", "
+                + "\"creator_share_percentage\": 30, \"instructor_share_percentage\": 70" + extraFields + "}";
+        return mockMvc.perform(put("/api/v1/courses/" + course).with(jwt(OWNER))
+                .contentType(MediaType.APPLICATION_JSON).content(json));
     }
 
     private static String body(Object... pairs) {

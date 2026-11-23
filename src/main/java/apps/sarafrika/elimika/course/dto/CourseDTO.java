@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.course.dto;
 
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
+import apps.sarafrika.elimika.course.util.enums.CoursePrerequisiteType;
 import com.fasterxml.jackson.annotation.JsonInclude;
 import com.fasterxml.jackson.annotation.JsonProperty;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -38,6 +39,7 @@ import java.util.UUID;
             "description": "Comprehensive course covering advanced Java concepts and enterprise development",
             "objectives": "Master advanced Java features, design patterns, and enterprise frameworks",
             "prerequisites": "Basic Java knowledge and OOP concepts",
+            "prerequisite_type": "COURSES",
             "duration_hours": 40,
             "duration_minutes": 30,
             "class_limit": 25,
@@ -163,6 +165,17 @@ public record CourseDTO(
         @Size(max = 1000, message = "Prerequisites must not exceed 1000 characters")
         @JsonProperty("prerequisites")
         String prerequisites,
+
+        @Schema(
+                description = "**[OPTIONAL]** How a learner qualifies: `NONE`, `INSTRUCTOR_PERMISSION`, or `COURSES` "
+                        + "(the prior courses at `/courses/{uuid}/prerequisites`). Defaults to `NONE` on create; "
+                        + "omit on update to keep the current value.",
+                example = "COURSES",
+                allowableValues = {"NONE", "INSTRUCTOR_PERMISSION", "COURSES"},
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("prerequisite_type")
+        CoursePrerequisiteType prerequisiteType,
 
         @Schema(
                 description = "**[OPTIONAL]** Legacy course duration in hours; course creators no longer set it.",
@@ -444,7 +457,7 @@ public record CourseDTO(
     /** This course with the list-item facts that are computed per page rather than stored on the row. */
     public CourseDTO withListFacts(Long lessonCount, CourseRatingSummary ratingSummary, String courseCreatorName) {
         return new CourseDTO(uuid, name, courseCode, courseCreatorUuid, categoryUuids, difficultyUuid, description,
-                objectives, prerequisites, durationHours, durationMinutes, passMark, classLimit, price,
+                objectives, prerequisites, prerequisiteType, durationHours, durationMinutes, passMark, classLimit, price,
                 minimumTrainingFee, creatorSharePercentage, instructorSharePercentage, revenueShareNotes,
                 ageLowerLimit, ageUpperLimit, thumbnailUrl, introVideoUrl, bannerUrl, status, active, adminApproved,
                 trainingRequirements, categoryNames, createdDate, createdBy, updatedDate, updatedBy,
@@ -454,7 +467,7 @@ public record CourseDTO(
     /** This course with the creator's display name attached; every other field is kept as is. */
     public CourseDTO withCourseCreatorName(String courseCreatorName) {
         return new CourseDTO(uuid, name, courseCode, courseCreatorUuid, categoryUuids, difficultyUuid, description,
-                objectives, prerequisites, durationHours, durationMinutes, passMark, classLimit, price,
+                objectives, prerequisites, prerequisiteType, durationHours, durationMinutes, passMark, classLimit, price,
                 minimumTrainingFee, creatorSharePercentage, instructorSharePercentage, revenueShareNotes,
                 ageLowerLimit, ageUpperLimit, thumbnailUrl, introVideoUrl, bannerUrl, status, active, adminApproved,
                 trainingRequirements, categoryNames, createdDate, createdBy, updatedDate, updatedBy,
@@ -468,7 +481,7 @@ public record CourseDTO(
      */
     public CourseDTO publicView() {
         return new CourseDTO(uuid, name, courseCode, courseCreatorUuid, categoryUuids, difficultyUuid, description,
-                objectives, prerequisites, durationHours, durationMinutes, passMark, classLimit, price,
+                objectives, prerequisites, prerequisiteType, durationHours, durationMinutes, passMark, classLimit, price,
                 null, null, null, null,
                 ageLowerLimit, ageUpperLimit, thumbnailUrl, introVideoUrl, bannerUrl, status, active, adminApproved,
                 trainingRequirements, categoryNames, createdDate, null, updatedDate, null,
