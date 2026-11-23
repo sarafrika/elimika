@@ -1,3 +1,10 @@
+## [2.197.1](https://github.com/sarafrika/elimika/compare/v2.197.0...v2.197.1) (2026-11-23)
+
+
+### Bug Fixes
+
+* accept education training requirement type and name the field on unreadable request values ([c30a0a2](https://github.com/sarafrika/elimika/commit/c30a0a2c6f111d3610491e43cd7bdad5dd8675b6))
+
 # [2.197.0](https://github.com/sarafrika/elimika/compare/v2.196.1...v2.197.0) (2026-11-23)
 
 
