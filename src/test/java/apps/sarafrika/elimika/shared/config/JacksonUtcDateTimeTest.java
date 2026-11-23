@@ -1,12 +1,11 @@
 package apps.sarafrika.elimika.shared.config;
 
 import apps.sarafrika.elimika.shared.dto.ResponseDTO;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.SerializationFeature;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.springframework.http.converter.json.Jackson2ObjectMapperBuilder;
-
+import tools.jackson.databind.cfg.DateTimeFeature;
+import tools.jackson.databind.json.JsonMapper;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
@@ -25,8 +24,8 @@ class JacksonUtcDateTimeTest {
     void setUp() {
         // Mirror Spring Boot's defaults (ISO strings, not numeric arrays) so this
         // exercises the same configuration the application runs with.
-        Jackson2ObjectMapperBuilder builder = new Jackson2ObjectMapperBuilder()
-                .featuresToDisable(SerializationFeature.WRITE_DATES_AS_TIMESTAMPS);
+        JsonMapper.Builder builder = JsonMapper.builder()
+                .disable(DateTimeFeature.WRITE_DATES_AS_TIMESTAMPS);
         new JacksonConfig().utcDateTimeCustomizer().customize(builder);
         objectMapper = builder.build();
     }

@@ -1,7 +1,8 @@
 package apps.sarafrika.elimika.shared.utils.enums;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -10,7 +11,7 @@ import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 class RateBasisTest {
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new JsonMapper();
 
     private record Priced(@JsonProperty("rate_basis") RateBasis rateBasis) {
     }

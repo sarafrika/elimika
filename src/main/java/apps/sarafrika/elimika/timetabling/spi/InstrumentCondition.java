@@ -13,6 +13,7 @@ public enum InstrumentCondition {
 
     private final String value;
 
+    @JsonCreator
     InstrumentCondition(String value) {
         this.value = value;
     }

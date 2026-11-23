@@ -36,7 +36,8 @@ public enum EnrollmentStatus {
             VALUE_MAP.put(status.value.toLowerCase(), status);
         }
     }
-    
+
+    @JsonCreator
     EnrollmentStatus(String value, String description) {
         this.value = value;
         this.description = description;

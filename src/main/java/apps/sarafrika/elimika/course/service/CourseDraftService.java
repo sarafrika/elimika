@@ -2,7 +2,7 @@ package apps.sarafrika.elimika.course.service;
 
 import apps.sarafrika.elimika.course.dto.CourseEditDiffDTO;
 import apps.sarafrika.elimika.course.model.Course;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 
 import java.util.Optional;
 import java.util.UUID;

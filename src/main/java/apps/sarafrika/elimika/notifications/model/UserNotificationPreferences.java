@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.notifications.model;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
+import com.fasterxml.jackson.annotation.JsonCreator;
 import apps.sarafrika.elimika.notifications.api.NotificationCategory;
 import jakarta.persistence.*;
 import lombok.*;
@@ -74,7 +75,8 @@ public class UserNotificationPreferences extends BaseEntity {
                 VALUE_MAP.put(mode.value.toLowerCase(), mode);
             }
         }
-        
+
+        @JsonCreator
         DigestMode(String value) {
             this.value = value;
         }
@@ -89,7 +91,7 @@ public class UserNotificationPreferences extends BaseEntity {
             return value;
         }
         
-        @com.fasterxml.jackson.annotation.JsonCreator
+        @JsonCreator
         public static DigestMode fromValue(String value) {
             DigestMode mode = VALUE_MAP.get(value);
             if (mode == null) {

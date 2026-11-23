@@ -4,12 +4,13 @@ import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.tenancy.dto.UserRecipientDTO;
 import apps.sarafrika.elimika.tenancy.services.UserRecipientLookupService;
 import apps.sarafrika.elimika.testsupport.SharedPostgres;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.annotation.DirtiesContext;
@@ -53,9 +54,9 @@ class UserRecipientLookupIntegrationTest {
 
         assertThat(recipient.userUuid()).isEqualTo(uuid);
         assertThat(recipient.displayName()).isEqualTo("Wilfred N.");
-        String json = new ObjectMapper().writeValueAsString(recipient);
+        String json = new JsonMapper().writeValueAsString(recipient);
         assertThat(json).doesNotContain("email", "phone", "Njuguna", "@example.test", "+254");
-        assertThat(new ObjectMapper().readTree(json).size()).isEqualTo(2);
+        assertThat(new JsonMapper().readTree(json).size()).isEqualTo(2);
     }
 
     @Test

@@ -26,6 +26,7 @@ public enum SubmissionStatus {
         }
     }
 
+    @JsonCreator
     SubmissionStatus(String value) {
         this.value = value;
     }

@@ -3,8 +3,9 @@ package apps.sarafrika.elimika.student.dto;
 import apps.sarafrika.elimika.student.util.enums.GuardianLinkStatus;
 import apps.sarafrika.elimika.student.util.enums.GuardianRelationshipType;
 import apps.sarafrika.elimika.student.util.enums.GuardianShareScope;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -19,7 +20,9 @@ class GuardianStudentLinkJsonTest {
     private static final UUID STUDENT = UUID.randomUUID();
     private static final UUID GUARDIAN = UUID.randomUUID();
 
-    private final ObjectMapper objectMapper = new ObjectMapper().findAndRegisterModules();
+    private final ObjectMapper objectMapper = JsonMapper.builder()
+            .findAndAddModules()
+            .build();
 
     @Test
     @DisplayName("The request reads snake_case")
@@ -52,8 +55,8 @@ class GuardianStudentLinkJsonTest {
 
         JsonNode json = objectMapper.readTree(objectMapper.writeValueAsString(dto));
 
-        assertThat(json.get("student_uuid").asText()).isEqualTo(STUDENT.toString());
-        assertThat(json.get("guardian_user_uuid").asText()).isEqualTo(GUARDIAN.toString());
+        assertThat(json.get("student_uuid").asString()).isEqualTo(STUDENT.toString());
+        assertThat(json.get("guardian_user_uuid").asString()).isEqualTo(GUARDIAN.toString());
         assertThat(json.get("primary_guardian").asBoolean()).isTrue();
         assertThat(json.has("relationship_type")).isTrue();
         assertThat(json.has("share_scope")).isTrue();

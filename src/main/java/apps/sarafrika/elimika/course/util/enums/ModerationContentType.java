@@ -20,6 +20,7 @@ public enum ModerationContentType {
         }
     }
 
+    @JsonCreator
     ModerationContentType(String value) {
         this.value = value;
     }

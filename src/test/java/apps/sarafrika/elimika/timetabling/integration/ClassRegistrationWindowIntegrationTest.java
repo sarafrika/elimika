@@ -51,13 +51,14 @@ import apps.sarafrika.elimika.timetabling.spi.EnrollmentRequestDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentStatus;
 import apps.sarafrika.elimika.timetabling.spi.InstructorTimeHoldService;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
@@ -199,7 +200,7 @@ class ClassRegistrationWindowIntegrationTest {
                 orderRepository,
                 mock(CommerceOrderItemRepository.class),
                 commerceMapper,
-                new ObjectMapper(),
+                new JsonMapper(),
                 mock(RegionResolver.class),
                 classCapacityService,
                 enrolmentGate,

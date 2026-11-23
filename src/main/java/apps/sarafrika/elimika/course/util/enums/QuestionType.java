@@ -26,6 +26,7 @@ public enum QuestionType {
         }
     }
 
+    @JsonCreator
     QuestionType(String value) {
         this.value = value;
     }

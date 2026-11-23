@@ -10,14 +10,13 @@ import apps.sarafrika.elimika.systemconfig.enums.RuleStatus;
 import apps.sarafrika.elimika.systemconfig.model.SystemRule;
 import apps.sarafrika.elimika.systemconfig.repository.SystemRuleRepository;
 import apps.sarafrika.elimika.systemconfig.service.RuleEvaluationService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-
+import tools.jackson.core.JacksonException;
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.time.Period;
@@ -167,7 +166,7 @@ public class RuleEvaluationServiceImpl implements RuleEvaluationService {
         }
         try {
             return Optional.of(objectMapper.treeToValue(payload, targetClass));
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             log.error("Failed to convert system rule payload into {}", targetClass.getSimpleName(), ex);
             return Optional.empty();
         }

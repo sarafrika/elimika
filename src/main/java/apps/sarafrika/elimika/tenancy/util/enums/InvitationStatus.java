@@ -41,6 +41,7 @@ public enum InvitationStatus {
     private final String value;
     private final String description;
 
+    @JsonCreator
     InvitationStatus(String value, String description) {
         this.value = value;
         this.description = description;

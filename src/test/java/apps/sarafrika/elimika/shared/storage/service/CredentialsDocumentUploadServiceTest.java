@@ -5,7 +5,8 @@ import apps.sarafrika.elimika.shared.repository.DocumentTypeRepository;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.service.ProfileDocumentUploadService.ProfileDocumentOwner;
 import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,7 +46,7 @@ class CredentialsDocumentUploadServiceTest {
                 mediaStorageService,
                 storageProperties,
                 documentTypeRepository,
-                new ObjectMapper());
+                new JsonMapper());
     }
 
     @Test

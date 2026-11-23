@@ -41,7 +41,8 @@ public enum NotificationCategory {
             VALUE_MAP.put(category.value.toLowerCase(), category);
         }
     }
-    
+
+    @JsonCreator
     NotificationCategory(String value, String displayName, String description) {
         this.value = value;
         this.displayName = displayName;

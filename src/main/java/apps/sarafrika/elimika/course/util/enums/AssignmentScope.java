@@ -25,6 +25,7 @@ public enum AssignmentScope {
         }
     }
 
+    @JsonCreator
     AssignmentScope(String value) {
         this.value = value;
     }

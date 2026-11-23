@@ -22,6 +22,7 @@ public enum NotificationPresentation {
 
     private final String value;
 
+    @JsonCreator
     NotificationPresentation(String value) {
         this.value = value;
     }

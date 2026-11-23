@@ -4,7 +4,7 @@ import apps.sarafrika.elimika.notifications.api.NotificationEvent;
 import apps.sarafrika.elimika.notifications.api.NotificationType;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.autoconfigure.thymeleaf.ThymeleafAutoConfiguration;
+import org.springframework.boot.thymeleaf.autoconfigure.ThymeleafAutoConfiguration;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import java.util.ArrayList;

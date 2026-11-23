@@ -12,6 +12,7 @@ public enum TrainingApplicationType {
 
     private final String value;
 
+    @JsonCreator
     TrainingApplicationType(String value) {
         this.value = value;
     }

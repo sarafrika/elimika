@@ -17,7 +17,8 @@ import apps.sarafrika.elimika.shared.security.DomainSecurityService;
 import apps.sarafrika.elimika.shared.spi.ClassEnrolmentGateService;
 import apps.sarafrika.elimika.student.spi.StudentGuardianLookupService;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -60,7 +61,7 @@ class MpesaPaymentReconciliationSchedulerTest {
         scheduler = new MpesaPaymentReconciliationScheduler(orderRepository, orderPaymentService,
                 classEnrolmentGateService,
                 new LearnerResolver(domainSecurityService, studentGuardianLookupService, studentLookupService),
-                new ObjectMapper(), receiptNotifier, paymentRepository, mpesaGatewayClient);
+                new JsonMapper(), receiptNotifier, paymentRepository, mpesaGatewayClient);
     }
 
     @Test

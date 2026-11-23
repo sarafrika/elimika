@@ -24,6 +24,7 @@ public enum PracticeActivityType {
         }
     }
 
+    @JsonCreator
     PracticeActivityType(String value) {
         this.value = value;
     }

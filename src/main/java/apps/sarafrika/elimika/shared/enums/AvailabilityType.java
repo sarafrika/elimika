@@ -22,7 +22,8 @@ public enum AvailabilityType {
             VALUE_MAP.put(type.value.toLowerCase(), type);
         }
     }
-    
+
+    @JsonCreator
     AvailabilityType(String value, String description) {
         this.value = value;
         this.description = description;

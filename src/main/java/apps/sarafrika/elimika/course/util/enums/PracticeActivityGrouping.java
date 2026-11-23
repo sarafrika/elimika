@@ -22,6 +22,7 @@ public enum PracticeActivityGrouping {
         }
     }
 
+    @JsonCreator
     PracticeActivityGrouping(String value) {
         this.value = value;
     }

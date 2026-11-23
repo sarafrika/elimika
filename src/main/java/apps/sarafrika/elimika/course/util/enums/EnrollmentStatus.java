@@ -27,6 +27,7 @@ public enum EnrollmentStatus {
         }
     }
 
+    @JsonCreator
     EnrollmentStatus(String value) {
         this.value = value;
     }

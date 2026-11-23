@@ -14,6 +14,7 @@ public enum CourseCreatorVerificationStatus {
 
     private final String value;
 
+    @JsonCreator
     CourseCreatorVerificationStatus(String value) {
         this.value = value;
     }

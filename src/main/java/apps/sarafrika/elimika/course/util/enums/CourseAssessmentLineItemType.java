@@ -19,6 +19,7 @@ public enum CourseAssessmentLineItemType {
 
     private final String value;
 
+    @JsonCreator
     CourseAssessmentLineItemType(String value) {
         this.value = value;
     }

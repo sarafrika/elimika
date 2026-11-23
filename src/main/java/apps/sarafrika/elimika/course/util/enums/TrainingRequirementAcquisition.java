@@ -12,6 +12,7 @@ public enum TrainingRequirementAcquisition {
 
     private final String value;
 
+    @JsonCreator
     TrainingRequirementAcquisition(String value) {
         this.value = value;
     }

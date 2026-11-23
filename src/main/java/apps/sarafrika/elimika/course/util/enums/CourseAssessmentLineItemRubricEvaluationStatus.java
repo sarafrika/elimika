@@ -11,6 +11,7 @@ public enum CourseAssessmentLineItemRubricEvaluationStatus {
 
     private final String value;
 
+    @JsonCreator
     CourseAssessmentLineItemRubricEvaluationStatus(String value) {
         this.value = value;
     }

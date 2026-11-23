@@ -3,8 +3,8 @@ package apps.sarafrika.elimika.shared.service;
 import apps.sarafrika.elimika.shared.dto.DocumentTypeOptionDTO;
 import apps.sarafrika.elimika.shared.model.DocumentType;
 import apps.sarafrika.elimika.shared.repository.DocumentTypeRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.data.domain.Sort;
@@ -68,8 +68,8 @@ public class DocumentTypeService {
 
             List<String> extensions = new ArrayList<>();
             node.forEach(item -> {
-                if (item.isTextual()) {
-                    extensions.add(item.asText());
+                if (item.isString()) {
+                    extensions.add(item.asString());
                 }
             });
             return List.copyOf(extensions);

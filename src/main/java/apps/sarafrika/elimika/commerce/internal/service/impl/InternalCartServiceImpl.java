@@ -37,9 +37,8 @@ import apps.sarafrika.elimika.shared.utils.commerce.ClassLinePricing;
 import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService.ClassScheduleSummary;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.OffsetDateTime;
@@ -57,6 +56,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import tools.jackson.core.JacksonException;
 
 @Service
 @RequiredArgsConstructor
@@ -658,7 +658,7 @@ public class InternalCartServiceImpl implements InternalCartService {
         }
         try {
             return objectMapper.writeValueAsString(metadata);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             return null;
         }
     }

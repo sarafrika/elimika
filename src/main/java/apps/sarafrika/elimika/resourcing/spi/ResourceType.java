@@ -25,6 +25,7 @@ public enum ResourceType {
         }
     }
 
+    @JsonCreator
     ResourceType(String value, String description) {
         this.value = value;
         this.description = description;

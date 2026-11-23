@@ -25,7 +25,8 @@ public enum LocationType {
             VALUE_MAP.put(type.value, type);
         }
     }
-    
+
+    @JsonCreator
     LocationType(String value, String description) {
         this.value = value;
         this.description = description;

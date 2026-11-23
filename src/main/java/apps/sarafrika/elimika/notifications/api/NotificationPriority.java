@@ -32,7 +32,8 @@ public enum NotificationPriority {
             VALUE_MAP.put(priority.value.toLowerCase(), priority);
         }
     }
-    
+
+    @JsonCreator
     NotificationPriority(String value, int level, String displayName, String description) {
         this.value = value;
         this.level = level;

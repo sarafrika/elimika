@@ -53,7 +53,8 @@ import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.SchedulingStatus;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -414,7 +415,9 @@ class JobMatchServiceTest {
         // Candidates who fit the brief come first.
         assertThat(page.items().getFirst().instructorUuid()).isEqualTo(clear);
 
-        String json = new ObjectMapper().findAndRegisterModules().writeValueAsString(page);
+        String json = JsonMapper.builder()
+                .findAndAddModules()
+                .build().writeValueAsString(page);
         assertThat(json).doesNotContain("211.37", "212.49", "987.65", "240.00", "240.0")
                 .doesNotContain("approved_rate", "instructor_pay", "rate_ok", "schedule_conflicts", "eligibility",
                         "requested_start", "2026-05-09", "2026-05-16", "Existing session")
@@ -422,8 +425,10 @@ class JobMatchServiceTest {
                 .doesNotContainIgnoringCase("your approved rate")
                 .contains("\"schedule_clear\"", "\"rate_within_budget\"", "\"score\"", "\"reasons\"");
         // A match object carries exactly the four summary fields.
-        var tree = new ObjectMapper().findAndRegisterModules().readTree(json);
-        tree.get("items").forEach(item -> assertThat(item.get("match").fieldNames())
+        var tree = JsonMapper.builder()
+                .findAndAddModules()
+                .build().readTree(json);
+        tree.get("items").forEach(item -> assertThat(item.get("match").propertyNames().iterator())
                 .toIterable().containsExactlyInAnyOrder("score", "reasons", "schedule_clear", "rate_within_budget"));
     }
 

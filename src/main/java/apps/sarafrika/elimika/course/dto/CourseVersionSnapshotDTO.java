@@ -1,7 +1,7 @@
 package apps.sarafrika.elimika.course.dto;
 
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;

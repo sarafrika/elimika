@@ -28,6 +28,7 @@ public enum BookingStatus {
         }
     }
 
+    @JsonCreator
     BookingStatus(String value, String description) {
         this.value = value;
         this.description = description;

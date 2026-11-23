@@ -17,6 +17,7 @@ public enum AgeGroupOwnerType {
 
     private final String value;
 
+    @JsonCreator
     AgeGroupOwnerType(String value) {
         this.value = value;
     }

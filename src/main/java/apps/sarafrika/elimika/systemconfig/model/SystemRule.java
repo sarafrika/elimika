@@ -5,7 +5,7 @@ import apps.sarafrika.elimika.systemconfig.enums.RuleCategory;
 import apps.sarafrika.elimika.systemconfig.enums.RuleScope;
 import apps.sarafrika.elimika.systemconfig.enums.RuleStatus;
 import apps.sarafrika.elimika.systemconfig.enums.RuleValueType;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.EnumType;

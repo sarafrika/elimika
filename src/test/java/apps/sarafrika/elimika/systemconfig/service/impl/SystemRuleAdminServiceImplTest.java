@@ -8,8 +8,9 @@ import apps.sarafrika.elimika.systemconfig.enums.RuleScope;
 import apps.sarafrika.elimika.systemconfig.enums.RuleStatus;
 import apps.sarafrika.elimika.systemconfig.model.SystemRule;
 import apps.sarafrika.elimika.systemconfig.repository.SystemRuleRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -38,7 +39,7 @@ import static org.mockito.Mockito.when;
 @ExtendWith(MockitoExtension.class)
 class SystemRuleAdminServiceImplTest {
 
-    private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
+    private static final ObjectMapper OBJECT_MAPPER = new JsonMapper();
 
     @Mock
     private SystemRuleRepository systemRuleRepository;

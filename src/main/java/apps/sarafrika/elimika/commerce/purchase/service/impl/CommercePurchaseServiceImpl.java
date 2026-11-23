@@ -13,8 +13,7 @@ import apps.sarafrika.elimika.shared.event.commerce.ClassPurchaseRecordedEvent;
 import apps.sarafrika.elimika.shared.dto.commerce.CheckoutRequest;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.dto.commerce.PlatformFeeBreakdown;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +26,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import tools.jackson.core.JacksonException;
 
 @Service
 @RequiredArgsConstructor
@@ -214,7 +214,7 @@ public class CommercePurchaseServiceImpl implements CommercePurchaseService {
     private String writeMetadata(Map<String, Object> metadata) {
         try {
             return objectMapper.writeValueAsString(metadata);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             log.warn("Failed to serialise line item metadata", ex);
             return null;
         }

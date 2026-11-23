@@ -22,6 +22,7 @@ public enum DomainApprovalStatus {
 
     private final String value;
 
+    @JsonCreator
     DomainApprovalStatus(String value) {
         this.value = value;
     }

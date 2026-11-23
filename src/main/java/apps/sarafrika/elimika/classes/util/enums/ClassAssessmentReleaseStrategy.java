@@ -24,6 +24,7 @@ public enum ClassAssessmentReleaseStrategy {
         }
     }
 
+    @JsonCreator
     ClassAssessmentReleaseStrategy(String value) {
         this.value = value;
     }

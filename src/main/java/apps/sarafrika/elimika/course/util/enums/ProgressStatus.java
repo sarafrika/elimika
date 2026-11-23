@@ -26,6 +26,7 @@ public enum ProgressStatus {
         }
     }
 
+    @JsonCreator
     ProgressStatus(String value) {
         this.value = value;
     }

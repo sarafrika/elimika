@@ -21,6 +21,7 @@ public enum TrainingApplicationEventType {
 
     private final String value;
 
+    @JsonCreator
     TrainingApplicationEventType(String value) {
         this.value = value;
     }

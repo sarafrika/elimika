@@ -32,8 +32,9 @@ import apps.sarafrika.elimika.course.repository.QuizRepository;
 import apps.sarafrika.elimika.course.repository.RubricCriteriaRepository;
 import apps.sarafrika.elimika.course.repository.RubricScoringLevelRepository;
 import apps.sarafrika.elimika.course.repository.RubricScoringRepository;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -115,7 +116,7 @@ class CourseSnapshotCoverageTest {
     @Mock private RubricScoringLevelRepository rubricScoringLevelRepository;
     @Mock private RubricScoringRepository rubricScoringRepository;
     @Mock private CourseVersionSnapshotRepository snapshotRepository;
-    @Spy private ObjectMapper objectMapper = new ObjectMapper();
+    @Spy private ObjectMapper objectMapper = new JsonMapper();
 
     @InjectMocks private CourseDraftServiceImpl service;
 
@@ -267,7 +268,7 @@ class CourseSnapshotCoverageTest {
                 .path("questions").path(0)
                 .path("options").path(0);
 
-        assertThat(option.path("option_text").asText()).isEqualTo("Level with the keys");
+        assertThat(option.path("option_text").asString()).isEqualTo("Level with the keys");
         assertThat(option.path("is_correct").asBoolean()).isTrue();
     }
 
@@ -278,14 +279,14 @@ class CourseSnapshotCoverageTest {
         assertThat(rubrics).hasSize(1);
 
         JsonNode rubric = rubrics.path(0);
-        assertThat(rubric.path("title").asText()).isEqualTo("Technique and musicality");
-        assertThat(rubric.path("criteria").path(0).path("component_name").asText()).isEqualTo("Hand position");
-        assertThat(rubric.path("scoring_levels").path(0).path("name").asText()).isEqualTo("Secure");
-        assertThat(rubric.path("scoring").path(0).path("description").asText())
+        assertThat(rubric.path("title").asString()).isEqualTo("Technique and musicality");
+        assertThat(rubric.path("criteria").path(0).path("component_name").asString()).isEqualTo("Hand position");
+        assertThat(rubric.path("scoring_levels").path(0).path("name").asString()).isEqualTo("Secure");
+        assertThat(rubric.path("scoring").path(0).path("description").asString())
                 .isEqualTo("Wrists level, fingers curved throughout.");
 
         // The holder keeps its pointer, so a reader can tell which rubric graded which quiz.
-        assertThat(tree.path("lessons").path(0).path("quizzes").path(0).path("rubric_uuid").asText())
+        assertThat(tree.path("lessons").path(0).path("quizzes").path(0).path("rubric_uuid").asString())
                 .isEqualTo(rubricUuid.toString());
     }
 

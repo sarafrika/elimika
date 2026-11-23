@@ -11,6 +11,7 @@ public enum CourseAssessmentAggregationStrategy {
 
     private final String value;
 
+    @JsonCreator
     CourseAssessmentAggregationStrategy(String value) {
         this.value = value;
     }

@@ -7,7 +7,8 @@ import apps.sarafrika.elimika.systemconfig.enums.RuleScope;
 import apps.sarafrika.elimika.systemconfig.enums.RuleStatus;
 import apps.sarafrika.elimika.systemconfig.model.SystemRule;
 import apps.sarafrika.elimika.systemconfig.repository.SystemRuleRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 
 import java.time.LocalDate;
@@ -27,7 +28,7 @@ class RuleEvaluationServiceImplAgeGateTest {
     private static final String KEY = "student.onboarding.age_gate";
     private static final OffsetDateTime NOW = OffsetDateTime.of(2026, 10, 1, 12, 0, 0, 0, ZoneOffset.UTC);
 
-    private final ObjectMapper objectMapper = new ObjectMapper();
+    private final ObjectMapper objectMapper = new JsonMapper();
     private final SystemRuleRepository repository = mock(SystemRuleRepository.class);
     private final RuleEvaluationServiceImpl service = new RuleEvaluationServiceImpl(repository, objectMapper);
 

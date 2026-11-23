@@ -35,7 +35,8 @@ public enum SchedulingStatus {
             VALUE_MAP.put(status.value.toLowerCase(), status);
         }
     }
-    
+
+    @JsonCreator
     SchedulingStatus(String value, String description) {
         this.value = value;
         this.description = description;

@@ -27,7 +27,7 @@ import apps.sarafrika.elimika.shared.spi.ClassCapacityService;
 import apps.sarafrika.elimika.shared.spi.ClassEnrolmentGateService;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.shared.spi.ClassScheduleService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Optional;

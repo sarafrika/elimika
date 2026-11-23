@@ -22,6 +22,7 @@ public enum ContentStatus {
         }
     }
 
+    @JsonCreator
     ContentStatus(String value) {
         this.value = value;
     }

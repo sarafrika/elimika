@@ -13,8 +13,8 @@ import apps.sarafrika.elimika.shared.search.SearchGateway;
 import apps.sarafrika.elimika.shared.search.SearchRequest;
 import apps.sarafrika.elimika.shared.search.SearchScope;
 import apps.sarafrika.elimika.testsupport.SharedPostgres;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.Duration;
 import java.util.regex.Pattern;
@@ -27,8 +27,8 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -130,7 +130,7 @@ class InstructorSearchIntegrationTest {
     void typoInSkillFindsInstructor() throws Exception {
         JsonNode content = list("/api/v1/instructors/search?q=kubernets&skill_levels=EXPERT", ADMIN_SUBJECT);
         assertThat(uuids(content)).containsExactly(verifiedInstructorUuid.toString());
-        assertThat(content.get(0).path("full_name").asText()).isEqualTo("Amina Otieno");
+        assertThat(content.get(0).path("full_name").asString()).isEqualTo("Amina Otieno");
 
         Map<String, Object> document = gateway.search(SearchRequest.of(InstructorSearchSource.INDEX, "kubernetes",
                 null, SearchScope.unrestricted("test"), 0, 10)).hits().stream()
@@ -164,7 +164,7 @@ class InstructorSearchIntegrationTest {
         for (String url : List.of("/api/v1/instructors", "/api/v1/instructors?q=kubernetes")) {
             JsonNode content = list(url, ADMIN_SUBJECT);
             Map<String, JsonNode> byUuid = new java.util.HashMap<>();
-            content.forEach(row -> byUuid.put(row.path("uuid").asText(), row));
+            content.forEach(row -> byUuid.put(row.path("uuid").asString(), row));
             JsonNode reviewed = byUuid.get(verifiedInstructorUuid.toString());
             assertThat(reviewed.path("rating_avg").asDouble()).isEqualTo(4.5);
             assertThat(reviewed.path("review_count").asLong()).isEqualTo(2);
@@ -245,7 +245,7 @@ class InstructorSearchIntegrationTest {
         String body = body("/api/v1/instructors?near=-1.30,36.83&radius_km=5", OUTSIDER_SUBJECT);
         JsonNode content = objectMapper.readTree(body).path("data").path("content");
         assertThat(uuids(content)).containsExactly(nairobi.toString());
-        assertThat(content.get(0).path("distance_band").asText()).isEqualTo("<2 km");
+        assertThat(content.get(0).path("distance_band").asString()).isEqualTo("<2 km");
         assertThat(content.get(0).path("latitude").decimalValue()).isEqualByComparingTo("-1.29");
         assertThat(content.get(0).path("longitude").decimalValue()).isEqualByComparingTo("36.82");
         assertThat(content.get(0).has("location_search_opt_in")).isFalse();
@@ -268,7 +268,7 @@ class InstructorSearchIntegrationTest {
         String globalBody = body("/api/v1/search/instructors?near=-1.30,36.83&radius_km=5", OUTSIDER_SUBJECT);
         JsonNode globalHits = objectMapper.readTree(globalBody).path("data").path("content");
         assertThat(uuids(globalHits)).containsExactly(nairobi.toString());
-        assertThat(globalHits.get(0).path("distance_band").asText()).isEqualTo("<2 km");
+        assertThat(globalHits.get(0).path("distance_band").asString()).isEqualTo("<2 km");
         assertNoPreciseLocation(globalBody);
         assertThat(globalBody).doesNotContain("\"latitude\"", "\"lat\"", "\"lng\"");
 
@@ -375,7 +375,7 @@ class InstructorSearchIntegrationTest {
 
     private static void collectFineNumbers(JsonNode node, List<String> fine) {
         if (node.isNumber() && FINE_NUMBER.matcher(node.decimalValue().toPlainString()).matches()) {
-            fine.add(node.asText());
+            fine.add(node.asString());
         }
         node.forEach(child -> collectFineNumbers(child, fine));
     }
@@ -401,7 +401,7 @@ class InstructorSearchIntegrationTest {
 
     private static List<String> uuids(JsonNode content) {
         List<String> values = new ArrayList<>();
-        content.forEach(node -> values.add(node.path("uuid").asText()));
+        content.forEach(node -> values.add(node.path("uuid").asString()));
         return values;
     }
 

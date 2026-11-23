@@ -21,6 +21,7 @@ public enum ModerationAction {
         }
     }
 
+    @JsonCreator
     ModerationAction(String value) {
         this.value = value;
     }

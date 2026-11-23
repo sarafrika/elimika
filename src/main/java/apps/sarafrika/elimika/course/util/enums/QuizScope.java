@@ -23,6 +23,7 @@ public enum QuizScope {
         }
     }
 
+    @JsonCreator
     QuizScope(String value) {
         this.value = value;
     }

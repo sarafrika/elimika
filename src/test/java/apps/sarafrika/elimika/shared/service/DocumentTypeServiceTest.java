@@ -3,7 +3,8 @@ package apps.sarafrika.elimika.shared.service;
 import apps.sarafrika.elimika.shared.dto.DocumentTypeOptionDTO;
 import apps.sarafrika.elimika.shared.model.DocumentType;
 import apps.sarafrika.elimika.shared.repository.DocumentTypeRepository;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -27,7 +28,7 @@ class DocumentTypeServiceTest {
 
     @BeforeEach
     void setUp() {
-        documentTypeService = new DocumentTypeService(documentTypeRepository, new ObjectMapper());
+        documentTypeService = new DocumentTypeService(documentTypeRepository, new JsonMapper());
     }
 
     @Test

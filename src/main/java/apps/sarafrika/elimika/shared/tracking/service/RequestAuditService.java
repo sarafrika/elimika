@@ -2,8 +2,7 @@ package apps.sarafrika.elimika.shared.tracking.service;
 
 import apps.sarafrika.elimika.shared.tracking.QueryStringRedactor;
 import apps.sarafrika.elimika.shared.tracking.model.RequestAuditEntry;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import jakarta.servlet.http.HttpServletRequest;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
@@ -20,6 +19,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.oauth2.jwt.Jwt;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import tools.jackson.core.JacksonException;
 
 /**
  * Captures a finished request as a {@link RequestAuditEntry} and hands it to the {@link RequestAuditWriter}.
@@ -162,7 +162,7 @@ public class RequestAuditService {
 
         try {
             return objectMapper.writeValueAsString(headers);
-        } catch (JsonProcessingException e) {
+        } catch (JacksonException e) {
             log.warn("Unable to serialise header snapshot", e);
             return null;
         }

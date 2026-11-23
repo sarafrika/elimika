@@ -46,6 +46,7 @@ public enum CourseContentAccess {
         }
     }
 
+    @JsonCreator
     CourseContentAccess(String value) {
         this.value = value;
     }

@@ -26,6 +26,7 @@ public enum TemplateType {
         }
     }
 
+    @JsonCreator
     TemplateType(String value) {
         this.value = value;
     }

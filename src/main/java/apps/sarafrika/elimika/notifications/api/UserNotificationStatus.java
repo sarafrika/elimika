@@ -23,6 +23,7 @@ public enum UserNotificationStatus {
 
     private final String value;
 
+    @JsonCreator
     UserNotificationStatus(String value) {
         this.value = value;
     }

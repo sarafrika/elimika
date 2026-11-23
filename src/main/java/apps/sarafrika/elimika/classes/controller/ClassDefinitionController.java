@@ -26,9 +26,8 @@ import apps.sarafrika.elimika.timetabling.spi.EnrollmentDTO;
 import apps.sarafrika.elimika.timetabling.spi.EnrollmentVisibilityService;
 import apps.sarafrika.elimika.timetabling.spi.ScheduledInstanceDTO;
 import apps.sarafrika.elimika.timetabling.spi.TimetableService;
-import com.fasterxml.jackson.core.JsonProcessingException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -50,7 +49,7 @@ import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
 import org.springframework.web.servlet.support.ServletUriComponentsBuilder;
-
+import tools.jackson.core.JacksonException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Locale;
@@ -640,7 +639,7 @@ public class ClassDefinitionController {
     private ClassDefinitionCreateRequestDTO readCreateRequest(String jsonPayload) {
         try {
             return objectMapper.readValue(jsonPayload, ClassDefinitionCreateRequestDTO.class);
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new IllegalArgumentException("Invalid class definition JSON payload: " + ex.getOriginalMessage(), ex);
         }
     }
@@ -670,7 +669,7 @@ public class ClassDefinitionController {
         try {
             return objectMapper.readValue(fieldValue, new TypeReference<>() {
             });
-        } catch (JsonProcessingException ex) {
+        } catch (JacksonException ex) {
             throw new IllegalArgumentException("Invalid session_templates JSON payload: " + ex.getOriginalMessage(), ex);
         }
     }

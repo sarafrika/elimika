@@ -11,11 +11,12 @@ import apps.sarafrika.elimika.notifications.spi.NotificationCountsLookupService;
 import apps.sarafrika.elimika.notifications.spi.UnreadNotificationSummary;
 import apps.sarafrika.elimika.shared.config.JpaConfig;
 import apps.sarafrika.elimika.testsupport.SharedPostgres;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.context.annotation.Import;
@@ -67,7 +68,7 @@ class UnreadCountsByDomainIntegrationTest {
                 .containsEntry("student", new DomainNotificationCounts(3, 2))
                 .containsEntry("instructor", new DomainNotificationCounts(2, 1))
                 .containsEntry("admin", new DomainNotificationCounts(1, 1));
-        var single = new UserNotificationServiceImpl(repository, null, new ObjectMapper()).getCounts(recipient, "student");
+        var single = new UserNotificationServiceImpl(repository, null, new JsonMapper()).getCounts(recipient, "student");
         assertThat(single.unreadCount()).isEqualTo(3);
         assertThat(single.popupCount()).isEqualTo(2);
     }

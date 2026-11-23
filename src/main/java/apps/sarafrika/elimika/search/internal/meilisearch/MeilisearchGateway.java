@@ -9,9 +9,9 @@ import apps.sarafrika.elimika.shared.search.SearchIndexDefinition;
 import apps.sarafrika.elimika.shared.search.SearchPage;
 import apps.sarafrika.elimika.shared.search.SearchRequest;
 import apps.sarafrika.elimika.shared.search.SearchUnavailableException;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import java.net.http.HttpClient;
 import java.time.Duration;
 import java.util.ArrayList;
@@ -193,7 +193,7 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
         for (JsonNode hit : response.path("hits")) {
             JsonNode federation = hit.path("_federation");
             hits.add(new FederatedSearchResult.Hit(
-                    federation.path("indexUid").asText(null),
+                    federation.path("indexUid").asString(null),
                     uuidOf(hit),
                     document(hit),
                     formatted(hit),
@@ -300,7 +300,7 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
     public boolean isAvailable() {
         try {
             JsonNode health = client.get().uri("/health").retrieve().body(JsonNode.class);
-            return health != null && "available".equals(health.path("status").asText());
+            return health != null && "available".equals(health.path("status").asString());
         } catch (RestClientException ex) {
             return false;
         }
@@ -371,7 +371,7 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
     }
 
     private static UUID uuidOf(JsonNode hit) {
-        String value = hit.path("uuid").asText(null);
+        String value = hit.path("uuid").asString(null);
         if (value == null) {
             return null;
         }
@@ -411,16 +411,16 @@ public class MeilisearchGateway implements SearchGateway, SearchIndexAdmin {
         while (true) {
             JsonNode status = call("poll task " + taskUid,
                     () -> client.get().uri("/tasks/{uid}", taskUid).retrieve().body(JsonNode.class));
-            String state = status.path("status").asText();
+            String state = status.path("status").asString();
             switch (state) {
                 case "succeeded" -> {
                     return TaskOutcome.success();
                 }
                 case "failed", "canceled" -> {
                     JsonNode error = status.path("error");
-                    return TaskOutcome.failed(error.path("code").asText(state), new SearchUnavailableException(
+                    return TaskOutcome.failed(error.path("code").asString(state), new SearchUnavailableException(
                             "Search task " + taskUid + " to " + description + " " + state + ": "
-                                    + error.path("message").asText("no detail")));
+                                    + error.path("message").asString("no detail")));
                 }
                 default -> {
                     // enqueued or processing

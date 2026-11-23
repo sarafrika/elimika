@@ -14,6 +14,7 @@ public enum TrainingRateUpdateStatus {
 
     private final String value;
 
+    @JsonCreator
     TrainingRateUpdateStatus(String value) {
         this.value = value;
     }

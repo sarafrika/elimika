@@ -15,6 +15,7 @@ public enum SessionReportStatus {
 
     private final String value;
 
+    @JsonCreator
     SessionReportStatus(String value) {
         this.value = value;
     }

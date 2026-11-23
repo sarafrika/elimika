@@ -38,6 +38,7 @@ public enum RateBasis {
         }
     }
 
+    @JsonCreator
     RateBasis(String value) {
         this.value = value;
     }

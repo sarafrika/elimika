@@ -30,6 +30,7 @@ public enum ClassMarketplaceJobApplicationStatus {
         }
     }
 
+    @JsonCreator
     ClassMarketplaceJobApplicationStatus(String value) {
         this.value = value;
     }

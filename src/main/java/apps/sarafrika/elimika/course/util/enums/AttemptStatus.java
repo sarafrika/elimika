@@ -25,6 +25,7 @@ public enum AttemptStatus {
         }
     }
 
+    @JsonCreator
     AttemptStatus(String value) {
         this.value = value;
     }

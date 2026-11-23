@@ -27,6 +27,7 @@ public enum ResourceBookingStatus {
         }
     }
 
+    @JsonCreator
     ResourceBookingStatus(String value, String description) {
         this.value = value;
         this.description = description;

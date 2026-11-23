@@ -30,6 +30,7 @@ public enum ProficiencyLevel {
         }
     }
 
+    @JsonCreator
     ProficiencyLevel(String value, String displayName) {
         this.value = value;
         this.displayName = displayName;

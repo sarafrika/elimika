@@ -1,14 +1,13 @@
 package apps.sarafrika.elimika.shared.config;
 
-import com.fasterxml.jackson.core.JsonParser;
-import com.fasterxml.jackson.databind.DeserializationContext;
-import com.fasterxml.jackson.databind.JsonDeserializer;
+import tools.jackson.core.JsonParser;
+import tools.jackson.databind.DeserializationContext;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeParseException;
+import tools.jackson.databind.ValueDeserializer;
 
 /**
  * Parses incoming ISO-8601 date-time strings into {@link LocalDateTime}, tolerating
@@ -25,10 +24,10 @@ import java.time.format.DateTimeParseException;
  * This keeps the round-trip lossless while remaining backward compatible with any
  * caller still sending bare local date-times.
  */
-public class FlexibleLocalDateTimeDeserializer extends JsonDeserializer<LocalDateTime> {
+public class FlexibleLocalDateTimeDeserializer extends ValueDeserializer<LocalDateTime> {
 
     @Override
-    public LocalDateTime deserialize(JsonParser p, DeserializationContext ctxt) throws IOException {
+    public LocalDateTime deserialize(JsonParser p, DeserializationContext ctxt) {
         final String text = p.getValueAsString();
         if (text == null || text.isBlank()) {
             return null;

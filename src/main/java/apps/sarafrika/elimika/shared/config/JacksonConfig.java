@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.shared.config;
 
-import org.springframework.boot.autoconfigure.jackson.Jackson2ObjectMapperBuilderCustomizer;
+import org.springframework.boot.jackson.autoconfigure.JsonMapperBuilderCustomizer;
+import tools.jackson.databind.module.SimpleModule;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -25,11 +26,13 @@ import java.util.TimeZone;
 public class JacksonConfig {
 
     @Bean
-    public Jackson2ObjectMapperBuilderCustomizer utcDateTimeCustomizer() {
+    public JsonMapperBuilderCustomizer utcDateTimeCustomizer() {
         return builder -> {
-            builder.timeZone(TimeZone.getTimeZone("UTC"));
-            builder.serializerByType(LocalDateTime.class, new UtcLocalDateTimeSerializer());
-            builder.deserializerByType(LocalDateTime.class, new FlexibleLocalDateTimeDeserializer());
+            SimpleModule utcDateTimes = new SimpleModule("elimika-utc-date-times");
+            utcDateTimes.addSerializer(LocalDateTime.class, new UtcLocalDateTimeSerializer());
+            utcDateTimes.addDeserializer(LocalDateTime.class, new FlexibleLocalDateTimeDeserializer());
+            builder.defaultTimeZone(TimeZone.getTimeZone("UTC"));
+            builder.addModule(utcDateTimes);
         };
     }
 }

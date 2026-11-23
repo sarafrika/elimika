@@ -20,6 +20,7 @@ public enum ClassMarketplaceJobApplicationEventType {
 
     private final String value;
 
+    @JsonCreator
     ClassMarketplaceJobApplicationEventType(String value) {
         this.value = value;
     }

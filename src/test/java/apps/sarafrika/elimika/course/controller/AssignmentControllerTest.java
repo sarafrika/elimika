@@ -16,7 +16,8 @@ import apps.sarafrika.elimika.shared.storage.service.MediaServeService;
 import apps.sarafrika.elimika.shared.storage.service.MediaStorageService;
 import apps.sarafrika.elimika.shared.storage.service.MediaUploadRequest;
 import apps.sarafrika.elimika.shared.storage.service.StoredMedia;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -78,7 +79,7 @@ class AssignmentControllerTest {
                 storageProperties
         );
 
-        objectMapper = new ObjectMapper();
+        objectMapper = new JsonMapper();
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .build();

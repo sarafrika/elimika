@@ -25,6 +25,7 @@ public enum CourseTrainingApplicationStatus {
         }
     }
 
+    @JsonCreator
     CourseTrainingApplicationStatus(String value) {
         this.value = value;
     }

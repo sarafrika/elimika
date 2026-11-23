@@ -21,7 +21,7 @@ import apps.sarafrika.elimika.shared.enums.SessionFormat;
 import apps.sarafrika.elimika.shared.tracking.service.RequestAuditService;
 import apps.sarafrika.elimika.shared.utils.enums.RateBasis;
 import apps.sarafrika.elimika.tenancy.spi.UserManagementService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,8 +30,8 @@ import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
-import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
+import org.springframework.boot.webmvc.test.autoconfigure.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.data.domain.PageImpl;
@@ -164,7 +164,7 @@ class ClassMarketplaceJobControllerTest {
     @Test
     void createJobWithoutBranchReturns400() throws Exception {
         ClassMarketplaceJobRequestDTO request = sampleRequest();
-        com.fasterxml.jackson.databind.node.ObjectNode body = objectMapper.valueToTree(request);
+        tools.jackson.databind.node.ObjectNode body = objectMapper.valueToTree(request);
         body.remove("branch_uuid");
 
         mockMvc.perform(post("/api/v1/classes/jobs")
@@ -179,7 +179,7 @@ class ClassMarketplaceJobControllerTest {
     @ParameterizedTest
     @ValueSource(strings = {"rate_basis", "sale_price", "instructor_pay"})
     void createJobWithoutPricingTermsReturns400(String field) throws Exception {
-        com.fasterxml.jackson.databind.node.ObjectNode body = objectMapper.valueToTree(sampleRequest());
+        tools.jackson.databind.node.ObjectNode body = objectMapper.valueToTree(sampleRequest());
         body.remove(field);
 
         mockMvc.perform(post("/api/v1/classes/jobs")
@@ -193,7 +193,7 @@ class ClassMarketplaceJobControllerTest {
 
     @Test
     void createJobWithZeroInstructorPayReturns400() throws Exception {
-        com.fasterxml.jackson.databind.node.ObjectNode body = objectMapper.valueToTree(sampleRequest());
+        tools.jackson.databind.node.ObjectNode body = objectMapper.valueToTree(sampleRequest());
         body.put("instructor_pay", 0);
 
         mockMvc.perform(post("/api/v1/classes/jobs")

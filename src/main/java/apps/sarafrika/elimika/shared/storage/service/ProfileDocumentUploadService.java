@@ -5,8 +5,8 @@ import apps.sarafrika.elimika.shared.model.DocumentType;
 import apps.sarafrika.elimika.shared.repository.DocumentTypeRepository;
 import apps.sarafrika.elimika.shared.storage.config.StorageProperties;
 import apps.sarafrika.elimika.shared.storage.util.MediaCategory;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -116,8 +116,8 @@ public class ProfileDocumentUploadService {
 
             List<String> extensions = new ArrayList<>();
             node.forEach(item -> {
-                if (item.isTextual() && StringUtils.hasText(item.asText())) {
-                    extensions.add(normalizeExtension(item.asText()));
+                if (item.isString() && StringUtils.hasText(item.asString())) {
+                    extensions.add(normalizeExtension(item.asString()));
                 }
             });
             return List.copyOf(extensions);

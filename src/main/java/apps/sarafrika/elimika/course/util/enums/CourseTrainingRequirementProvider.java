@@ -25,6 +25,7 @@ public enum CourseTrainingRequirementProvider {
         }
     }
 
+    @JsonCreator
     CourseTrainingRequirementProvider(String value) {
         this.value = value;
     }

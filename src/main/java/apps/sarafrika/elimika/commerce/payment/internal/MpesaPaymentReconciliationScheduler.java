@@ -8,8 +8,8 @@ import apps.sarafrika.elimika.commerce.internal.repository.CommerceOrderReposito
 import apps.sarafrika.elimika.commerce.internal.service.LearnerResolver;
 import apps.sarafrika.elimika.commerce.payment.service.OrderPaymentService;
 import apps.sarafrika.elimika.shared.spi.ClassEnrolmentGateService;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;

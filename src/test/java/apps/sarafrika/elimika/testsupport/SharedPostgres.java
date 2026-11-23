@@ -3,8 +3,7 @@ package apps.sarafrika.elimika.testsupport;
 import org.flywaydb.core.Flyway;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.test.context.DynamicPropertyRegistry;
-import org.testcontainers.containers.PostgreSQLContainer;
-
+import org.testcontainers.postgresql.PostgreSQLContainer;
 import javax.sql.DataSource;
 import java.sql.Connection;
 import java.sql.DriverManager;
@@ -21,7 +20,7 @@ public final class SharedPostgres {
     private static final String TEMPLATE = "elimika_template";
     private static final AtomicInteger SEQUENCE = new AtomicInteger();
 
-    private static PostgreSQLContainer<?> container;
+    private static PostgreSQLContainer container;
     private static boolean templateReady;
 
     private SharedPostgres() {
@@ -63,10 +62,10 @@ public final class SharedPostgres {
         return create("");
     }
 
-    private static PostgreSQLContainer<?> container() {
+    private static PostgreSQLContainer container() {
         if (container == null) {
             // Durability is irrelevant for throwaway test data; skipping fsync speeds every write.
-            PostgreSQLContainer<?> started = new PostgreSQLContainer<>("postgres:17")
+            PostgreSQLContainer started = new PostgreSQLContainer("postgres:17")
                     .withCommand("postgres", "-c", "fsync=off", "-c", "synchronous_commit=off",
                             "-c", "full_page_writes=off", "-c", "max_connections=500");
             started.start();
@@ -96,12 +95,12 @@ public final class SharedPostgres {
     }
 
     private static String url(String database) {
-        PostgreSQLContainer<?> postgres = container();
+        PostgreSQLContainer postgres = container();
         return "jdbc:postgresql://" + postgres.getHost() + ":" + postgres.getFirstMappedPort() + "/" + database;
     }
 
     private static void execute(String sql) {
-        PostgreSQLContainer<?> postgres = container();
+        PostgreSQLContainer postgres = container();
         try (Connection connection = DriverManager.getConnection(
                 postgres.getJdbcUrl(), postgres.getUsername(), postgres.getPassword());
              Statement statement = connection.createStatement()) {

@@ -5,8 +5,9 @@ import apps.sarafrika.elimika.course.spi.LearnerProgramProgressView;
 import apps.sarafrika.elimika.student.util.enums.GuardianLinkStatus;
 import apps.sarafrika.elimika.student.util.enums.GuardianRelationshipType;
 import apps.sarafrika.elimika.student.util.enums.GuardianShareScope;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
@@ -20,7 +21,9 @@ import static org.assertj.core.api.Assertions.assertThat;
 /** The parent dashboard reads these in snake_case; camelCase left every parent with "no learners linked". */
 class GuardianJsonContractTest {
 
-    private final ObjectMapper mapper = new ObjectMapper().findAndRegisterModules();
+    private final ObjectMapper mapper = JsonMapper.builder()
+            .findAndAddModules()
+            .build();
 
     @Test
     @DisplayName("the guardian's learner list and dashboard serialise in snake_case")
@@ -46,7 +49,7 @@ class GuardianJsonContractTest {
 
     private static List<String> fieldNames(JsonNode node) {
         List<String> names = new java.util.ArrayList<>();
-        node.fieldNames().forEachRemaining(names::add);
+        node.propertyNames().iterator().forEachRemaining(names::add);
         return names;
     }
 }

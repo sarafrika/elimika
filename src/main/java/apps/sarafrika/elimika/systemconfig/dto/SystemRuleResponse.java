@@ -5,7 +5,7 @@ import apps.sarafrika.elimika.systemconfig.enums.RuleScope;
 import apps.sarafrika.elimika.systemconfig.enums.RuleStatus;
 import apps.sarafrika.elimika.systemconfig.enums.RuleValueType;
 import com.fasterxml.jackson.annotation.JsonInclude;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import io.swagger.v3.oas.annotations.media.Schema;
 
 import java.time.LocalDateTime;

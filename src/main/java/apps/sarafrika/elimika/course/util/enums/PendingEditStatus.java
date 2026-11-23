@@ -28,6 +28,7 @@ public enum PendingEditStatus {
         }
     }
 
+    @JsonCreator
     PendingEditStatus(String value) {
         this.value = value;
     }

@@ -53,10 +53,10 @@ import apps.sarafrika.elimika.course.util.enums.PracticeActivityType;
 import apps.sarafrika.elimika.course.util.enums.QuestionType;
 import apps.sarafrika.elimika.course.util.enums.QuizScope;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.node.ArrayNode;
-import com.fasterxml.jackson.databind.node.ObjectNode;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.node.ArrayNode;
+import tools.jackson.databind.node.ObjectNode;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -864,7 +864,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
 
     private void restoreCategories(UUID draftCourseUuid, JsonNode categories) {
         for (JsonNode category : categories) {
-            UUID categoryUuid = parseUuid(category.asText(null));
+            UUID categoryUuid = parseUuid(category.asString(null));
             if (categoryUuid == null) {
                 continue;
             }
@@ -1173,7 +1173,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
 
     private static String text(JsonNode node, String field) {
         JsonNode value = node.get(field);
-        return value == null || value.isNull() ? null : value.asText();
+        return value == null || value.isNull() ? null : value.asString();
     }
 
     private static Integer integer(JsonNode node, String field) {
@@ -1223,7 +1223,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
             return null;
         }
         List<String> values = new ArrayList<>();
-        value.forEach(element -> values.add(element.isNull() ? null : element.asText()));
+        value.forEach(element -> values.add(element.isNull() ? null : element.asString()));
         return values.toArray(new String[0]);
     }
 
@@ -1559,7 +1559,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         List<CourseEditDiffDTO.FieldChange> changes = new ArrayList<>();
         ObjectNode liveNode = courseNode(live);
         ObjectNode draftNode = courseNode(draft);
-        draftNode.fieldNames().forEachRemaining(field -> {
+        draftNode.propertyNames().iterator().forEachRemaining(field -> {
             if ("uuid".equals(field)) {
                 return;
             }
@@ -1961,7 +1961,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
     }
 
     private static String text(JsonNode node) {
-        return node == null || node.isNull() ? null : node.asText();
+        return node == null || node.isNull() ? null : node.asString();
     }
 
     /** Old-to-new uuids of lesson-tree rows copied between a course and its draft; unknown links map to null. */

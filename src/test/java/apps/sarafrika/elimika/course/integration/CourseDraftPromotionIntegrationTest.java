@@ -11,14 +11,15 @@ import apps.sarafrika.elimika.course.repository.LessonRepository;
 import apps.sarafrika.elimika.course.service.impl.CourseDraftServiceImpl;
 import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.testsupport.SharedPostgres;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.context.annotation.Primary;
@@ -69,7 +70,7 @@ class CourseDraftPromotionIntegrationTest {
     static class TestConfig {
         @Bean
         ObjectMapper objectMapper() {
-            return new ObjectMapper();
+            return new JsonMapper();
         }
 
         @Bean
@@ -331,10 +332,10 @@ class CourseDraftPromotionIntegrationTest {
 
         JsonNode snapshot = draftService.snapshotTree(live.getUuid());
 
-        assertThat(snapshot.get("course").get("name").asText()).isEqualTo("Course");
+        assertThat(snapshot.get("course").get("name").asString()).isEqualTo("Course");
         assertThat(snapshot.get("lessons")).hasSize(1);
-        assertThat(snapshot.get("lessons").get(0).get("title").asText()).isEqualTo("Lesson One");
-        assertThat(snapshot.get("lessons").get(0).get("content").get(0).get("title").asText())
+        assertThat(snapshot.get("lessons").get(0).get("title").asString()).isEqualTo("Lesson One");
+        assertThat(snapshot.get("lessons").get(0).get("content").get(0).get("title").asString())
                 .isEqualTo("Reading One");
     }
 

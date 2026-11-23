@@ -38,6 +38,7 @@ public enum ConsentSource {
     private final String value;
     private final String description;
 
+    @JsonCreator
     ConsentSource(String value, String description) {
         this.value = value;
         this.description = description;

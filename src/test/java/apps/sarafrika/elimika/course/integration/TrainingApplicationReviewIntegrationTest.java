@@ -1,14 +1,14 @@
 package apps.sarafrika.elimika.course.integration;
 
 import apps.sarafrika.elimika.testsupport.SharedPostgres;
-import com.fasterxml.jackson.databind.JsonNode;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.JsonNode;
+import tools.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -109,7 +109,7 @@ class TrainingApplicationReviewIntegrationTest {
                 .andExpect(jsonPath("$.data.proposed_rate_card.group_online_hourly_rate").value(3000.0))
                 .andExpect(jsonPath("$.data.proposed_rate_card.private_online_hourly_rate").doesNotExist())
                 .andReturn().getResponse().getContentAsString();
-        String updateUuid = objectMapper.readTree(created).at("/data/uuid").asText();
+        String updateUuid = objectMapper.readTree(created).at("/data/uuid").asString();
 
         mockMvc.perform(post(updatesUrl()).with(jwt(INSTRUCTOR)).contentType(MediaType.APPLICATION_JSON).content(proposal("3100")))
                 .andExpect(status().isConflict());
@@ -151,7 +151,7 @@ class TrainingApplicationReviewIntegrationTest {
     void rejectAndWithdraw() throws Exception {
         String first = objectMapper.readTree(mockMvc.perform(post(updatesUrl()).with(jwt(INSTRUCTOR))
                         .contentType(MediaType.APPLICATION_JSON).content(proposal("3000")))
-                .andReturn().getResponse().getContentAsString()).at("/data/uuid").asText();
+                .andReturn().getResponse().getContentAsString()).at("/data/uuid").asString();
         mockMvc.perform(post(updatesUrl() + "/" + first + "?action=reject").with(jwt(CREATOR)))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.status").value("rejected"));
@@ -159,7 +159,7 @@ class TrainingApplicationReviewIntegrationTest {
         String second = objectMapper.readTree(mockMvc.perform(post(updatesUrl()).with(jwt(INSTRUCTOR))
                         .contentType(MediaType.APPLICATION_JSON).content(proposal("3300")))
                 .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString()).at("/data/uuid").asText();
+                .andReturn().getResponse().getContentAsString()).at("/data/uuid").asString();
         mockMvc.perform(delete(updatesUrl() + "/" + second).with(jwt(CREATOR)))
                 .andExpect(status().isForbidden());
         mockMvc.perform(delete(updatesUrl() + "/" + second).with(jwt(INSTRUCTOR)))
@@ -213,14 +213,14 @@ class TrainingApplicationReviewIntegrationTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.first_opened_at").isNotEmpty());
         String firstOpenedAt = objectMapper.readTree(mockMvc.perform(get(applicationUrl()).with(jwt(CREATOR)))
-                .andReturn().getResponse().getContentAsString()).at("/data/first_opened_at").asText();
+                .andReturn().getResponse().getContentAsString()).at("/data/first_opened_at").asString();
         assertThat(openEvents()).isEqualTo(1);
         mockMvc.perform(get(applicationUrl()).with(jwt(INSTRUCTOR)))
                 .andExpect(jsonPath("$.data.first_opened_at").value(firstOpenedAt));
 
         String updateUuid = objectMapper.readTree(mockMvc.perform(post(updatesUrl()).with(jwt(INSTRUCTOR))
                         .contentType(MediaType.APPLICATION_JSON).content(proposal("3000")))
-                .andReturn().getResponse().getContentAsString()).at("/data/uuid").asText();
+                .andReturn().getResponse().getContentAsString()).at("/data/uuid").asString();
         mockMvc.perform(post(updatesUrl() + "/" + updateUuid + "?action=approve").with(jwt(CREATOR))
                         .contentType(MediaType.APPLICATION_JSON).content("{\"review_notes\":\"Fair\"}"))
                 .andExpect(status().isOk());
@@ -296,7 +296,7 @@ class TrainingApplicationReviewIntegrationTest {
                 .andExpect(jsonPath("$.data.requirement_answers[0].has_it").value(false))
                 .andExpect(jsonPath("$.data.requirement_answers[0].acquisition").value("hire"))
                 .andReturn().getResponse().getContentAsString();
-        String applicationUrl = url + "/" + objectMapper.readTree(created).at("/data/uuid").asText();
+        String applicationUrl = url + "/" + objectMapper.readTree(created).at("/data/uuid").asString();
 
         mockMvc.perform(get(applicationUrl).with(jwt(CREATOR)))
                 .andExpect(status().isOk())
@@ -377,7 +377,7 @@ class TrainingApplicationReviewIntegrationTest {
                 .andExpect(jsonPath("$.data.age_groups[0].lesson_hours[1].lesson_title").value("Charts that tell the truth"))
                 .andExpect(jsonPath("$.data.age_groups[1].min_age").value(9))
                 .andReturn().getResponse().getContentAsString();
-        String applicationUrl = url + "/" + objectMapper.readTree(created).at("/data/uuid").asText();
+        String applicationUrl = url + "/" + objectMapper.readTree(created).at("/data/uuid").asString();
 
         mockMvc.perform(get(applicationUrl).with(jwt(CREATOR)))
                 .andExpect(status().isOk())
@@ -410,7 +410,7 @@ class TrainingApplicationReviewIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.owner_type").value("instructor"))
                 .andReturn().getResponse().getContentAsString();
-        String mineUuid = objectMapper.readTree(mine).at("/data/uuid").asText();
+        String mineUuid = objectMapper.readTree(mine).at("/data/uuid").asString();
         mockMvc.perform(post("/api/v1/instructors/me/age-groups").with(jwt(INSTRUCTOR))
                         .contentType(MediaType.APPLICATION_JSON).content(juniors.replace("Juniors", "juniors")))
                 .andExpect(status().isConflict());

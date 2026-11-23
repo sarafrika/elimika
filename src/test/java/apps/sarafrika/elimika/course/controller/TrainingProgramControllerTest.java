@@ -11,7 +11,8 @@ import apps.sarafrika.elimika.course.service.ProgramReviewService;
 import apps.sarafrika.elimika.course.service.ProgramTrainingApplicationService;
 import apps.sarafrika.elimika.course.service.TrainingProgramService;
 import apps.sarafrika.elimika.shared.config.GlobalExceptionHandler;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -78,7 +79,7 @@ class TrainingProgramControllerTest {
                 programReviewService
         );
 
-        objectMapper = new ObjectMapper();
+        objectMapper = new JsonMapper();
         mockMvc = MockMvcBuilders.standaloneSetup(controller)
                 .setControllerAdvice(new GlobalExceptionHandler())
                 .setCustomArgumentResolvers(new PageableHandlerMethodArgumentResolver())

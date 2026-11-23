@@ -5,7 +5,8 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 
 import apps.sarafrika.elimika.shared.tracking.model.RequestAuditEntry;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
@@ -15,7 +16,7 @@ import org.springframework.security.core.context.SecurityContextHolder;
 class RequestAuditServiceTest {
 
     private final RequestAuditWriter writer = mock(RequestAuditWriter.class);
-    private final RequestAuditService service = new RequestAuditService(writer, new ObjectMapper());
+    private final RequestAuditService service = new RequestAuditService(writer, new JsonMapper());
 
     @AfterEach
     void clearContext() {

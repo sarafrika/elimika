@@ -7,9 +7,8 @@ import apps.sarafrika.elimika.commerce.internal.entity.CommerceOrder;
 import apps.sarafrika.elimika.commerce.internal.entity.CommerceOrderItem;
 import apps.sarafrika.elimika.shared.dto.commerce.CartItemResponse;
 import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
-import java.io.IOException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import java.math.BigDecimal;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
@@ -21,6 +20,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 import org.springframework.util.CollectionUtils;
 import org.springframework.util.StringUtils;
+import tools.jackson.core.JacksonException;
 
 /**
  * Maps internal commerce entities to API-facing DTOs.
@@ -113,7 +113,7 @@ public class InternalCommerceMapper {
         }
         try {
             return objectMapper.readValue(json, MAP_TYPE);
-        } catch (IOException ex) {
+        } catch (JacksonException ex) {
             return Map.of();
         }
     }

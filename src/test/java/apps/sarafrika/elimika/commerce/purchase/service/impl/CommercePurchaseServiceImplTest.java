@@ -13,7 +13,8 @@ import apps.sarafrika.elimika.shared.dto.commerce.OrderResponse;
 import apps.sarafrika.elimika.shared.event.commerce.ClassPurchaseRecordedEvent;
 import apps.sarafrika.elimika.student.spi.StudentLookupService;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
 import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
@@ -48,7 +49,7 @@ class CommercePurchaseServiceImplTest {
     @BeforeEach
     void setUp() {
         service = new CommercePurchaseServiceImpl(purchaseRepository, userLookupService, studentLookupService,
-                new ObjectMapper(), accessService, eventPublisher);
+                new JsonMapper(), accessService, eventPublisher);
         when(purchaseRepository.findByOrderId(any())).thenReturn(Optional.empty());
         when(purchaseRepository.save(any(CommercePurchase.class))).thenAnswer(call -> call.getArgument(0));
     }

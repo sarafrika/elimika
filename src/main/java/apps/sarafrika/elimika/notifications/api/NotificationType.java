@@ -117,7 +117,8 @@ public enum NotificationType {
             VALUE_MAP.put(type.value.toLowerCase(), type);
         }
     }
-    
+
+    @JsonCreator
     NotificationType(String value, String templateName, String displayName, NotificationCategory category) {
         this.value = value;
         this.templateName = templateName;

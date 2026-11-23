@@ -1,13 +1,12 @@
 package apps.sarafrika.elimika.shared.config;
 
-import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.databind.JsonSerializer;
-import com.fasterxml.jackson.databind.SerializerProvider;
+import tools.jackson.core.JsonGenerator;
 
-import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
+import tools.jackson.databind.SerializationContext;
+import tools.jackson.databind.ValueSerializer;
 
 /**
  * Serializes {@link LocalDateTime} values as unambiguous UTC ISO-8601 strings
@@ -20,12 +19,12 @@ import java.time.format.DateTimeFormatter;
  * silently shifting every timestamp by the viewer's offset. Appending the UTC
  * offset makes the wire contract explicit so clients can localize correctly.
  */
-public class UtcLocalDateTimeSerializer extends JsonSerializer<LocalDateTime> {
+public class UtcLocalDateTimeSerializer extends ValueSerializer<LocalDateTime> {
 
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
     @Override
-    public void serialize(LocalDateTime value, JsonGenerator gen, SerializerProvider serializers) throws IOException {
+    public void serialize(LocalDateTime value, JsonGenerator gen, SerializationContext serializers) {
         gen.writeString(value.atOffset(ZoneOffset.UTC).format(FORMATTER));
     }
 

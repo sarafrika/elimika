@@ -12,6 +12,7 @@ public enum CourseAttendanceStatus {
 
     private final String value;
 
+    @JsonCreator
     CourseAttendanceStatus(String value) {
         this.value = value;
     }

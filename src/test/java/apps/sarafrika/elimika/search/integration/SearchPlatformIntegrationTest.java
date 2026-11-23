@@ -26,7 +26,7 @@ import apps.sarafrika.elimika.shared.search.SearchScope;
 import apps.sarafrika.elimika.shared.search.SearchSort;
 import apps.sarafrika.elimika.testsupport.SharedPostgres;
 import com.fasterxml.jackson.annotation.JsonProperty;
-import com.fasterxml.jackson.databind.JsonNode;
+import tools.jackson.databind.JsonNode;
 import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -149,7 +149,7 @@ class SearchPlatformIntegrationTest {
         assertThat(settings.path("pagination").path("maxTotalHits").asInt()).isEqualTo(500);
 
         JsonNode index = engine().get().uri("/indexes/{uid}", CATALOGUE).retrieve().body(JsonNode.class);
-        assertThat(index.path("primaryKey").asText()).isEqualTo("uuid");
+        assertThat(index.path("primaryKey").asString()).isEqualTo("uuid");
     }
 
     @Test
@@ -333,7 +333,7 @@ class SearchPlatformIntegrationTest {
 
         JsonNode indexes = engine().get().uri("/indexes?limit=100").retrieve().body(JsonNode.class);
         List<String> names = new ArrayList<>();
-        indexes.path("results").forEach(index -> names.add(index.path("uid").asText()));
+        indexes.path("results").forEach(index -> names.add(index.path("uid").asString()));
         assertThat(names).contains(CATALOGUE).noneMatch(name -> name.contains("__build_"));
 
         // The settings survived the swap.
@@ -376,7 +376,7 @@ class SearchPlatformIntegrationTest {
 
     private static List<String> texts(JsonNode array) {
         List<String> values = new ArrayList<>();
-        array.forEach(node -> values.add(node.asText()));
+        array.forEach(node -> values.add(node.asString()));
         return values;
     }
 
