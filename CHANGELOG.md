@@ -1,3 +1,10 @@
+# [2.197.0](https://github.com/sarafrika/elimika/compare/v2.196.1...v2.197.0) (2026-11-23)
+
+
+### Features
+
+* add prerequisite type (none, instructor permission, courses) to courses ([6db7c57](https://github.com/sarafrika/elimika/commit/6db7c57cca42e44a2511eac4a6693f7bf21f7528))
+
 ## [2.196.1](https://github.com/sarafrika/elimika/compare/v2.196.0...v2.196.1) (2026-11-20)
 
 
