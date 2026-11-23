@@ -15,6 +15,11 @@ import apps.sarafrika.elimika.shared.exceptions.UserNotFoundException;
 import apps.sarafrika.elimika.shared.search.SearchUnavailableException;
 import apps.sarafrika.elimika.shared.utils.ValidationErrorUtil;
 import apps.sarafrika.elimika.student.spi.StudentAgeGateException;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.JsonMappingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.databind.exc.MismatchedInputException;
+import com.fasterxml.jackson.databind.exc.ValueInstantiationException;
 import jakarta.validation.ValidationException;
 import lombok.extern.slf4j.Slf4j;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
@@ -37,8 +42,10 @@ import org.springframework.web.server.ResponseStatusException;
 import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 import java.sql.SQLTransientConnectionException;
+import java.util.Arrays;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
 import java.util.UUID;
 
 @RestControllerAdvice
@@ -54,6 +61,9 @@ public class GlobalExceptionHandler {
 
     /** Seconds a client should wait before retrying when no database connection could be acquired. */
     private static final String DATABASE_BUSY_RETRY_AFTER_SECONDS = "2";
+
+    /** Plain mapper: only used to print enum constants the way clients send them ({@code @JsonValue}). */
+    private static final ObjectMapper JSON_VALUES = new ObjectMapper();
 
     /**
      * No pooled database connection became free within the Hikari acquire timeout. This is overload, not a
@@ -154,6 +164,12 @@ public class GlobalExceptionHandler {
         if (containsCauseMessage(ex, "LocationType")) {
             message = "Validation failed";
             error = Map.of("location_type", "location_type must be one of ONLINE, IN_PERSON, HYBRID");
+        } else {
+            Map<String, String> fieldError = unreadableFieldError(ex);
+            if (fieldError != null) {
+                message = "Validation failed";
+                error = fieldError;
+            }
         }
 
         ApiResponse<Void> response = error == null
@@ -350,6 +366,56 @@ public class GlobalExceptionHandler {
 
         return ResponseEntity.status(status)
                 .body(ApiResponse.error("Operation failed", message));
+    }
+
+    /**
+     * Names the field Jackson could not bind, so a value the API does not accept (an unknown enum option, text
+     * where a number belongs) answers like a validation error instead of "malformed JSON". For an enum the
+     * accepted values are listed as clients send them ({@code @JsonValue}). Genuinely malformed JSON has no
+     * field path and keeps the generic message.
+     */
+    private Map<String, String> unreadableFieldError(HttpMessageNotReadableException ex) {
+        Throwable current = ex;
+        while (current != null && !(current instanceof JsonMappingException)) {
+            current = current.getCause();
+        }
+        if (!(current instanceof JsonMappingException mapping)) {
+            return null;
+        }
+        String field = mapping.getPath().stream()
+                .map(JsonMappingException.Reference::getFieldName)
+                .filter(Objects::nonNull)
+                .reduce((first, second) -> second)
+                .orElse(null);
+        if (field == null) {
+            return null;
+        }
+        Class<?> targetType = targetType(mapping);
+        if (targetType != null && targetType.isEnum()) {
+            String allowed = String.join(", ", Arrays.stream(targetType.getEnumConstants())
+                    .map(GlobalExceptionHandler::jsonValue)
+                    .toList());
+            return Map.of(field, field + " must be one of " + allowed);
+        }
+        return Map.of(field, field + " has an invalid value");
+    }
+
+    private static Class<?> targetType(JsonMappingException ex) {
+        if (ex instanceof MismatchedInputException mismatch) {
+            return mismatch.getTargetType();
+        }
+        if (ex instanceof ValueInstantiationException instantiation && instantiation.getType() != null) {
+            return instantiation.getType().getRawClass();
+        }
+        return null;
+    }
+
+    private static String jsonValue(Object enumConstant) {
+        try {
+            return JSON_VALUES.writeValueAsString(enumConstant).replace("\"", "");
+        } catch (JsonProcessingException e) {
+            return enumConstant.toString();
+        }
     }
 
     private boolean containsCauseMessage(Throwable throwable, String value) {

@@ -47,9 +47,9 @@ public record CourseTrainingRequirementDTO(
         UUID courseUuid,
 
         @Schema(
-                description = "**[REQUIRED]** Resource category.",
+                description = "**[REQUIRED]** Resource category; `education` is an instructor qualification such as a teaching licence.",
                 example = "equipment",
-                allowableValues = {"material", "equipment", "facility", "other"},
+                allowableValues = {"material", "equipment", "facility", "other", "education"},
                 requiredMode = Schema.RequiredMode.REQUIRED
         )
         @NotNull(message = "Requirement type is required")
