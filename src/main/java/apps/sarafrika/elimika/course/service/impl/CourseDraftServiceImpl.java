@@ -47,6 +47,7 @@ import apps.sarafrika.elimika.course.util.enums.ContentStatus;
 import apps.sarafrika.elimika.course.util.enums.AssignmentScope;
 import apps.sarafrika.elimika.course.util.enums.CourseAssessmentAggregationStrategy;
 import apps.sarafrika.elimika.course.util.enums.CourseAssessmentLineItemType;
+import apps.sarafrika.elimika.course.util.enums.CoursePrerequisiteType;
 import apps.sarafrika.elimika.course.util.enums.PracticeActivityGrouping;
 import apps.sarafrika.elimika.course.util.enums.PracticeActivityType;
 import apps.sarafrika.elimika.course.util.enums.QuestionType;
@@ -838,6 +839,11 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         draft.setDescription(text(node, "description"));
         draft.setObjectives(text(node, "objectives"));
         draft.setPrerequisites(text(node, "prerequisites"));
+        // Snapshots taken before the field existed keep the draft's current value.
+        String prerequisiteType = text(node, "prerequisite_type");
+        if (prerequisiteType != null) {
+            draft.setPrerequisiteType(CoursePrerequisiteType.fromValue(prerequisiteType));
+        }
         draft.setDifficultyUuid(uuid(node, "difficulty_uuid"));
         draft.setCourseCode(text(node, "course_code"));
         draft.setPassMark(decimal(node, "pass_mark"));
@@ -1405,6 +1411,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         node.put("description", course.getDescription());
         node.put("objectives", course.getObjectives());
         node.put("prerequisites", course.getPrerequisites());
+        node.put("prerequisite_type", course.getPrerequisiteType() == null ? null : course.getPrerequisiteType().getValue());
         node.put("difficulty_uuid", str(course.getDifficultyUuid()));
         node.put("course_code", course.getCourseCode());
         node.put("pass_mark", dec(course.getPassMark()));
@@ -1776,6 +1783,7 @@ public class CourseDraftServiceImpl implements CourseDraftService {
         to.setDescription(from.getDescription());
         to.setObjectives(from.getObjectives());
         to.setPrerequisites(from.getPrerequisites());
+        to.setPrerequisiteType(from.getPrerequisiteType());
         to.setCourseCode(from.getCourseCode());
         to.setPassMark(from.getPassMark());
         to.setDurationHours(from.getDurationHours());

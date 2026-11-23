@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.course.dto.CourseDTO;
 import apps.sarafrika.elimika.course.dto.CourseTrainingRequirementDTO;
 import apps.sarafrika.elimika.course.model.Course;
 import apps.sarafrika.elimika.course.model.CourseCategoryMapping;
+import apps.sarafrika.elimika.course.util.enums.CoursePrerequisiteType;
 import apps.sarafrika.elimika.shared.storage.util.FileUrlResolver;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
@@ -65,6 +66,7 @@ public class CourseFactory {
                 course.getDescription(),
                 course.getObjectives(),
                 course.getPrerequisites(),
+                course.getPrerequisiteType(),
                 course.getDurationHours(),
                 course.getDurationMinutes(),
                 course.getPassMark(),
@@ -110,6 +112,7 @@ public class CourseFactory {
         course.setDescription(dto.description());
         course.setObjectives(dto.objectives());
         course.setPrerequisites(dto.prerequisites());
+        course.setPrerequisiteType(dto.prerequisiteType() == null ? CoursePrerequisiteType.NONE : dto.prerequisiteType());
         course.setCourseCode(normalizeCode(dto.courseCode()));
         course.setPassMark(dto.passMark());
         // Creators no longer give a duration; the columns stay for legacy rows and default to zero.
