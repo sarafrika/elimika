@@ -13,7 +13,9 @@ public enum CourseTrainingRequirementType {
     MATERIAL("material"),
     EQUIPMENT("equipment"),
     FACILITY("facility"),
-    OTHER("other");
+    OTHER("other"),
+    /** An instructor qualification such as a teaching licence; the UI records it as quantity 1, unit "license". */
+    EDUCATION("education");
 
     private final String value;
     private static final Map<String, CourseTrainingRequirementType> VALUE_MAP = new HashMap<>();
@@ -54,6 +56,7 @@ public enum CourseTrainingRequirementType {
             case EQUIPMENT -> "Equipment";
             case FACILITY -> "Facility";
             case OTHER -> "Other";
+            case EDUCATION -> "Education";
         };
     }
 }
