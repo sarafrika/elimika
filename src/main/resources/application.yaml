@@ -76,6 +76,8 @@ spring:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
         format_sql: false
+        # Jackson 3 mapper for JSON columns (Hibernate 7.2 bundles only Jackson 2).
+        type.json_format_mapper: apps.sarafrika.elimika.shared.config.Jackson3JsonFormatMapper
     show-sql: false
 
   #Jackson Mapper Configuration

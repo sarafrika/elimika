@@ -55,9 +55,7 @@ class TimetableControllerTest {
                 .andExpect(jsonPath("$.message").value("Class started successfully"))
                 .andExpect(jsonPath("$.data.uuid").value(instanceUuid.toString()))
                 .andExpect(jsonPath("$.data.status").value("ONGOING"))
-                .andExpect(jsonPath("$.data.started_at[0]").value(2026))
-                .andExpect(jsonPath("$.data.started_at[1]").value(4))
-                .andExpect(jsonPath("$.data.started_at[2]").value(28));
+                .andExpect(jsonPath("$.data.started_at").value(org.hamcrest.Matchers.startsWith("2026-04-28T09:05")));
 
         verify(timetableService).startScheduledInstance(instanceUuid);
     }
@@ -76,9 +74,7 @@ class TimetableControllerTest {
                 .andExpect(jsonPath("$.message").value("Class ended successfully"))
                 .andExpect(jsonPath("$.data.uuid").value(instanceUuid.toString()))
                 .andExpect(jsonPath("$.data.status").value("COMPLETED"))
-                .andExpect(jsonPath("$.data.concluded_at[0]").value(2026))
-                .andExpect(jsonPath("$.data.concluded_at[1]").value(4))
-                .andExpect(jsonPath("$.data.concluded_at[2]").value(28));
+                .andExpect(jsonPath("$.data.concluded_at").value(org.hamcrest.Matchers.startsWith("2026-04-28T10:35")));
 
         verify(timetableService).endScheduledInstance(instanceUuid);
     }
