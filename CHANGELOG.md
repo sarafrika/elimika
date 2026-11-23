@@ -1,3 +1,11 @@
+## [2.197.2](https://github.com/sarafrika/elimika/compare/v2.197.1...v2.197.2) (2026-11-23)
+
+
+### Bug Fixes
+
+* **build:** port exception handler, jackson config and event publication schema to Boot 4 ([8bb90ca](https://github.com/sarafrika/elimika/commit/8bb90ca50dd912b65328ce9b7b526d8b827a4f75))
+* **shared:** map Hibernate JSON columns with Jackson 3 and expect ISO timestamps in timetable tests ([58400ac](https://github.com/sarafrika/elimika/commit/58400aca7cd26af19c24c6762d0f7f69c97d1b4d))
+
 ## [2.197.1](https://github.com/sarafrika/elimika/compare/v2.197.0...v2.197.1) (2026-11-23)
 
 
