@@ -24,6 +24,8 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 @Service
 @Slf4j
@@ -37,6 +39,8 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
     private String userDomain;
 
     private static final List<String> DEFAULT_REQUIRED_ACTIONS = Arrays.asList("VERIFY_EMAIL", "UPDATE_PASSWORD");
+    private static final Pattern PASSWORD_ERROR_DESCRIPTION =
+            Pattern.compile("\"error_description\"\\s*:\\s*\"([^\"]*)\"");
 
     @Override
     @Transactional
@@ -142,14 +146,50 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
 
     @Override
     public String registerUser(KeycloakRegistration registration, String realm) {
+        UserRepresentation user = registrationRepresentation(registration);
+        user.setEmailVerified(false);
+        user.setRequiredActions(DEFAULT_REQUIRED_ACTIONS);
+
+        try (Response response = getUsersResource(realm).create(user)) {
+            handleResponse(response, registration.email());
+            return extractCreatedUserId(response);
+        }
+    }
+
+    @Override
+    public String registerVerifiedUserWithPassword(KeycloakRegistration registration, String password, String realm) {
+        UserRepresentation user = registrationRepresentation(registration);
+        user.setEmailVerified(true);
+        user.setRequiredActions(List.of());
+        CredentialRepresentation credential = new CredentialRepresentation();
+        credential.setType(CredentialRepresentation.PASSWORD);
+        credential.setValue(password);
+        credential.setTemporary(false);
+        user.setCredentials(List.of(credential));
+
+        try (Response response = getUsersResource(realm).create(user)) {
+            if (response.getStatus() == Response.Status.BAD_REQUEST.getStatusCode()) {
+                String error = response.readEntity(String.class);
+                if (error != null && error.contains("invalidPassword")) {
+                    log.info("Keycloak rejected a registration password under the realm password policy");
+                    throw new IllegalArgumentException("The password does not meet the password requirements: "
+                            + passwordPolicyDescription(error));
+                }
+                log.error("Creation failed. Status: 400, Error: {}", error);
+                throw new KeycloakException("Invalid data: " + error);
+            }
+            handleResponse(response, registration.email());
+            return extractCreatedUserId(response);
+        }
+    }
+
+    private static UserRepresentation registrationRepresentation(KeycloakRegistration registration) {
         UserRepresentation user = new UserRepresentation();
         user.setUsername(registration.email());
         user.setEmail(registration.email());
         user.setFirstName(registration.firstName());
         user.setLastName(registration.lastName());
         user.setEnabled(true);
-        user.setEmailVerified(false);
-        user.setRequiredActions(DEFAULT_REQUIRED_ACTIONS);
 
         // Attribute names match the ones UserEventsListener keeps in sync on profile updates.
         Map<String, List<String>> attributes = new HashMap<>();
@@ -158,11 +198,13 @@ public class KeycloakUserServiceImpl implements KeycloakUserService {
         putIfPresent(attributes, "dob", registration.dateOfBirth() == null ? null : registration.dateOfBirth().toString());
         putIfPresent(attributes, "gender", registration.gender());
         user.setAttributes(attributes);
+        return user;
+    }
 
-        try (Response response = getUsersResource(realm).create(user)) {
-            handleResponse(response, registration.email());
-            return extractCreatedUserId(response);
-        }
+    /** Keycloak answers {@code {"error":"invalidPassword…","error_description":"Invalid password: …"}}. */
+    private static String passwordPolicyDescription(String error) {
+        Matcher description = PASSWORD_ERROR_DESCRIPTION.matcher(error);
+        return description.find() ? description.group(1) : "choose a longer or more complex password";
     }
 
     @Override

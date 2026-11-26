@@ -128,18 +128,20 @@ public class RegistrationServiceImpl implements RegistrationService, GuardianAcc
     }
 
     @Override
-    public Optional<UUID> registerInvitedGuardian(InvitedGuardianAccount account) {
+    public Optional<UUID> registerInvitedGuardian(InvitedGuardianAccount account, String password) {
         String email = account.email().trim().toLowerCase(Locale.ROOT);
         if (userRepository.findByEmailIgnoreCase(email).isPresent()
                 || keycloakUserService.getUserByUsername(email, realm).isPresent()) {
             return Optional.empty();
         }
 
+        Gender gender = Gender.fromString(account.gender());
         String keycloakId;
         try {
-            keycloakId = keycloakUserService.registerUser(new KeycloakRegistration(email,
+            keycloakId = keycloakUserService.registerVerifiedUserWithPassword(new KeycloakRegistration(email,
                     account.firstName().trim(), null, account.lastName().trim(),
-                    blankToNull(account.phoneNumber()), null, null), realm);
+                    blankToNull(account.phoneNumber()), account.dob(), gender == null ? null : gender.name()),
+                    password, realm);
         } catch (KeycloakException e) {
             if (e.getMessage() != null && e.getMessage().startsWith("User exists")) {
                 return Optional.empty();
@@ -218,7 +220,10 @@ public class RegistrationServiceImpl implements RegistrationService, GuardianAcc
         log.info("Registered user {} requesting domain {}", saved.getUuid(), domain);
     }
 
-    /** No domain is requested here: linking the guardian to the student grants {@code parent}. */
+    /**
+     * No domain is requested here: linking the guardian to the student grants {@code parent}. No actions email
+     * either: the guardian chose a password and the invitation already proved the inbox.
+     */
     private UUID recordGuardianAccount(InvitedGuardianAccount account, String email, String keycloakId) {
         User user = new User();
         user.setFirstName(account.firstName().trim());
@@ -226,6 +231,8 @@ public class RegistrationServiceImpl implements RegistrationService, GuardianAcc
         user.setEmail(email);
         user.setUsername(email);
         user.setPhoneNumber(blankToNull(account.phoneNumber()));
+        user.setDob(account.dob());
+        user.setGender(Gender.fromString(account.gender()));
         user.setUserNo(userNumberService.nextUserNo());
         user.setKeycloakId(keycloakId);
         user.setActive(true);
@@ -235,11 +242,9 @@ public class RegistrationServiceImpl implements RegistrationService, GuardianAcc
         registration.setUserUuid(saved.getUuid());
         registration.setRequestedDomain(UserDomain.parent.name());
         registration.setTermsAcceptedAt(now());
-        registration.setActionsEmailSentAt(now());
         registrationRepository.save(registration);
 
         notificationPreferencesService.initializeUserPreferences(saved.getUuid());
-        requestActionsEmail(keycloakId, ACCOUNT_ACTIONS);
         log.info("Registered invited guardian {}", saved.getUuid());
         return saved.getUuid();
     }

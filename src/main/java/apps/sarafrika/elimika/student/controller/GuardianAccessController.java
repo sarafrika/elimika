@@ -2,11 +2,13 @@ package apps.sarafrika.elimika.student.controller;
 
 import apps.sarafrika.elimika.shared.dto.ApiResponse;
 import apps.sarafrika.elimika.shared.security.DomainSecurityService;
+import apps.sarafrika.elimika.student.dto.GuardianChildRequestDTO;
 import apps.sarafrika.elimika.student.dto.GuardianStudentDashboardDTO;
 import apps.sarafrika.elimika.student.dto.GuardianStudentLinkDTO;
 import apps.sarafrika.elimika.student.dto.GuardianStudentLinkRequest;
 import apps.sarafrika.elimika.student.dto.GuardianStudentSummaryDTO;
 import apps.sarafrika.elimika.student.service.GuardianAccessService;
+import apps.sarafrika.elimika.student.service.GuardianChildService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.media.Content;
 import io.swagger.v3.oas.annotations.media.Schema;
@@ -28,6 +30,7 @@ import java.util.UUID;
 public class GuardianAccessController {
 
     private final GuardianAccessService guardianAccessService;
+    private final GuardianChildService guardianChildService;
     private final DomainSecurityService domainSecurityService;
 
     /**
@@ -75,6 +78,33 @@ public class GuardianAccessController {
                                                         @RequestParam(required = false) String reason) {
         guardianAccessService.revokeLink(linkUuid, requireCurrentUser(), reason);
         return ResponseEntity.ok(ApiResponse.success(null, "Guardian access revoked"));
+    }
+
+    /**
+     * Any signed-in Sarafrika account may add a child it supports. The child gets a learner profile with no login,
+     * so nobody else's account is touched: the caller can only link to the learner this call creates.
+     */
+    @PostMapping("/me/children")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(
+            summary = "Add a child as a learner I manage",
+            description = "Creates a learner profile for a child under 18 from their names and date of birth, without "
+                    + "a login, and links the caller to it with FULL access as primary guardian. The caller gains the "
+                    + "parent domain. The learner age gate applies. 400 for a child aged 18 or over, a SPONSOR "
+                    + "relationship or a caller known to be under 18; 409 when the caller already added a child with "
+                    + "the same name and date of birth.",
+            responses = {
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Child added and linked",
+                            content = @Content(schema = @Schema(implementation = GuardianStudentLinkDTO.class))),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Child, relationship or caller not eligible"),
+                    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "409", description = "This child was already added")
+            }
+    )
+    public ResponseEntity<ApiResponse<GuardianStudentLinkDTO>> addChild(
+            @Valid @RequestBody GuardianChildRequestDTO request) {
+        GuardianStudentLinkDTO link = guardianChildService.addChild(requireCurrentUser(), request);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(link, "Child added to your account"));
     }
 
     @GetMapping("/me/students")

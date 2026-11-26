@@ -54,13 +54,16 @@ public class StudentGuardianInvitationController {
 
     @PostMapping("/token/{token}/register")
     @Operation(summary = "Create an account from a guardian invitation and accept it",
-            description = "Public. Creates the account for the invited email (a set-password email follows), then links "
-                    + "the guardian. 409 when the email already has an account: sign in and accept instead.")
+            description = "Public. Creates the guardian's Sarafrika account for the invited email with the chosen "
+                    + "password (they can sign in at once; no set-password email), then links the guardian, who gains "
+                    + "the parent domain. 400 when `email` is not the invited address, the guardian is under 18, or "
+                    + "the password fails the password policy. 409 when the email already has an account: sign in "
+                    + "and accept instead.")
     public ResponseEntity<ApiResponse<GuardianStudentLinkDTO>> registerAndAccept(
             @PathVariable String token, @Valid @RequestBody GuardianInvitationRegistrationRequestDTO request) {
         GuardianStudentLinkDTO link = provisioningService.registerAndAccept(token, request);
         return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.success(link, "Account created; check your email to set a password"));
+                .body(ApiResponse.success(link, "Account created; sign in with your email and password"));
     }
 
     @PostMapping("/token/{token}/decline")
