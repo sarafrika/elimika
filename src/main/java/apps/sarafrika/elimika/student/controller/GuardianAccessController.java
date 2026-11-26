@@ -84,8 +84,8 @@ public class GuardianAccessController {
      * Any signed-in Sarafrika account may add a child it supports. The child gets a learner profile with no login,
      * so nobody else's account is touched: the caller can only link to the learner this call creates.
      */
-    @PostMapping("/me/children")
-    @PreAuthorize("isAuthenticated()")
+    @PostMapping("/me/students")
+    @PreAuthorize("domainSecurityService.isGuardian()")
     @Operation(
             summary = "Add a child as a learner I manage",
             description = "Creates a learner profile for a child under 18 from their names and date of birth, without "
