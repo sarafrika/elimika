@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.student.service.impl;
 
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
+import apps.sarafrika.elimika.student.dto.GuardianInvitationRegistrationRequestDTO;
 import apps.sarafrika.elimika.student.dto.GuardianStudentLinkDTO;
 import apps.sarafrika.elimika.student.dto.GuardianStudentLinkRequest;
 import apps.sarafrika.elimika.student.dto.StudentGuardianRequestDTO;
@@ -17,6 +18,7 @@ import apps.sarafrika.elimika.student.util.enums.GuardianLinkStatus;
 import apps.sarafrika.elimika.student.util.enums.GuardianRelationshipType;
 import apps.sarafrika.elimika.student.util.enums.GuardianShareScope;
 import apps.sarafrika.elimika.tenancy.spi.GuardianAccountService;
+import apps.sarafrika.elimika.tenancy.spi.GuardianAccountService.InvitedGuardianAccount;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -28,6 +30,7 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.transaction.PlatformTransactionManager;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
@@ -60,6 +63,7 @@ class StudentGuardianProvisioningServiceImplTest {
     private StudentGuardianProvisioningServiceImpl service;
     private Student student;
     private final UUID actor = UUID.randomUUID();
+    private static final LocalDate ADULT_DOB = LocalDate.of(1985, 4, 12);
 
     @BeforeEach
     void setUp() {
@@ -241,6 +245,73 @@ class StudentGuardianProvisioningServiceImplTest {
         assertThatThrownBy(() -> service.acceptByToken(rawToken, UUID.randomUUID()))
                 .isInstanceOf(IllegalStateException.class)
                 .hasMessageContaining("expired");
+    }
+
+    @Test
+    void registeringCreatesTheAccountWithTheGuardiansDetailsAndLinksIt() {
+        String rawToken = tokens.generateRawToken();
+        StudentGuardianContact invited = contact("new@example.com", GuardianContactStatus.INVITED);
+        invited.setTokenHash(tokens.hash(rawToken));
+        UUID guardianUser = UUID.randomUUID();
+        UUID linkUuid = UUID.randomUUID();
+        when(contactRepository.findByTokenHash(tokens.hash(rawToken))).thenReturn(Optional.of(invited));
+        when(contactRepository.findByUuid(invited.getUuid())).thenReturn(Optional.of(invited));
+        when(userLookupService.findUserUuidByEmail("new@example.com")).thenReturn(Optional.empty());
+        when(guardianAccountService.registerInvitedGuardian(any(), eq("S3cure-passphrase")))
+                .thenReturn(Optional.of(guardianUser));
+        when(studentRepository.findByUuid(student.getUuid())).thenReturn(Optional.of(student));
+        when(linkRepository.findByStudentUuidAndGuardianUserUuidAndStatusIn(eq(student.getUuid()), eq(guardianUser), any()))
+                .thenReturn(Optional.empty());
+        when(guardianAccessService.createOrUpdateLink(any(), eq(guardianUser))).thenReturn(linkDto(linkUuid, guardianUser));
+
+        GuardianStudentLinkDTO link = service.registerAndAccept(rawToken, registration(" NEW@example.com ", ADULT_DOB));
+
+        ArgumentCaptor<InvitedGuardianAccount> account = ArgumentCaptor.forClass(InvitedGuardianAccount.class);
+        verify(guardianAccountService).registerInvitedGuardian(account.capture(), eq("S3cure-passphrase"));
+        assertThat(account.getValue().email()).isEqualTo("new@example.com");
+        assertThat(account.getValue().dob()).isEqualTo(ADULT_DOB);
+        assertThat(account.getValue().gender()).isEqualTo("FEMALE");
+        assertThat(link.uuid()).isEqualTo(linkUuid);
+        assertThat(invited.getStatus()).isEqualTo(GuardianContactStatus.LINKED);
+    }
+
+    @Test
+    void registeringRequiresTheInvitedEmail() {
+        String rawToken = tokens.generateRawToken();
+        StudentGuardianContact invited = contact("new@example.com", GuardianContactStatus.INVITED);
+        invited.setTokenHash(tokens.hash(rawToken));
+        when(contactRepository.findByTokenHash(tokens.hash(rawToken))).thenReturn(Optional.of(invited));
+
+        assertThatThrownBy(() -> service.registerAndAccept(rawToken, registration("someone@else.com", ADULT_DOB)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("different email");
+        verify(guardianAccountService, never()).registerInvitedGuardian(any(), any());
+    }
+
+    @Test
+    void registeringRejectsAGuardianUnder18() {
+        String rawToken = tokens.generateRawToken();
+        StudentGuardianContact invited = contact("new@example.com", GuardianContactStatus.INVITED);
+        invited.setTokenHash(tokens.hash(rawToken));
+        when(contactRepository.findByTokenHash(tokens.hash(rawToken))).thenReturn(Optional.of(invited));
+        LocalDate seventeen = LocalDate.now(ZoneOffset.UTC).minusYears(17);
+
+        assertThatThrownBy(() -> service.registerAndAccept(rawToken, registration("new@example.com", seventeen)))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("at least 18");
+        verify(guardianAccountService, never()).registerInvitedGuardian(any(), any());
+    }
+
+    @Test
+    void registrationRequestNeverPrintsThePassword() {
+        assertThat(registration("new@example.com", ADULT_DOB).toString())
+                .doesNotContain("S3cure-passphrase")
+                .contains("password=***");
+    }
+
+    private GuardianInvitationRegistrationRequestDTO registration(String email, LocalDate dob) {
+        return new GuardianInvitationRegistrationRequestDTO("Mary", "Doe", email, null, dob, "FEMALE",
+                "S3cure-passphrase", true);
     }
 
     private StudentGuardianRequestDTO guardian(String name, String email) {

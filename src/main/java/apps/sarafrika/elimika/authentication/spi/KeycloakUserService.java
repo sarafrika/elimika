@@ -72,6 +72,13 @@ public interface KeycloakUserService {
     String registerUser(KeycloakRegistration registration, String realm);
 
     /**
+     * Creates a Keycloak account that can sign in at once: the password is permanent, the email is marked verified
+     * and no actions are pending; sends no email. Only for callers that have already proven the inbox (an emailed
+     * invitation token). Throws {@link IllegalArgumentException} when the realm password policy rejects the password.
+     */
+    String registerVerifiedUserWithPassword(KeycloakRegistration registration, String password, String realm);
+
+    /**
      * Deletes a Keycloak user. Used to undo a registration whose Elimika side failed to commit.
      */
     void deleteUser(String userId, String realm);

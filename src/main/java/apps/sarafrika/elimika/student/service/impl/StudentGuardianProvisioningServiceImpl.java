@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.student.service.impl;
 import apps.sarafrika.elimika.notifications.api.NotificationType;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.spi.MinorLearnerLookupService;
 import apps.sarafrika.elimika.student.dto.GuardianInvitationRegistrationRequestDTO;
 import apps.sarafrika.elimika.student.dto.GuardianStudentLinkDTO;
 import apps.sarafrika.elimika.student.dto.GuardianStudentLinkRequest;
@@ -38,7 +39,9 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import java.time.Duration;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.Period;
 import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -62,6 +65,7 @@ public class StudentGuardianProvisioningServiceImpl implements StudentGuardianPr
     static final Duration INVITATION_TTL = Duration.ofDays(14);
     private static final Duration RESEND_COOLDOWN = Duration.ofMinutes(1);
     private static final String INVALID_LINK = "This guardian invitation link is not valid.";
+    private static final String ACCOUNT_EXISTS = "An account already exists for this email. Sign in to accept the invitation.";
 
     private final StudentGuardianContactRepository contactRepository;
     private final StudentGuardianLinkRepository linkRepository;
@@ -195,13 +199,13 @@ public class StudentGuardianProvisioningServiceImpl implements StudentGuardianPr
     public GuardianStudentLinkDTO registerAndAccept(String rawToken, GuardianInvitationRegistrationRequestDTO request) {
         // Not transactional: the account is committed by tenancy before the link is written here.
         StudentGuardianContact contact = requireOpen(requireByToken(rawToken));
-        String accountExists = "An account already exists for this email. Sign in to accept the invitation.";
-        if (userLookupService.findUserUuidByEmail(contact.getGuardianEmail()).isPresent()) {
-            throw new IllegalStateException(accountExists);
-        }
+        requireInvitedEmail(contact, request.email());
+        requireAdultGuardian(request.dob());
+        requireNoAccountFor(contact.getGuardianEmail());
         UUID guardianUserUuid = guardianAccountService.registerInvitedGuardian(new InvitedGuardianAccount(
-                        contact.getGuardianEmail(), request.firstName(), request.lastName(), request.phoneNumber()))
-                .orElseThrow(() -> new IllegalStateException(accountExists));
+                        contact.getGuardianEmail(), request.firstName(), request.lastName(), request.phoneNumber(),
+                        request.dob(), request.gender()), request.password())
+                .orElseThrow(() -> new IllegalStateException(ACCOUNT_EXISTS));
 
         UUID contactUuid = contact.getUuid();
         return new TransactionTemplate(transactionManager).execute(status -> {
@@ -491,6 +495,26 @@ public class StudentGuardianProvisioningServiceImpl implements StudentGuardianPr
                     + stateOf(contact, now()).getValue() + ").");
         }
         return contact;
+    }
+
+    /** The link proves access to the invited inbox only, so a new account is always for that address. */
+    private static void requireInvitedEmail(StudentGuardianContact contact, String email) {
+        if (!Objects.equals(normaliseEmail(email), contact.getGuardianEmail())) {
+            throw new IllegalArgumentException("This invitation was sent to a different email address.");
+        }
+    }
+
+    private static void requireAdultGuardian(LocalDate dob) {
+        if (Period.between(dob, LocalDate.now(ZoneOffset.UTC)).getYears() < MinorLearnerLookupService.AGE_OF_MAJORITY) {
+            throw new IllegalArgumentException("A guardian must be at least %d years old."
+                    .formatted(MinorLearnerLookupService.AGE_OF_MAJORITY));
+        }
+    }
+
+    private void requireNoAccountFor(String email) {
+        if (userLookupService.findUserUuidByEmail(email).isPresent()) {
+            throw new IllegalStateException(ACCOUNT_EXISTS);
+        }
     }
 
     /** An invitation is addressed to an email, not to whoever holds the link. */

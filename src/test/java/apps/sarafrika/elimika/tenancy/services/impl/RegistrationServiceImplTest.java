@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.services.impl;
 import apps.sarafrika.elimika.authentication.spi.KeycloakRegistration;
 import apps.sarafrika.elimika.authentication.spi.KeycloakUserService;
 import apps.sarafrika.elimika.notifications.preferences.spi.NotificationPreferencesService;
+import apps.sarafrika.elimika.shared.enums.Gender;
 import apps.sarafrika.elimika.shared.event.user.RegistrationActionsEmailRequestedEvent;
 import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
 import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
@@ -17,6 +18,7 @@ import apps.sarafrika.elimika.tenancy.repository.AccountRegistrationRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.DomainApprovalService;
 import apps.sarafrika.elimika.tenancy.services.UserNumberService;
+import apps.sarafrika.elimika.tenancy.spi.GuardianAccountService.InvitedGuardianAccount;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -167,6 +169,42 @@ class RegistrationServiceImplTest {
 
         service.resendActionsEmail("amina@example.com");
         verify(eventPublisher).publishEvent(any(RegistrationActionsEmailRequestedEvent.class));
+    }
+
+    @Test
+    void anInvitedGuardianSignsUpWithTheirPasswordAndGetsNoActionsEmail() {
+        when(keycloakUserService.registerVerifiedUserWithPassword(any(), eq("S3cure-passphrase"), eq(REALM)))
+                .thenReturn("kc-guardian");
+
+        Optional<UUID> created = service.registerInvitedGuardian(new InvitedGuardianAccount(" Mary@Example.com ",
+                "Mary", "Doe", null, LocalDate.of(1985, 4, 12), "female"), "S3cure-passphrase");
+
+        assertThat(created).contains(userUuid);
+        ArgumentCaptor<KeycloakRegistration> identity = ArgumentCaptor.forClass(KeycloakRegistration.class);
+        verify(keycloakUserService).registerVerifiedUserWithPassword(identity.capture(), eq("S3cure-passphrase"), eq(REALM));
+        assertThat(identity.getValue().email()).isEqualTo("mary@example.com");
+        assertThat(identity.getValue().dateOfBirth()).isEqualTo(LocalDate.of(1985, 4, 12));
+        assertThat(identity.getValue().gender()).isEqualTo("FEMALE");
+        verify(keycloakUserService, never()).registerUser(any(), any());
+
+        ArgumentCaptor<User> user = ArgumentCaptor.forClass(User.class);
+        verify(userRepository).save(user.capture());
+        assertThat(user.getValue().getDob()).isEqualTo(LocalDate.of(1985, 4, 12));
+        assertThat(user.getValue().getGender()).isEqualTo(Gender.FEMALE);
+        assertThat(user.getValue().getKeycloakId()).isEqualTo("kc-guardian");
+        verify(eventPublisher, never()).publishEvent(any(RegistrationActionsEmailRequestedEvent.class));
+        verify(domainApprovalService, never()).request(any(), any());
+    }
+
+    @Test
+    void aPasswordThePolicyRejectsCreatesNothing() {
+        when(keycloakUserService.registerVerifiedUserWithPassword(any(), anyString(), eq(REALM)))
+                .thenThrow(new IllegalArgumentException("The password does not meet the password requirements"));
+
+        assertThatThrownBy(() -> service.registerInvitedGuardian(new InvitedGuardianAccount("mary@example.com",
+                "Mary", "Doe", null, LocalDate.of(1985, 4, 12), null), "short"))
+                .isInstanceOf(IllegalArgumentException.class);
+        verify(userRepository, never()).save(any(User.class));
     }
 
     private static RegistrationRequestDTO request(String domain) {
