@@ -1,3 +1,10 @@
+# [2.198.0](https://github.com/sarafrika/elimika/compare/v2.197.2...v2.198.0) (2026-11-26)
+
+
+### Features
+
+* **student:** register invited guardians with full details and let guardians add login-less children ([ae04569](https://github.com/sarafrika/elimika/commit/ae04569855543832d3fc6f3647b31763df73e713))
+
 ## [2.197.2](https://github.com/sarafrika/elimika/compare/v2.197.1...v2.197.2) (2026-11-23)
 
 
