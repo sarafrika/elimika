@@ -1,3 +1,10 @@
+## [2.200.2](https://github.com/sarafrika/elimika/compare/v2.200.1...v2.200.2) (2026-11-27)
+
+
+### Reverts
+
+* Revert "fix(notifications): send emails to addresses with no account, such as…" ([#274](https://github.com/sarafrika/elimika/issues/274)) ([d992b74](https://github.com/sarafrika/elimika/commit/d992b74bb63ad97c85b11d8159e91a40f477da54))
+
 ## [2.200.1](https://github.com/sarafrika/elimika/compare/v2.200.0...v2.200.1) (2026-11-27)
 
 
