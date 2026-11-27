@@ -40,6 +40,11 @@ import org.springframework.context.annotation.Configuration;
                 @Server(
                         description = "Production ENV",
                         url = "https://api.elimika.sarafrika.com"
+                ),
+                // Last on purpose: the UI's generated client takes the first server as its default base URL.
+                @Server(
+                        description = "Local ENV",
+                        url = "http://localhost:38080"
                 )
         },
         security = {
@@ -63,8 +68,9 @@ import org.springframework.context.annotation.Configuration;
         type = SecuritySchemeType.OAUTH2,
         flows = @OAuthFlows(
                 password = @OAuthFlow(
-                        tokenUrl = "https://signin.sarafrika.com/realms/sarafrika/protocol/openid-connect/token",
-                        refreshUrl = "https://signin.sarafrika.com/realms/sarafrika/protocol/openid-connect/token"
+                        // The Keycloak this API trusts: the local stack's on profile local, Sarafrika's otherwise.
+                        tokenUrl = "${app.keycloak.serverUrl}/realms/${app.keycloak.realm}/protocol/openid-connect/token",
+                        refreshUrl = "${app.keycloak.serverUrl}/realms/${app.keycloak.realm}/protocol/openid-connect/token"
                 )
         )
 )

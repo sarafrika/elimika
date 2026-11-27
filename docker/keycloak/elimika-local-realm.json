@@ -83,7 +83,8 @@
       ],
       "webOrigins": [
         "http://localhost:3000",
-        "http://127.0.0.1:3000"
+        "http://127.0.0.1:3000",
+        "http://localhost:38080"
       ],
       "attributes": {
         "post.logout.redirect.uris": "http://localhost:3000/*##http://127.0.0.1:3000/*",
