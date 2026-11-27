@@ -22,7 +22,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 import java.util.UUID;
 
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.hamcrest.Matchers.hasItem;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -32,7 +31,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Organisation onboarding details over real HTTP against the Flyway schema: organisation type and capabilities
- * round-trip through create and update, and one that trains is asked for the M-Pesa number to be paid on.
+ * round-trip through create and update.
  */
 // Each class gets its own database; a cached context must not outlive it.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -144,63 +143,6 @@ class OrganisationOnboardingDetailsIntegrationTest {
                 + "VALUES (?, 'Raw Insert', ARRAY['TRADE'], 'test')", UUID.randomUUID()))
                 .isInstanceOf(DataIntegrityViolationException.class)
                 .hasMessageContaining("chk_organisation_capabilities");
-    }
-
-    @Test
-    @DisplayName("an organisation that trains gets a payout step, completed once its M-Pesa number is saved")
-    void payoutStepFollowsSavedNumber() throws Exception {
-        String uuid = createTrainingOrganisation();
-        String url = "/api/v1/organisations/" + uuid + "/payout-details";
-
-        mockMvc.perform(get("/api/v1/onboarding/organisation_user").with(owner()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.steps[?(@.key == 'organisation_payout')].missing[0]")
-                        .value(hasItem("payout_details")));
-        mockMvc.perform(get(url).with(owner())).andExpect(status().isNotFound());
-
-        mockMvc.perform(put(url).with(owner()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"mpesa_number\":\"0712 345 678\"}"))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.mpesa_number").value("254712345678"));
-
-        mockMvc.perform(get("/api/v1/onboarding/organisation_user").with(owner()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.steps[?(@.key == 'organisation_payout')].complete").value(hasItem(true)));
-
-        // Saving again replaces the number.
-        mockMvc.perform(put(url).with(owner()).contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"mpesa_number\":\"+254 110 000 111\"}"))
-                .andExpect(status().isOk());
-        mockMvc.perform(get(url).with(owner()))
-                .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.mpesa_number").value("254110000111"));
-    }
-
-    @Test
-    @DisplayName("an M-Pesa number must be a Kenyan mobile number and is kept from other users")
-    void payoutNumberIsValidatedAndPrivate() throws Exception {
-        String url = "/api/v1/organisations/" + createTrainingOrganisation() + "/payout-details";
-
-        for (String number : new String[]{"", "522522", "0812345678", "+256712345678"}) {
-            mockMvc.perform(put(url).with(owner()).contentType(MediaType.APPLICATION_JSON)
-                            .content("{\"mpesa_number\":\"" + number + "\"}"))
-                    .andExpect(status().isBadRequest());
-        }
-
-        mockMvc.perform(put(url).with(jwt().jwt(builder -> builder.subject("stranger").claim("sub", "stranger")))
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"mpesa_number\":\"0712345678\"}"))
-                .andExpect(status().isForbidden());
-    }
-
-    private String createTrainingOrganisation() throws Exception {
-        String created = mockMvc.perform(post("/api/v1/organisations").with(owner())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"name\":\"Payout Academy %s\",\"country\":\"Kenya\",\"active\":true,\"capabilities\":[\"TRAIN\"]}"
-                                .formatted(subject)))
-                .andExpect(status().isCreated())
-                .andReturn().getResponse().getContentAsString();
-        return JsonPath.read(created, "$.data.uuid");
     }
 
     private RequestPostProcessor owner() {

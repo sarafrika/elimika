@@ -33,6 +33,7 @@ public class OrganisationFactory {
         );
     }
 
+
     /** Stored values in declaration order; unknown values (none pass the DB CHECK) are dropped. */
     public static List<OrganisationCapability> capabilities(String[] stored) {
         if (stored == null) {

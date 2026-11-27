@@ -3,9 +3,7 @@ package apps.sarafrika.elimika.tenancy.util.enums;
 import com.fasterxml.jackson.annotation.JsonCreator;
 import com.fasterxml.jackson.annotation.JsonValue;
 
-import java.util.EnumSet;
 import java.util.Locale;
-import java.util.Set;
 
 /** What an organisation intends to do on the platform; chosen during organisation onboarding. */
 public enum OrganisationCapability {
@@ -14,9 +12,6 @@ public enum OrganisationCapability {
     PUBLISH("PUBLISH", "Publish courses: create and license content"),
     FUND("FUND", "Sponsor learning: fund students and programmes"),
     HIRE("HIRE", "Hire & recruit: recruit instructors and talent");
-
-    /** Capabilities that move money to or from the organisation, so payout details are needed. */
-    public static final Set<OrganisationCapability> NEEDS_PAYOUT_DETAILS = EnumSet.of(TRAIN, FUND);
 
     private final String value;
     private final String description;

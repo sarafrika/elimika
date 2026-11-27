@@ -202,9 +202,7 @@ public record OrganisationDTO(
 
         @ArraySchema(
                 arraySchema = @Schema(
-                        description = "**[OPTIONAL]** What the organisation will do on the platform. `TRAIN` or `FUND` "
-                                + "adds an onboarding step asking for the M-Pesa number to be paid on (PUT "
-                                + "/organisations/{uuid}/payout-details). Omit on update to keep "
+                        description = "**[OPTIONAL]** What the organisation will do on the platform. Omit on update to keep "
                                 + "the current set; send `[]` to clear it. Duplicates are ignored.",
                         example = "[\"TRAIN\", \"HIRE\"]",
                         requiredMode = Schema.RequiredMode.NOT_REQUIRED

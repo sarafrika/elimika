@@ -10,7 +10,6 @@ import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.entity.OrganisationDocument;
 import apps.sarafrika.elimika.tenancy.entity.UserOrganisationDomainMapping;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationDocumentRepository;
-import apps.sarafrika.elimika.tenancy.repository.OrganisationPayoutDetailsRepository;
 import apps.sarafrika.elimika.tenancy.repository.OrganisationRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserDomainRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRepository;
@@ -42,7 +41,6 @@ class OrganisationOnboardingStepsTest {
     @Mock private OrganisationRepository organisationRepository;
     @Mock private OrganisationDocumentRepository documentRepository;
     @Mock private DocumentTypeRepository documentTypeRepository;
-    @Mock private OrganisationPayoutDetailsRepository payoutDetailsRepository;
 
     private final UUID userUuid = UUID.randomUUID();
     private final UUID adminDomain = UUID.randomUUID();
@@ -53,50 +51,13 @@ class OrganisationOnboardingStepsTest {
     @BeforeEach
     void setUp() {
         steps = new OrganisationOnboardingSteps(domainRepository, organisationMappingRepository, organisationRepository,
-                documentRepository, documentTypeRepository, payoutDetailsRepository);
+                documentRepository, documentTypeRepository);
         apps.sarafrika.elimika.tenancy.entity.UserDomain admin = new apps.sarafrika.elimika.tenancy.entity.UserDomain();
         admin.setUuid(adminDomain);
         admin.setDomainName("admin");
         when(domainRepository.findByDomainName("admin")).thenReturn(Optional.of(admin));
         when(documentTypeRepository.findByAppliesToIgnoreCase(eq("ORGANISATION"), any()))
                 .thenReturn(List.of(registration, documentType("LICENCE_OR_ACCREDITATION", false)));
-    }
-
-    @Test
-    void anOrganisationThatTrainsOrFundsNeedsPayoutDetails() {
-        Organisation organisation = administers("Acme Academy", "Kenya");
-        organisation.setCapabilities(new String[]{"TRAIN", "HIRE"});
-        when(documentRepository.findByOrganisationUuid(organisation.getUuid())).thenReturn(List.of(document(registration)));
-
-        List<OnboardingStep> result = steps.steps(subject);
-
-        assertThat(result).extracting(OnboardingStep::key)
-                .containsExactly("organisation", "organisation_documents", "organisation_payout");
-        assertThat(result.get(2).required()).isTrue();
-        assertThat(result.get(2).missing()).containsExactly("payout_details");
-
-        when(payoutDetailsRepository.existsByOrganisationUuid(organisation.getUuid())).thenReturn(true);
-        assertThat(steps.steps(subject)).allMatch(OnboardingStep::complete);
-    }
-
-    @Test
-    void anOrganisationThatOnlyPublishesOrHiresHasNoPayoutStep() {
-        Organisation organisation = administers("Acme Publishing", "Kenya");
-        organisation.setCapabilities(new String[]{"PUBLISH", "HIRE"});
-        when(documentRepository.findByOrganisationUuid(organisation.getUuid())).thenReturn(List.of(document(registration)));
-
-        List<OnboardingStep> result = steps.steps(subject);
-
-        assertThat(result).extracting(OnboardingStep::key).containsExactly("organisation", "organisation_documents");
-        assertThat(result).allMatch(OnboardingStep::complete);
-        verify(payoutDetailsRepository, never()).existsByOrganisationUuid(any());
-    }
-
-    private static OrganisationDocument document(DocumentType type) {
-        OrganisationDocument document = new OrganisationDocument();
-        document.setDocumentTypeUuid(type.getUuid());
-        document.setStatus(DocumentStatus.PENDING);
-        return document;
     }
 
     @Test
