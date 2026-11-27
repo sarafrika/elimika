@@ -78,7 +78,10 @@ class ParentInvitationIntegrationTest {
     private UUID parentUuid;
 
     @BeforeEach
-    void seed() {
+    void seed() throws InterruptedException {
+        // The previous test's after-commit listeners may still be writing; truncating under them deadlocks.
+        settle(() -> count("SELECT COUNT(*) FROM event_publication WHERE completion_date IS NULL "
+                + "AND listener_id LIKE '%.student.%'") == 0);
         jdbc.execute("TRUNCATE organisation_invitations, student_guardian_links, students, "
                 + "user_organisation_domain_mapping, user_domain_mapping, organisation, users RESTART IDENTITY CASCADE");
         organisationUuid = UUID.randomUUID();
@@ -222,6 +225,13 @@ class ParentInvitationIntegrationTest {
 
     private int count(String sql) {
         return jdbc.queryForObject(sql, Integer.class);
+    }
+
+    /** Waits for {@code condition} for up to 10 seconds, then carries on either way. */
+    private static void settle(Supplier<Boolean> condition) throws InterruptedException {
+        for (int attempt = 0; attempt < 50 && !condition.get(); attempt++) {
+            Thread.sleep(200);
+        }
     }
 
     /** The student module reacts after commit on its own thread. */
