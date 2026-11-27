@@ -85,7 +85,7 @@ public class GuardianAccessController {
      * so nobody else's account is touched: the caller can only link to the learner this call creates.
      */
     @PostMapping("/me/students")
-    @PreAuthorize("domainSecurityService.isGuardian()")
+    @PreAuthorize("isAuthenticated()")
     @Operation(
             summary = "Add a child as a learner I manage",
             description = "Creates a learner profile for a child under 18 from their names and date of birth, without "

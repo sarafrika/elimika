@@ -5,6 +5,9 @@ import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class OrganisationFactory {
     public static OrganisationDTO toDTO(Organisation organisation) {
@@ -22,7 +25,9 @@ public class OrganisationFactory {
                 organisation.getAdminVerified(),
                 organisation.getCreatedDate(),
                 organisation.getLastModifiedDate(),
-                organisation.getVerificationRequestedAt()
+                organisation.getVerificationRequestedAt(),
+                organisation.getOrganisationType(),
+                organisation.getCapabilities() == null ? List.of() : List.copyOf(organisation.getCapabilities())
         );
     }
 
@@ -38,6 +43,10 @@ public class OrganisationFactory {
         organisation.setSlug(organisationDTO.slug());
         organisation.setLatitude(organisationDTO.latitude());
         organisation.setLongitude(organisationDTO.longitude());
+        organisation.setOrganisationType(organisationDTO.organisationType());
+        if (organisationDTO.capabilities() != null) {
+            organisation.setCapabilities(new ArrayList<>(organisationDTO.capabilities().stream().distinct().toList()));
+        }
         return organisation;
     }
 }
