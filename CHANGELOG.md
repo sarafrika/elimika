@@ -1,3 +1,10 @@
+# [2.200.0](https://github.com/sarafrika/elimika/compare/v2.199.0...v2.200.0) (2026-11-27)
+
+
+### Features
+
+* **course:** store category interests per user and domain ([#271](https://github.com/sarafrika/elimika/issues/271)) ([8c32b50](https://github.com/sarafrika/elimika/commit/8c32b50116f5e592b9ff3c0314964da15aed69d6))
+
 # [2.199.0](https://github.com/sarafrika/elimika/compare/v2.198.0...v2.199.0) (2026-11-27)
 
 
