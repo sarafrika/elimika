@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 /**
- * A signed-in guardian adds a child with no login: {@code POST /api/v1/guardians/me/children} over real HTTP,
+ * A signed-in guardian adds a child with no login: {@code POST /api/v1/guardians/me/students} over real HTTP,
  * through the security chain, against the Flyway schema (nullable email, the login CHECK, the full_name trigger,
  * the age gate rule and the relationship CHECK).
  */
@@ -82,7 +82,7 @@ class GuardianChildIntegrationTest {
     @Test
     @DisplayName("creates a login-less learner and links the parent with full access")
     void parentAddsAChild() throws Exception {
-        mockMvc.perform(post("/api/v1/guardians/me/children").with(parent())
+        mockMvc.perform(post("/api/v1/guardians/me/students").with(parent())
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(child("Wanjiru", "Kamau", yearsAgo(9), "GUARDIAN")))
                 .andExpect(status().isCreated())
@@ -109,26 +109,26 @@ class GuardianChildIntegrationTest {
     @DisplayName("a second submit of the same child is a 409, not a second learner")
     void addingTheSameChildTwiceIsRefused() throws Exception {
         String body = child("Wanjiru", "Kamau", yearsAgo(9), "PARENT");
-        mockMvc.perform(post("/api/v1/guardians/me/children").with(parent())
+        mockMvc.perform(post("/api/v1/guardians/me/students").with(parent())
                 .contentType(MediaType.APPLICATION_JSON).content(body)).andExpect(status().isCreated());
 
-        mockMvc.perform(post("/api/v1/guardians/me/children").with(parent())
+        mockMvc.perform(post("/api/v1/guardians/me/students").with(parent())
                         .contentType(MediaType.APPLICATION_JSON).content(body.replace("Wanjiru", " wanjiru ")))
                 .andExpect(status().isConflict());
         assertThat(jdbc.queryForObject("SELECT COUNT(*) FROM students", Integer.class)).isEqualTo(1);
     }
 
     @Test
-    @DisplayName("refuses adults, sponsors and children below the age gate, leaving no account behind")
+    @DisplayName("refuses adults, sponsors and students below the age gate, leaving no account behind")
     void ineligibleChildrenAreRefused() throws Exception {
-        mockMvc.perform(post("/api/v1/guardians/me/children").with(parent())
+        mockMvc.perform(post("/api/v1/guardians/me/students").with(parent())
                         .contentType(MediaType.APPLICATION_JSON).content(child("Adult", "Kamau", yearsAgo(19), "PARENT")))
                 .andExpect(status().isBadRequest());
-        mockMvc.perform(post("/api/v1/guardians/me/children").with(parent())
+        mockMvc.perform(post("/api/v1/guardians/me/students").with(parent())
                         .contentType(MediaType.APPLICATION_JSON).content(child("Sponsored", "Kamau", yearsAgo(9), "SPONSOR")))
                 .andExpect(status().isBadRequest());
         // The seeded learner age gate starts at 5; the child's account rolls back with the profile.
-        mockMvc.perform(post("/api/v1/guardians/me/children").with(parent())
+        mockMvc.perform(post("/api/v1/guardians/me/students").with(parent())
                         .contentType(MediaType.APPLICATION_JSON).content(child("Toddler", "Kamau", yearsAgo(3), "PARENT")))
                 .andExpect(status().isBadRequest());
 
@@ -138,9 +138,28 @@ class GuardianChildIntegrationTest {
     @Test
     @DisplayName("requires a signed-in account")
     void anonymousCallersAreRejected() throws Exception {
-        mockMvc.perform(post("/api/v1/guardians/me/children")
+        mockMvc.perform(post("/api/v1/guardians/me/students")
                         .contentType(MediaType.APPLICATION_JSON).content(child("Wanjiru", "Kamau", yearsAgo(9), "PARENT")))
                 .andExpect(status().isUnauthorized());
+    }
+
+    @Test
+    @DisplayName("a signed-in account with no parent domain may add a child, and gains the parent domain")
+    void anyAccountMayAddAChildAndBecomesAParent() throws Exception {
+        assertThat(parentDomainCount()).isZero();
+        mockMvc.perform(get("/api/v1/guardians/me/students").with(parent())).andExpect(status().isForbidden());
+
+        mockMvc.perform(post("/api/v1/guardians/me/students").with(parent())
+                        .contentType(MediaType.APPLICATION_JSON).content(child("Wanjiru", "Kamau", yearsAgo(9), "PARENT")))
+                .andExpect(status().isCreated());
+
+        assertThat(parentDomainCount()).isEqualTo(1);
+        mockMvc.perform(get("/api/v1/guardians/me/students").with(parent())).andExpect(status().isOk());
+    }
+
+    private Integer parentDomainCount() {
+        return jdbc.queryForObject("SELECT COUNT(*) FROM user_domain_mapping m JOIN user_domain d ON d.uuid = m.domain_uuid "
+                + "WHERE m.user_uuid = ? AND d.domain_name = 'parent'", Integer.class, parentUserUuid);
     }
 
     @Test
