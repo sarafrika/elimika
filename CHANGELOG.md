@@ -1,3 +1,10 @@
+# [2.199.0](https://github.com/sarafrika/elimika/compare/v2.198.0...v2.199.0) (2026-11-27)
+
+
+### Features
+
+* **tenancy:** add organisation type and capabilities ([#270](https://github.com/sarafrika/elimika/issues/270)) ([49fd575](https://github.com/sarafrika/elimika/commit/49fd5759dac238a020f44a321a9752352f9971ac))
+
 # [2.198.0](https://github.com/sarafrika/elimika/compare/v2.197.2...v2.198.0) (2026-11-26)
 
 
