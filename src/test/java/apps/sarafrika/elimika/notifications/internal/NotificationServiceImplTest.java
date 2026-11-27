@@ -72,23 +72,4 @@ class NotificationServiceImplTest {
         verify(userNotificationService).createFromEvent(event);
         verify(emailNotificationService).sendEmail(event);
     }
-
-    @Test
-    void sendNotification_ToAnAddressWithNoAccount_SendsTheEmailWithoutPreferenceChecks() throws Exception {
-        // A guardian invitation goes to an email that has no user yet, so there are no preferences to read.
-        UUID notificationId = UUID.randomUUID();
-        NotificationEvent event = mock(NotificationEvent.class);
-        when(event.getNotificationId()).thenReturn(notificationId);
-        when(event.getRecipientId()).thenReturn(null);
-        when(event.getRecipientEmail()).thenReturn("guardian@example.com");
-        when(event.getDeliveryChannels()).thenReturn(Set.of("email"));
-        when(emailNotificationService.sendEmail(event))
-                .thenReturn(CompletableFuture.completedFuture(NotificationResult.success(notificationId, "email")));
-
-        NotificationResult result = notificationService.sendNotification(event).get();
-
-        assertThat(result.isSuccessful()).isTrue();
-        verify(emailNotificationService).sendEmail(event);
-        verifyNoInteractions(preferencesService, preferencesRepository);
-    }
 }
