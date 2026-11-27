@@ -118,11 +118,6 @@ public class NotificationServiceImpl implements NotificationService {
         if (options.forceChannels().contains(channel)) {
             return true;
         }
-
-        // An address with no account yet (a guardian invitation, say) has no preferences to respect.
-        if (event.getRecipientId() == null) {
-            return true;
-        }
         
         // Check user preferences
         return preferencesService.isNotificationEnabled(
@@ -136,9 +131,6 @@ public class NotificationServiceImpl implements NotificationService {
      * Check if current time is within user's quiet hours
      */
     private boolean isInQuietHours(UUID userId) {
-        if (userId == null) {
-            return false;
-        }
         try {
             // For now, we'll directly query the repository for quiet hours
             // This could be moved to the SPI interface in the future
