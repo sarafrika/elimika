@@ -21,7 +21,7 @@ import java.util.UUID;
 @RestController
 @RequestMapping("api/v1/organisations/{organisationUuid}/payout-details")
 @RequiredArgsConstructor
-@Tag(name = "Organisation Payout Details API", description = "Where an organisation wants to be paid")
+@Tag(name = "Organisation Payout Details API", description = "The M-Pesa number an organisation wants to be paid on")
 public class OrganisationPayoutDetailsController {
 
     // Payout details are for the organisation's managers (and platform admins), not every member.
@@ -40,9 +40,9 @@ public class OrganisationPayoutDetailsController {
     }
 
     @Operation(operationId = "saveOrganisationPayoutDetails", summary = "Save organisation payout details",
-            description = "Creates or replaces the organisation's M-Pesa Paybill (business number and account number) "
-                    + "or Till. No code is sent; the platform admin who verifies the organisation checks them. "
-                    + "Completes the organisation_payout onboarding step.")
+            description = "Creates or replaces the organisation's M-Pesa number (Kenya). No code is sent; the "
+                    + "platform admin who verifies the organisation checks it. Completes the organisation_payout "
+                    + "onboarding step.")
     @PutMapping
     @PreAuthorize(MANAGE_ORGANISATION)
     public ResponseEntity<ApiResponse<OrganisationPayoutDetailsDTO>> save(

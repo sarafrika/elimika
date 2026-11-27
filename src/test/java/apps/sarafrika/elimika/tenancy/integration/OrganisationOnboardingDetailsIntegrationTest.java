@@ -32,7 +32,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 /**
  * Organisation onboarding details over real HTTP against the Flyway schema: organisation type and capabilities
- * round-trip through create and update, and one that trains is asked for its M-Pesa Paybill or Till.
+ * round-trip through create and update, and one that trains is asked for the M-Pesa number to be paid on.
  */
 // Each class gets its own database; a cached context must not outlive it.
 @DirtiesContext(classMode = DirtiesContext.ClassMode.AFTER_CLASS)
@@ -147,60 +147,49 @@ class OrganisationOnboardingDetailsIntegrationTest {
     }
 
     @Test
-    @DisplayName("an organisation that trains gets a payout step, completed once its Paybill or Till is saved")
-    void payoutStepFollowsSavedDetails() throws Exception {
+    @DisplayName("an organisation that trains gets a payout step, completed once its M-Pesa number is saved")
+    void payoutStepFollowsSavedNumber() throws Exception {
         String uuid = createTrainingOrganisation();
+        String url = "/api/v1/organisations/" + uuid + "/payout-details";
 
         mockMvc.perform(get("/api/v1/onboarding/organisation_user").with(owner()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.steps[?(@.key == 'organisation_payout')].missing[0]")
                         .value(hasItem("payout_details")));
-        mockMvc.perform(get("/api/v1/organisations/" + uuid + "/payout-details").with(owner()))
-                .andExpect(status().isNotFound());
+        mockMvc.perform(get(url).with(owner())).andExpect(status().isNotFound());
 
-        mockMvc.perform(put("/api/v1/organisations/" + uuid + "/payout-details").with(owner())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("""
-                                {"channel":"mpesa_paybill","business_number":" 522522 ","account_number":"1234567890",
-                                 "account_name":"Acme Academy Ltd"}
-                                """))
+        mockMvc.perform(put(url).with(owner()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"mpesa_number\":\"0712 345 678\"}"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.channel").value("MPESA_PAYBILL"))
-                .andExpect(jsonPath("$.data.business_number").value("522522"));
+                .andExpect(jsonPath("$.data.mpesa_number").value("254712345678"));
 
         mockMvc.perform(get("/api/v1/onboarding/organisation_user").with(owner()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.steps[?(@.key == 'organisation_payout')].complete").value(hasItem(true)));
 
-        // Saving again replaces the details: a Till has no account number.
-        mockMvc.perform(put("/api/v1/organisations/" + uuid + "/payout-details").with(owner())
-                        .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"channel\":\"MPESA_TILL\",\"business_number\":\"123456\",\"account_name\":\"Acme Academy\"}"))
+        // Saving again replaces the number.
+        mockMvc.perform(put(url).with(owner()).contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"mpesa_number\":\"+254 110 000 111\"}"))
                 .andExpect(status().isOk());
-        mockMvc.perform(get("/api/v1/organisations/" + uuid + "/payout-details").with(owner()))
+        mockMvc.perform(get(url).with(owner()))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.channel").value("MPESA_TILL"))
-                .andExpect(jsonPath("$.data.account_number").doesNotExist());
+                .andExpect(jsonPath("$.data.mpesa_number").value("254110000111"));
     }
 
     @Test
-    @DisplayName("payout details are checked per channel and kept from other users")
-    void payoutDetailsAreValidatedAndPrivate() throws Exception {
-        String uuid = createTrainingOrganisation();
-        String url = "/api/v1/organisations/" + uuid + "/payout-details";
+    @DisplayName("an M-Pesa number must be a Kenyan mobile number and is kept from other users")
+    void payoutNumberIsValidatedAndPrivate() throws Exception {
+        String url = "/api/v1/organisations/" + createTrainingOrganisation() + "/payout-details";
 
-        // A Paybill without an account number, a Till with one, and a number that isn't 5 to 7 digits.
-        for (String body : new String[]{
-                "{\"channel\":\"MPESA_PAYBILL\",\"business_number\":\"522522\",\"account_name\":\"Acme\"}",
-                "{\"channel\":\"MPESA_TILL\",\"business_number\":\"123456\",\"account_number\":\"9\",\"account_name\":\"Acme\"}",
-                "{\"channel\":\"MPESA_TILL\",\"business_number\":\"0712345678\",\"account_name\":\"Acme\"}"}) {
-            mockMvc.perform(put(url).with(owner()).contentType(MediaType.APPLICATION_JSON).content(body))
+        for (String number : new String[]{"", "522522", "0812345678", "+256712345678"}) {
+            mockMvc.perform(put(url).with(owner()).contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"mpesa_number\":\"" + number + "\"}"))
                     .andExpect(status().isBadRequest());
         }
 
         mockMvc.perform(put(url).with(jwt().jwt(builder -> builder.subject("stranger").claim("sub", "stranger")))
                         .contentType(MediaType.APPLICATION_JSON)
-                        .content("{\"channel\":\"MPESA_TILL\",\"business_number\":\"123456\",\"account_name\":\"Acme\"}"))
+                        .content("{\"mpesa_number\":\"0712345678\"}"))
                 .andExpect(status().isForbidden());
     }
 

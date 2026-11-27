@@ -33,7 +33,7 @@ import java.util.stream.Collectors;
 
 /**
  * Organisation steps: an organisation the user administers, with its details and required documents, and a
- * Paybill or Till to be paid on when it trains or funds.
+ * M-Pesa number to be paid on when it trains or funds.
  */
 @Component
 @RequiredArgsConstructor
