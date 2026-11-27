@@ -560,6 +560,13 @@ public class OrganisationServiceImpl implements OrganisationService {
         if (dto.longitude() != null) {
             organisation.setLongitude(dto.longitude());
         }
+        if (dto.organisationType() != null) {
+            organisation.setOrganisationType(dto.organisationType());
+        }
+        // null keeps the current set; an empty list clears it.
+        if (dto.capabilities() != null) {
+            organisation.setCapabilities(OrganisationFactory.toStored(dto.capabilities()));
+        }
     }
 
     // ================================

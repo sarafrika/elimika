@@ -1,12 +1,16 @@
 package apps.sarafrika.elimika.tenancy.dto;
 
+import apps.sarafrika.elimika.tenancy.util.enums.OrganisationCapability;
+import apps.sarafrika.elimika.tenancy.util.enums.OrganisationType;
 import com.fasterxml.jackson.annotation.JsonProperty;
+import io.swagger.v3.oas.annotations.media.ArraySchema;
 import io.swagger.v3.oas.annotations.media.Schema;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.UUID;
 
 /**
@@ -35,6 +39,8 @@ import java.util.UUID;
                     "latitude": -1.2921,
                     "longitude": 36.8219,
                     "admin_verified": true,
+                    "organisation_type": "COLLEGE_OR_UNIVERSITY",
+                    "capabilities": ["TRAIN", "PUBLISH"],
                     "created_date": "2024-01-01T09:00:00",
                     "updated_date": "2024-04-15T14:30:00"
                 }
@@ -181,7 +187,33 @@ public record OrganisationDTO(
                 requiredMode = Schema.RequiredMode.NOT_REQUIRED
         )
         @JsonProperty(value = "verification_requested_at", access = JsonProperty.Access.READ_ONLY)
-        LocalDateTime verificationRequestedAt
+        LocalDateTime verificationRequestedAt,
+
+        @Schema(
+                description = "**[OPTIONAL]** What kind of body the organisation is. Omit on update to keep the current value.",
+                example = "SCHOOL_OR_TRAINING_INSTITUTION",
+                nullable = true,
+                allowableValues = {"SCHOOL_OR_TRAINING_INSTITUTION", "COLLEGE_OR_UNIVERSITY", "COMPANY_OR_EMPLOYER",
+                        "FOUNDATION_OR_NGO", "GOVERNMENT_AGENCY"},
+                requiredMode = Schema.RequiredMode.NOT_REQUIRED
+        )
+        @JsonProperty("organisation_type")
+        OrganisationType organisationType,
+
+        @ArraySchema(
+                arraySchema = @Schema(
+                        description = "**[OPTIONAL]** What the organisation will do on the platform. `TRAIN` or `FUND` "
+                                + "adds an onboarding step asking for M-Pesa Paybill or Till details (PUT "
+                                + "/organisations/{uuid}/payout-details). Omit on update to keep "
+                                + "the current set; send `[]` to clear it. Duplicates are ignored.",
+                        example = "[\"TRAIN\", \"HIRE\"]",
+                        requiredMode = Schema.RequiredMode.NOT_REQUIRED
+                ),
+                schema = @Schema(implementation = OrganisationCapability.class,
+                        allowableValues = {"TRAIN", "PUBLISH", "FUND", "HIRE"})
+        )
+        @JsonProperty("capabilities")
+        List<OrganisationCapability> capabilities
 
 ) {
 }

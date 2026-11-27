@@ -2,6 +2,7 @@ package apps.sarafrika.elimika.tenancy.entity;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.Filterable;
+import apps.sarafrika.elimika.tenancy.util.enums.OrganisationType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Table;
@@ -67,4 +68,12 @@ public class Organisation extends BaseEntity {
     /** When the organisation submitted itself for admin verification; null if never submitted. */
     @Column(name = "verification_requested_at")
     private LocalDateTime verificationRequestedAt;
+
+    @Column(name = "organisation_type")
+    @Filterable
+    private OrganisationType organisationType;
+
+    /** {@code OrganisationCapability} values; never null. */
+    @Column(name = "capabilities")
+    private String[] capabilities = new String[0];
 }
