@@ -3,6 +3,7 @@ package apps.sarafrika.elimika.tenancy.services;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationInvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsResultDTO;
+import apps.sarafrika.elimika.tenancy.dto.SendParentInvitationsRequestDTO;
 import apps.sarafrika.elimika.tenancy.util.enums.InvitationStatus;
 
 import java.util.Collection;
@@ -36,6 +37,19 @@ public interface OrganisationInvitationService {
     SendOrganisationInvitationsResultDTO send(UUID organisationUuid,
                                               SendOrganisationInvitationsRequestDTO request,
                                               UUID inviterUserUuid);
+
+    /**
+     * Invites the parents of named children under 18 to approve them joining as students. One invitation per
+     * child; each is reported individually, keyed by the parent's email.
+     *
+     * @param organisationUuid the inviting organisation
+     * @param request          the children with their parents, optional branch, classes and message
+     * @param inviterUserUuid  the user sending the invitations
+     * @return per-child outcome
+     */
+    SendOrganisationInvitationsResultDTO sendToParents(UUID organisationUuid,
+                                                       SendParentInvitationsRequestDTO request,
+                                                       UUID inviterUserUuid);
 
     /**
      * Lists an organisation's invitations, newest first.

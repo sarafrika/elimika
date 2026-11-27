@@ -5,6 +5,9 @@ import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationInvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsResultDTO;
+import apps.sarafrika.elimika.tenancy.dto.SendParentInvitationsRequestDTO;
+import apps.sarafrika.elimika.systemconfig.dto.AgeGateDecision;
+import apps.sarafrika.elimika.systemconfig.service.RuleEvaluationService;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.entity.OrganisationInvitation;
 import apps.sarafrika.elimika.tenancy.entity.StudentGroupMember;
@@ -33,6 +36,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.context.ApplicationEventPublisher;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
@@ -79,6 +83,8 @@ class OrganisationInvitationServiceImplTest {
     private StudentGroupMemberRepository studentGroupMemberRepository;
     @Mock
     private StudentGroupLookupService studentGroupLookupService;
+    @Mock
+    private RuleEvaluationService ruleEvaluationService;
 
     private OrganisationInvitationServiceImpl service;
 
@@ -98,7 +104,9 @@ class OrganisationInvitationServiceImplTest {
                 userLookupService,
                 new InvitationTokenService(),
                 new InvitationLinkFactory("https://elimika.test"),
-                eventPublisher);
+                eventPublisher,
+                ruleEvaluationService);
+        when(ruleEvaluationService.evaluateAgeGate(any(), any())).thenReturn(AgeGateDecision.allow());
 
         UserDomain studentDomain = new UserDomain();
         studentDomain.setUuid(DOMAIN_UUID);
@@ -416,6 +424,105 @@ class OrganisationInvitationServiceImplTest {
         assertThatThrownBy(() -> service.send(ORGANISATION_UUID, request, INVITER_UUID))
                 .isInstanceOf(IllegalArgumentException.class)
                 .hasMessageContaining("No one to invite");
+    }
+
+    // ================================
+    // PARENT INVITATIONS
+    // ================================
+
+    @Test
+    void aParentInvitationAwaitsTheParentAndEmailsOnlyThem() {
+        when(userLookupService.findUserUuidByEmail(any())).thenReturn(Optional.empty());
+
+        SendOrganisationInvitationsResultDTO result = service.sendToParents(ORGANISATION_UUID,
+                parentRequest(child("Wanjiru", "Kamau", 9, "Mary@Example.com ")), INVITER_UUID);
+
+        assertThat(result.failed()).isEmpty();
+        OrganisationInvitationDTO sent = result.sent().getFirst();
+        assertThat(sent.status()).isEqualTo(InvitationStatus.AWAITING_GUARDIAN_CONSENT);
+        assertThat(sent.parentInvitation()).isTrue();
+        assertThat(sent.recipientEmail()).isNull();
+        assertThat(sent.recipientName()).isEqualTo("Wanjiru Kamau");
+        assertThat(sent.guardianEmail()).isEqualTo("mary@example.com");
+        verify(mappingRepository, never()).save(any());
+
+        verify(invitationRepository).save(org.mockito.ArgumentMatchers.argThat(invitation -> {
+            assertThat(invitation.getGuardianConsentTokenHash()).hasSize(64);
+            assertThat(invitation.getGuardianRelationshipType()).isEqualTo("PARENT");
+            assertThat(invitation.getChildDob()).isNotNull();
+            return true;
+        }));
+
+        ArgumentCaptor<NotificationRequestedEvent> captor = ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        NotificationRequestedEvent email = captor.getValue();
+        assertThat(email.recipientEmail()).isEqualTo("mary@example.com");
+        assertThat(email.notificationType()).isEqualTo("GUARDIAN_CONSENT_REQUEST");
+        assertThat((String) email.templateVariables().get("consentLink")).contains("guardian-invitations");
+        assertThat(email.templateVariables()).doesNotContainValue(null);
+    }
+
+    @Test
+    void childrenWhoAreAdultsBelowTheAgeGateOrAlreadyInvitedAreReportedOneByOne() {
+        when(userLookupService.findUserUuidByEmail(any())).thenReturn(Optional.empty());
+        when(ruleEvaluationService.evaluateAgeGate(eq(LocalDate.now().minusYears(2).minusDays(30)), any()))
+                .thenReturn(AgeGateDecision.rejected("Learners must be at least 5"));
+        when(invitationRepository.findLiveParentInvitation(eq(ORGANISATION_UUID), eq("mary@example.com"),
+                eq("Already"), eq("Invited"), any())).thenReturn(Optional.of(liveInvitation()));
+
+        SendOrganisationInvitationsResultDTO result = service.sendToParents(ORGANISATION_UUID, parentRequest(
+                child("Grown", "Up", 18, "mary@example.com"),
+                child("Too", "Young", 2, "mary@example.com"),
+                child("Already", "Invited", 10, "mary@example.com"),
+                child("Fine", "Child", 10, "mary@example.com")), INVITER_UUID);
+
+        assertThat(result.sent()).extracting(OrganisationInvitationDTO::recipientName).containsExactly("Fine Child");
+        assertThat(result.failed()).extracting(SendOrganisationInvitationsResultDTO.Failure::reason)
+                .anySatisfy(reason -> assertThat(reason).contains("Grown Up").contains("18 or over"))
+                .anySatisfy(reason -> assertThat(reason).contains("Too Young").contains("at least 5"))
+                .anySatisfy(reason -> assertThat(reason).contains("Already Invited").contains("pending invitation"));
+    }
+
+    @Test
+    void aSponsorCannotBeInvitedToDecideForAChild() {
+        SendOrganisationInvitationsResultDTO result = service.sendToParents(ORGANISATION_UUID, parentRequest(
+                new SendParentInvitationsRequestDTO.Child("Wanjiru", "Kamau", LocalDate.now().minusYears(9),
+                        "mary@example.com", null, "sponsor")), INVITER_UUID);
+
+        assertThat(result.sent()).isEmpty();
+        assertThat(result.failed().getFirst().reason()).contains("PARENT or GUARDIAN");
+    }
+
+    @Test
+    void resendingAParentInvitationReplacesOnlyTheParentsLink() {
+        when(userLookupService.findUserUuidByEmail(any())).thenReturn(Optional.empty());
+        OrganisationInvitation invitation = liveInvitation();
+        invitation.setRecipientEmail(null);
+        invitation.setRecipientName("Wanjiru Kamau");
+        invitation.setChildDob(LocalDate.now().minusYears(9));
+        invitation.setStatus(InvitationStatus.AWAITING_GUARDIAN_CONSENT);
+        invitation.setGuardianEmail("mary@example.com");
+        invitation.setGuardianConsentTokenHash("old-guardian-hash");
+        String childTokenHash = invitation.getTokenHash();
+        when(invitationRepository.findByUuid(invitation.getUuid())).thenReturn(Optional.of(invitation));
+
+        service.resend(ORGANISATION_UUID, invitation.getUuid());
+
+        assertThat(invitation.getGuardianConsentTokenHash()).isNotEqualTo("old-guardian-hash");
+        assertThat(invitation.getTokenHash()).isEqualTo(childTokenHash);
+        ArgumentCaptor<NotificationRequestedEvent> captor = ArgumentCaptor.forClass(NotificationRequestedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().recipientEmail()).isEqualTo("mary@example.com");
+        assertThat(captor.getValue().notificationType()).isEqualTo("GUARDIAN_CONSENT_REQUEST");
+    }
+
+    private static SendParentInvitationsRequestDTO parentRequest(SendParentInvitationsRequestDTO.Child... children) {
+        return new SendParentInvitationsRequestDTO(List.of(children), null, null, null, null);
+    }
+
+    private static SendParentInvitationsRequestDTO.Child child(String first, String last, int age, String parentEmail) {
+        LocalDate dob = LocalDate.now().minusYears(age).minusDays(30);
+        return new SendParentInvitationsRequestDTO.Child(first, last, dob, parentEmail, "Mary Kamau", null);
     }
 
     private void givenGroupWithMembers(UUID groupUuid, UUID... memberUserUuids) {

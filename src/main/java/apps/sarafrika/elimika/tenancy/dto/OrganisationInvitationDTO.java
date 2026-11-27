@@ -97,6 +97,19 @@ public record OrganisationInvitationDTO(
 
         @Schema(description = "When the invitation was created")
         @JsonProperty("created_date")
-        LocalDateTime createdDate
+        LocalDateTime createdDate,
+
+        @Schema(description = "True when the organisation invited the parent for a named child; recipient_name is "
+                + "then the child and recipient_email is null")
+        @JsonProperty("parent_invitation")
+        boolean parentInvitation,
+
+        @Schema(description = "The parent or guardian asked to approve, once known", nullable = true)
+        @JsonProperty("guardian_email")
+        String guardianEmail,
+
+        @Schema(description = "The parent or guardian's name, once known", nullable = true)
+        @JsonProperty("guardian_name")
+        String guardianName
 ) {
 }

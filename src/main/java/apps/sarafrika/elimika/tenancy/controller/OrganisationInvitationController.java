@@ -5,6 +5,7 @@ import apps.sarafrika.elimika.shared.service.UserContextService;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationInvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsResultDTO;
+import apps.sarafrika.elimika.tenancy.dto.SendParentInvitationsRequestDTO;
 import apps.sarafrika.elimika.tenancy.security.OrganisationSecurityService;
 import apps.sarafrika.elimika.tenancy.services.OrganisationInvitationService;
 import apps.sarafrika.elimika.tenancy.util.enums.InvitationStatus;
@@ -76,6 +77,34 @@ public class OrganisationInvitationController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.success(result, "Invitations processed"));
+    }
+
+    @Operation(
+            summary = "Invite parents to approve their children joining",
+            description = "For students under 18 who have no email of their own. The organisation names each child "
+                    + "and their parent; the parent is emailed a link to approve or decline. Nothing is created "
+                    + "until the parent approves: the child then gets a learner profile with no login (or the "
+                    + "parent's existing child with the same name and date of birth is used), joins as a student, "
+                    + "and is linked to the parent, who gains the parent domain. One invitation per child, each "
+                    + "reported individually; a child aged 18 or over, below the learner age gate, or already "
+                    + "invited is reported as failed."
+    )
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "201", description = "Invitations processed")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "400", description = "Invalid branch or class selection")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "403", description = "Caller does not manage this organisation")
+    @io.swagger.v3.oas.annotations.responses.ApiResponse(responseCode = "404", description = "Organisation not found")
+    @PostMapping("/parents")
+    @PreAuthorize("isAuthenticated()")
+    public ResponseEntity<ApiResponse<SendOrganisationInvitationsResultDTO>> sendParentInvitations(
+            @Parameter(description = "UUID of the inviting organisation", required = true)
+            @PathVariable UUID organisationUuid,
+            @Valid @RequestBody SendParentInvitationsRequestDTO request) {
+
+        UUID callerUuid = requireOrganisationManager(organisationUuid);
+        SendOrganisationInvitationsResultDTO result = invitationService.sendToParents(organisationUuid, request, callerUuid);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.success(result, "Parent invitations processed"));
     }
 
     @Operation(

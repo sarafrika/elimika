@@ -4,6 +4,7 @@ import apps.sarafrika.elimika.notifications.api.NotificationType;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.event.student.GuardianConsentRecordedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
+import apps.sarafrika.elimika.shared.spi.GuardianChildLookupService;
 import apps.sarafrika.elimika.shared.spi.MinorLearnerLookupService;
 import apps.sarafrika.elimika.tenancy.dto.AcceptInvitationRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AcceptInvitationResultDTO;
@@ -28,6 +29,8 @@ import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRe
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.InvitationAcceptanceService;
 import apps.sarafrika.elimika.tenancy.services.UserService;
+import apps.sarafrika.elimika.tenancy.spi.ManagedLearnerAccountService;
+import apps.sarafrika.elimika.tenancy.spi.ManagedLearnerAccountService.ManagedLearnerAccount;
 import apps.sarafrika.elimika.tenancy.util.enums.ConsentSource;
 import apps.sarafrika.elimika.tenancy.util.enums.InvitationStatus;
 import lombok.RequiredArgsConstructor;
@@ -76,6 +79,8 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
     private final InvitationTokenService tokenService;
     private final InvitationLinkFactory linkFactory;
     private final ApplicationEventPublisher eventPublisher;
+    private final ManagedLearnerAccountService managedLearnerAccountService;
+    private final GuardianChildLookupService guardianChildLookupService;
 
     // ================================
     // READING AN INVITATION
@@ -263,6 +268,10 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
         User guardian = requireUser(guardianUserUuid);
         requireNominatedGuardian(invitation, guardian);
 
+        if (invitation.isParentInvitation() && invitation.getRecipientUserUuid() == null) {
+            invitation.setRecipientUserUuid(resolveInvitedChild(invitation, guardian));
+        }
+
         UUID minorUserUuid = invitation.getRecipientUserUuid();
         if (minorUserUuid == null) {
             throw new IllegalStateException(
@@ -292,6 +301,26 @@ public class InvitationAcceptanceServiceImpl implements InvitationAcceptanceServ
         log.info("Guardian {} consented to invitation {} for minor {}",
                 guardian.getUuid(), invitation.getUuid(), minorUserUuid);
         return result;
+    }
+
+    /**
+     * The child an organisation named when it invited the parent: the parent's own child with the same name and
+     * date of birth if they already added one, otherwise a new learner with no login.
+     */
+    private UUID resolveInvitedChild(OrganisationInvitation invitation, User guardian) {
+        if (guardian.getDob() != null && !isAdult(guardian.getDob())) {
+            throw new IllegalArgumentException("A parent or guardian must be at least "
+                    + MinorLearnerLookupService.AGE_OF_MAJORITY + " years old.");
+        }
+        return guardianChildLookupService.findChildUserUuid(guardian.getUuid(), invitation.getChildFirstName(),
+                        invitation.getChildLastName(), invitation.getChildDob())
+                .orElseGet(() -> managedLearnerAccountService.createManagedLearnerAccount(new ManagedLearnerAccount(
+                        invitation.getChildFirstName(), null, invitation.getChildLastName(), invitation.getChildDob())));
+    }
+
+    private static boolean isAdult(LocalDate dateOfBirth) {
+        return Period.between(dateOfBirth, LocalDate.now(ZoneOffset.UTC)).getYears()
+                >= MinorLearnerLookupService.AGE_OF_MAJORITY;
     }
 
     @Override

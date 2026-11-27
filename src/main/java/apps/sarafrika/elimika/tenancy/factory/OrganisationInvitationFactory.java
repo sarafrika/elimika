@@ -43,7 +43,10 @@ public class OrganisationInvitationFactory {
                 invitation.getRevokedAt(),
                 invitation.isRequiresGuardianConsent(),
                 invitation.getGuardianConsentedAt(),
-                invitation.getCreatedDate()
+                invitation.getCreatedDate(),
+                invitation.isParentInvitation(),
+                invitation.getGuardianEmail(),
+                invitation.getGuardianName()
         );
     }
 }

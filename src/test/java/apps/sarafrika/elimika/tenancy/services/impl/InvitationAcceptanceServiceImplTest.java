@@ -1,6 +1,7 @@
 package apps.sarafrika.elimika.tenancy.services.impl;
 
 import apps.sarafrika.elimika.shared.event.student.GuardianConsentRecordedEvent;
+import apps.sarafrika.elimika.shared.spi.GuardianChildLookupService;
 import apps.sarafrika.elimika.tenancy.dto.AcceptInvitationRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.AcceptInvitationResultDTO;
 import apps.sarafrika.elimika.tenancy.dto.GuardianConsentRequestDTO;
@@ -19,6 +20,8 @@ import apps.sarafrika.elimika.tenancy.repository.UserDomainRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserOrganisationDomainMappingRepository;
 import apps.sarafrika.elimika.tenancy.repository.UserRepository;
 import apps.sarafrika.elimika.tenancy.services.UserService;
+import apps.sarafrika.elimika.tenancy.spi.ManagedLearnerAccountService;
+import apps.sarafrika.elimika.tenancy.spi.ManagedLearnerAccountService.ManagedLearnerAccount;
 import apps.sarafrika.elimika.tenancy.util.enums.ConsentSource;
 import apps.sarafrika.elimika.tenancy.util.enums.InvitationStatus;
 import org.junit.jupiter.api.BeforeEach;
@@ -64,6 +67,8 @@ class InvitationAcceptanceServiceImplTest {
     @Mock private UserOrganisationDomainMappingRepository mappingRepository;
     @Mock private UserService userService;
     @Mock private ApplicationEventPublisher eventPublisher;
+    @Mock private ManagedLearnerAccountService managedLearnerAccountService;
+    @Mock private GuardianChildLookupService guardianChildLookupService;
 
     private final InvitationTokenService tokenService = new InvitationTokenService();
     private InvitationAcceptanceServiceImpl service;
@@ -76,7 +81,8 @@ class InvitationAcceptanceServiceImplTest {
         service = new InvitationAcceptanceServiceImpl(
                 invitationRepository, invitationClassRepository, organisationRepository,
                 userRepository, userDomainRepository, mappingRepository, userService,
-                tokenService, new InvitationLinkFactory("https://elimika.test"), eventPublisher);
+                tokenService, new InvitationLinkFactory("https://elimika.test"), eventPublisher,
+                managedLearnerAccountService, guardianChildLookupService);
 
         UserDomain studentDomain = new UserDomain();
         studentDomain.setUuid(DOMAIN_UUID);
@@ -423,8 +429,90 @@ class InvitationAcceptanceServiceImplTest {
     }
 
     // ================================
+    // PARENT INVITATIONS
+    // ================================
+
+    @Test
+    void aParentApprovingCreatesTheirChildWithNoLoginAndAffiliatesIt() {
+        OrganisationInvitation invitation = parentInvitation();
+        givenGuardianInvitationForToken(invitation);
+        User parent = user("mary@example.com", LocalDate.of(1985, 4, 12));
+        UUID childUserUuid = UUID.randomUUID();
+        when(guardianChildLookupService.findChildUserUuid(any(), any(), any(), any())).thenReturn(Optional.empty());
+        when(managedLearnerAccountService.createManagedLearnerAccount(any())).thenReturn(childUserUuid);
+
+        AcceptInvitationResultDTO result = service.guardianConsent(
+                GUARDIAN_RAW_TOKEN, new GuardianConsentRequestDTO(null, true), parent.getUuid());
+
+        assertThat(result.affiliated()).isTrue();
+        assertThat(invitation.getRecipientUserUuid()).isEqualTo(childUserUuid);
+        assertThat(invitation.getAcceptedUserUuid()).isEqualTo(childUserUuid);
+        verify(managedLearnerAccountService).createManagedLearnerAccount(new ManagedLearnerAccount(
+                "Wanjiru", null, "Kamau", invitation.getChildDob()));
+        verify(userService).assignUserToOrganisation(eq(childUserUuid), eq(ORGANISATION_UUID), eq("student"), any());
+        assertThat(mapping.getConsentSource()).isEqualTo(ConsentSource.GUARDIAN);
+
+        ArgumentCaptor<GuardianConsentRecordedEvent> captor = ArgumentCaptor.forClass(GuardianConsentRecordedEvent.class);
+        verify(eventPublisher).publishEvent(captor.capture());
+        assertThat(captor.getValue().studentUserUuid()).isEqualTo(childUserUuid);
+        assertThat(captor.getValue().guardianUserUuid()).isEqualTo(parent.getUuid());
+    }
+
+    @Test
+    void aParentApprovingReusesAChildTheyAlreadyAdded() {
+        OrganisationInvitation invitation = parentInvitation();
+        givenGuardianInvitationForToken(invitation);
+        User parent = user("mary@example.com", LocalDate.of(1985, 4, 12));
+        UUID existingChild = UUID.randomUUID();
+        when(guardianChildLookupService.findChildUserUuid(
+                parent.getUuid(), "Wanjiru", "Kamau", invitation.getChildDob())).thenReturn(Optional.of(existingChild));
+
+        service.guardianConsent(GUARDIAN_RAW_TOKEN, new GuardianConsentRequestDTO(null, true), parent.getUuid());
+
+        assertThat(invitation.getAcceptedUserUuid()).isEqualTo(existingChild);
+        verify(managedLearnerAccountService, never()).createManagedLearnerAccount(any());
+    }
+
+    @Test
+    void aMinorCannotApproveAsTheParent() {
+        OrganisationInvitation invitation = parentInvitation();
+        givenGuardianInvitationForToken(invitation);
+        User minor = user("mary@example.com", LocalDate.now(ZoneOffset.UTC).minusYears(16));
+
+        assertThatThrownBy(() -> service.guardianConsent(
+                GUARDIAN_RAW_TOKEN, new GuardianConsentRequestDTO(null, true), minor.getUuid()))
+                .isInstanceOf(IllegalArgumentException.class)
+                .hasMessageContaining("at least 18");
+        verify(managedLearnerAccountService, never()).createManagedLearnerAccount(any());
+        verify(userService, never()).assignUserToOrganisation(any(), any(), any(), any());
+    }
+
+    @Test
+    void onlyTheInvitedParentMayApprove() {
+        givenGuardianInvitationForToken(parentInvitation());
+        User stranger = user("stranger@example.com", LocalDate.of(1980, 1, 1));
+
+        assertThatThrownBy(() -> service.guardianConsent(
+                GUARDIAN_RAW_TOKEN, new GuardianConsentRequestDTO(null, true), stranger.getUuid()))
+                .isInstanceOf(AccessDeniedException.class);
+        verify(managedLearnerAccountService, never()).createManagedLearnerAccount(any());
+    }
+
+    // ================================
     // HELPERS
     // ================================
+
+    private OrganisationInvitation parentInvitation() {
+        OrganisationInvitation invitation = awaitingGuardianInvitation();
+        invitation.setRecipientEmail(null);
+        invitation.setRecipientName("Wanjiru Kamau");
+        invitation.setChildFirstName("Wanjiru");
+        invitation.setChildLastName("Kamau");
+        invitation.setChildDob(LocalDate.now(ZoneOffset.UTC).minusYears(9));
+        invitation.setGuardianEmail("mary@example.com");
+        invitation.setGuardianRelationshipType("PARENT");
+        return invitation;
+    }
 
     private void givenInvitationForToken(OrganisationInvitation invitation) {
         when(invitationRepository.findByTokenHash(tokenService.hash(RAW_TOKEN)))

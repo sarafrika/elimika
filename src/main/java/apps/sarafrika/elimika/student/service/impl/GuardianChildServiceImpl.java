@@ -1,19 +1,16 @@
 package apps.sarafrika.elimika.student.service.impl;
 
 import apps.sarafrika.elimika.shared.exceptions.DuplicateResourceException;
+import apps.sarafrika.elimika.shared.spi.GuardianChildLookupService;
 import apps.sarafrika.elimika.shared.spi.MinorLearnerLookupService;
 import apps.sarafrika.elimika.student.dto.GuardianChildRequestDTO;
 import apps.sarafrika.elimika.student.dto.GuardianStudentLinkDTO;
 import apps.sarafrika.elimika.student.dto.GuardianStudentLinkRequest;
 import apps.sarafrika.elimika.student.dto.StudentDTO;
-import apps.sarafrika.elimika.student.model.Student;
-import apps.sarafrika.elimika.student.model.StudentGuardianLink;
-import apps.sarafrika.elimika.student.repository.StudentGuardianLinkRepository;
 import apps.sarafrika.elimika.student.repository.StudentRepository;
 import apps.sarafrika.elimika.student.service.GuardianAccessService;
 import apps.sarafrika.elimika.student.service.GuardianChildService;
 import apps.sarafrika.elimika.student.service.StudentService;
-import apps.sarafrika.elimika.student.util.enums.GuardianLinkStatus;
 import apps.sarafrika.elimika.student.util.enums.GuardianRelationshipType;
 import apps.sarafrika.elimika.student.util.enums.GuardianShareScope;
 import apps.sarafrika.elimika.tenancy.spi.ManagedLearnerAccountService;
@@ -28,9 +25,6 @@ import java.time.LocalDate;
 import java.time.Period;
 import java.time.ZoneOffset;
 import java.util.EnumSet;
-import java.util.List;
-import java.util.Locale;
-import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -46,8 +40,8 @@ public class GuardianChildServiceImpl implements GuardianChildService {
     private final StudentService studentService;
     private final GuardianAccessService guardianAccessService;
     private final StudentRepository studentRepository;
-    private final StudentGuardianLinkRepository guardianLinkRepository;
     private final UserLookupService userLookupService;
+    private final GuardianChildLookupService guardianChildLookupService;
 
     @Override
     @Transactional
@@ -89,21 +83,8 @@ public class GuardianChildServiceImpl implements GuardianChildService {
 
     /** Guards against a double submit: the same name and date of birth among the guardian's linked learners. */
     private void requireNotAlreadyAdded(UUID guardianUserUuid, GuardianChildRequestDTO request) {
-        List<UUID> studentUuids = guardianLinkRepository.findByGuardianUserUuidAndStatusIn(guardianUserUuid,
-                        EnumSet.of(GuardianLinkStatus.ACTIVE, GuardianLinkStatus.PENDING)).stream()
-                .map(StudentGuardianLink::getStudentUuid)
-                .toList();
-        if (studentUuids.isEmpty()) {
-            return;
-        }
-        String name = normaliseName(request.firstName() + " " + request.lastName());
-        boolean duplicate = studentRepository.findByUuidIn(studentUuids).stream()
-                .map(Student::getUserUuid)
-                .filter(Objects::nonNull)
-                .anyMatch(userUuid -> request.dob().equals(userLookupService.getUserDateOfBirth(userUuid).orElse(null))
-                        && userLookupService.getUserFullName(userUuid).map(GuardianChildServiceImpl::normaliseName)
-                        .filter(name::equals).isPresent());
-        if (duplicate) {
+        if (guardianChildLookupService.findChildUserUuid(guardianUserUuid, request.firstName(), request.lastName(),
+                request.dob()).isPresent()) {
             throw new DuplicateResourceException("You have already added this child.");
         }
     }
@@ -117,9 +98,5 @@ public class GuardianChildServiceImpl implements GuardianChildService {
 
     private static int ageOn(LocalDate dob, LocalDate date) {
         return Period.between(dob, date).getYears();
-    }
-
-    private static String normaliseName(String name) {
-        return name.trim().replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
     }
 }

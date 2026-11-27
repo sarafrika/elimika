@@ -4,9 +4,14 @@ import apps.sarafrika.elimika.notifications.api.NotificationType;
 import apps.sarafrika.elimika.shared.event.notification.NotificationRequestedEvent;
 import apps.sarafrika.elimika.shared.exceptions.ResourceNotFoundException;
 import apps.sarafrika.elimika.shared.spi.ClassDefinitionLookupService;
+import apps.sarafrika.elimika.shared.spi.MinorLearnerLookupService;
+import apps.sarafrika.elimika.systemconfig.dto.AgeGateDecision;
+import apps.sarafrika.elimika.systemconfig.dto.RuleContext;
+import apps.sarafrika.elimika.systemconfig.service.RuleEvaluationService;
 import apps.sarafrika.elimika.tenancy.dto.OrganisationInvitationDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsRequestDTO;
 import apps.sarafrika.elimika.tenancy.dto.SendOrganisationInvitationsResultDTO;
+import apps.sarafrika.elimika.tenancy.dto.SendParentInvitationsRequestDTO;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
 import apps.sarafrika.elimika.tenancy.entity.OrganisationInvitation;
 import apps.sarafrika.elimika.tenancy.entity.OrganisationInvitationClass;
@@ -34,7 +39,11 @@ import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.Period;
+import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -66,6 +75,8 @@ import java.util.stream.Collectors;
 public class OrganisationInvitationServiceImpl implements OrganisationInvitationService {
 
     private static final int DEFAULT_EXPIRY_DAYS = 14;
+    private static final String STUDENT_AGE_GATE_RULE_KEY = "student.onboarding.age_gate";
+    private static final Set<String> CHILD_RELATIONSHIPS = Set.of("PARENT", "GUARDIAN");
 
     /**
      * Domains an organisation may invite into. Mirrors the set accepted by
@@ -89,6 +100,7 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
     private final InvitationTokenService tokenService;
     private final InvitationLinkFactory linkFactory;
     private final ApplicationEventPublisher eventPublisher;
+    private final RuleEvaluationService ruleEvaluationService;
 
     @Override
     @Transactional
@@ -131,6 +143,129 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
         log.info("Organisation {} invited {} recipient(s) into domain {}; {} skipped",
                 organisationUuid, sent.size(), domain.getDomainName(), failed.size());
         return new SendOrganisationInvitationsResultDTO(sent, failed);
+    }
+
+    @Override
+    @Transactional
+    public SendOrganisationInvitationsResultDTO sendToParents(UUID organisationUuid,
+                                                              SendParentInvitationsRequestDTO request,
+                                                              UUID inviterUserUuid) {
+        requireOrganisation(organisationUuid);
+        UserDomain domain = resolveOrgScopedDomain("student");
+        UUID branchUuid = validateBranch(organisationUuid, request.branchUuid());
+        List<UUID> classUuids = validateClasses(organisationUuid, request.classUuids());
+
+        int expiryDays = request.expiresInDays() == null ? DEFAULT_EXPIRY_DAYS : request.expiresInDays();
+        LocalDateTime expiresAt = LocalDateTime.now().plusDays(expiryDays);
+
+        List<OrganisationInvitationDTO> sent = new ArrayList<>();
+        List<SendOrganisationInvitationsResultDTO.Failure> failed = new ArrayList<>();
+
+        // Each child is decided on separately, so one ineligible child does not cost the others.
+        for (SendParentInvitationsRequestDTO.Child child : request.children()) {
+            String guardianEmail = normaliseEmail(child.guardianEmail());
+            try {
+                OrganisationInvitation invitation = createParentInvitation(organisationUuid, domain, branchUuid,
+                        classUuids, child, guardianEmail, request.message(), expiresAt, inviterUserUuid);
+                sent.add(OrganisationInvitationFactory.toDTO(invitation, domain.getDomainName(), classUuids));
+            } catch (IllegalStateException | IllegalArgumentException e) {
+                log.debug("Skipping parent invitation in organisation {}: {}", organisationUuid, e.getMessage());
+                failed.add(new SendOrganisationInvitationsResultDTO.Failure(guardianEmail, e.getMessage()));
+            }
+        }
+
+        log.info("Organisation {} invited parents of {} child(ren); {} skipped",
+                organisationUuid, sent.size(), failed.size());
+        return new SendOrganisationInvitationsResultDTO(sent, failed);
+    }
+
+    /**
+     * Creates an offer that starts with the parent: the child has no email or account yet, so it is already
+     * awaiting guardian consent, and only the parent's link is ever sent.
+     */
+    private OrganisationInvitation createParentInvitation(UUID organisationUuid,
+                                                          UserDomain domain,
+                                                          UUID branchUuid,
+                                                          List<UUID> classUuids,
+                                                          SendParentInvitationsRequestDTO.Child child,
+                                                          String guardianEmail,
+                                                          String message,
+                                                          LocalDateTime expiresAt,
+                                                          UUID inviterUserUuid) {
+        String firstName = child.firstName().trim();
+        String lastName = child.lastName().trim();
+        String childName = firstName + " " + lastName;
+        requireChildEligible(childName, child.dob());
+        String relationship = child.relationshipType() == null || child.relationshipType().isBlank()
+                ? "PARENT" : child.relationshipType().trim().toUpperCase(Locale.ROOT);
+        if (!CHILD_RELATIONSHIPS.contains(relationship)) {
+            throw new IllegalArgumentException("Relationship for " + childName + " must be PARENT or GUARDIAN.");
+        }
+        if (invitationRepository.findLiveParentInvitation(
+                organisationUuid, guardianEmail, firstName, lastName, child.dob()).isPresent()) {
+            throw new IllegalStateException(childName + " already has a pending invitation to your organisation.");
+        }
+
+        String guardianRawToken = tokenService.generateRawToken();
+        OrganisationInvitation invitation = new OrganisationInvitation();
+        // The child has no link of their own; this hash only fills the required column and is never sent.
+        invitation.setTokenHash(tokenService.hash(tokenService.generateRawToken()));
+        invitation.setOrganisationUuid(organisationUuid);
+        invitation.setBranchUuid(branchUuid);
+        invitation.setDomainUuid(domain.getUuid());
+        invitation.setRecipientName(childName);
+        invitation.setChildFirstName(firstName);
+        invitation.setChildLastName(lastName);
+        invitation.setChildDob(child.dob());
+        invitation.setInviterUserUuid(inviterUserUuid);
+        invitation.setStatus(InvitationStatus.AWAITING_GUARDIAN_CONSENT);
+        invitation.setRequiresGuardianConsent(true);
+        invitation.setGuardianEmail(guardianEmail);
+        invitation.setGuardianName(trimToNull(child.guardianName()));
+        invitation.setGuardianRelationshipType(relationship);
+        invitation.setGuardianConsentTokenHash(tokenService.hash(guardianRawToken));
+        invitation.setMessage(trimToNull(message));
+        invitation.setExpiresAt(expiresAt);
+
+        OrganisationInvitation saved = invitationRepository.save(invitation);
+        persistClasses(saved.getUuid(), classUuids);
+        publishParentConsentEmail(saved, guardianRawToken);
+        return saved;
+    }
+
+    /** Under 18, and old enough for the learner age gate, checked now rather than when the parent approves. */
+    private void requireChildEligible(String childName, LocalDate dob) {
+        if (Period.between(dob, LocalDate.now(ZoneOffset.UTC)).getYears() >= MinorLearnerLookupService.AGE_OF_MAJORITY) {
+            throw new IllegalArgumentException(childName + " is " + MinorLearnerLookupService.AGE_OF_MAJORITY
+                    + " or over; invite them directly instead.");
+        }
+        AgeGateDecision decision = ruleEvaluationService.evaluateAgeGate(dob, RuleContext.builder()
+                .ruleKey(STUDENT_AGE_GATE_RULE_KEY)
+                .evaluationInstant(OffsetDateTime.now(ZoneOffset.UTC))
+                .build());
+        if (!decision.allowed()) {
+            throw new IllegalArgumentException(childName + ": " + decision.reason());
+        }
+    }
+
+    /** Asks the parent to decide, on their own link. Same email as a guardian named by the child. */
+    private void publishParentConsentEmail(OrganisationInvitation invitation, String guardianRawToken) {
+        // Template variables are copied into an immutable map downstream, which rejects nulls.
+        Map<String, Object> variables = new HashMap<>();
+        variables.put("guardianName", orElse(invitation.getGuardianName(), "there"));
+        variables.put("studentName", orElse(invitation.getRecipientName(), "your child"));
+        variables.put("organisationName", orElse(organisationName(invitation.getOrganisationUuid()), "An organisation"));
+        variables.put("roleName", orElse(domainName(invitation.getDomainUuid()), "student"));
+        variables.put("relationshipType", orElse(invitation.getGuardianRelationshipType(), "PARENT"));
+        variables.put("consentLink", linkFactory.guardianConsentLink(guardianRawToken));
+        variables.put("expiresAt", invitation.getExpiresAt() == null ? "" : invitation.getExpiresAt().toString());
+
+        eventPublisher.publishEvent(NotificationRequestedEvent.email(
+                userLookupService.findUserUuidByEmail(invitation.getGuardianEmail()).orElse(null),
+                invitation.getGuardianEmail(),
+                invitation.getGuardianName(),
+                NotificationType.GUARDIAN_CONSENT_REQUEST.getValue(),
+                variables));
     }
 
     /**
@@ -255,6 +390,17 @@ public class OrganisationInvitationServiceImpl implements OrganisationInvitation
         if (!invitation.getStatus().isLive()) {
             throw new IllegalStateException(
                     "Only a pending invitation can be resent; this one is " + invitation.getStatus().getValue() + ".");
+        }
+
+        if (invitation.isParentInvitation()) {
+            // Only the parent has a link; replace it so the earlier email stops working.
+            String guardianRawToken = tokenService.generateRawToken();
+            invitation.setGuardianConsentTokenHash(tokenService.hash(guardianRawToken));
+            invitation.setExpiresAt(LocalDateTime.now().plusDays(DEFAULT_EXPIRY_DAYS));
+            OrganisationInvitation saved = invitationRepository.save(invitation);
+            publishParentConsentEmail(saved, guardianRawToken);
+            log.info("Parent invitation {} resent by organisation {}", invitationUuid, organisationUuid);
+            return toDTO(saved);
         }
 
         // A resend supersedes the previous link rather than issuing a second working one.

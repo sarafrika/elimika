@@ -1,6 +1,8 @@
 package apps.sarafrika.elimika.student.internal;
 
 import apps.sarafrika.elimika.shared.event.student.GuardianConsentRecordedEvent;
+import apps.sarafrika.elimika.shared.event.user.UserDomainMappingEvent;
+import apps.sarafrika.elimika.shared.utils.enums.UserDomain;
 import apps.sarafrika.elimika.student.model.Student;
 import apps.sarafrika.elimika.student.model.StudentGuardianLink;
 import apps.sarafrika.elimika.student.repository.StudentGuardianLinkRepository;
@@ -11,6 +13,7 @@ import apps.sarafrika.elimika.student.util.enums.GuardianShareScope;
 import apps.sarafrika.elimika.tenancy.spi.UserLookupService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.modulith.events.ApplicationModuleListener;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -41,6 +44,7 @@ public class GuardianConsentListener {
     private final StudentRepository studentRepository;
     private final StudentGuardianLinkRepository guardianLinkRepository;
     private final UserLookupService userLookupService;
+    private final ApplicationEventPublisher eventPublisher;
 
     @ApplicationModuleListener
     void onGuardianConsentRecorded(GuardianConsentRecordedEvent event) {
@@ -58,6 +62,11 @@ public class GuardianConsentListener {
                 .ifPresentOrElse(
                         existing -> activate(existing, event),
                         () -> create(student.getUuid(), event));
+
+        // As when a guardian adds a child: the learner holds the student domain and the guardian the parent
+        // domain, which the guardian's own pages require. Both requests are no-ops when already held.
+        eventPublisher.publishEvent(new UserDomainMappingEvent(event.studentUserUuid(), UserDomain.student.name()));
+        eventPublisher.publishEvent(new UserDomainMappingEvent(event.guardianUserUuid(), UserDomain.parent.name()));
     }
 
     private Student createProfile(UUID userUuid) {

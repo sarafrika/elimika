@@ -7,6 +7,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.Collection;
 import java.util.List;
@@ -48,6 +49,21 @@ public interface OrganisationInvitationRepository extends JpaRepository<Organisa
             """)
     Optional<OrganisationInvitation> findLiveByOrganisationAndEmail(
             @Param("organisationUuid") UUID organisationUuid, @Param("email") String email);
+
+    /** The live offer an organisation already sent a parent for this child, if any. */
+    @Query("""
+            SELECT i FROM OrganisationInvitation i
+            WHERE i.organisationUuid = :organisationUuid
+              AND LOWER(i.guardianEmail) = LOWER(:guardianEmail)
+              AND LOWER(i.childFirstName) = LOWER(:firstName)
+              AND LOWER(i.childLastName) = LOWER(:lastName)
+              AND i.childDob = :dob
+              AND i.status IN (apps.sarafrika.elimika.tenancy.util.enums.InvitationStatus.PENDING,
+                               apps.sarafrika.elimika.tenancy.util.enums.InvitationStatus.AWAITING_GUARDIAN_CONSENT)
+            """)
+    Optional<OrganisationInvitation> findLiveParentInvitation(
+            @Param("organisationUuid") UUID organisationUuid, @Param("guardianEmail") String guardianEmail,
+            @Param("firstName") String firstName, @Param("lastName") String lastName, @Param("dob") LocalDate dob);
 
     /**
      * All live offers addressed to an email address, across organisations. Backs the

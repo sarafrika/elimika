@@ -7,7 +7,7 @@ YOUR APPROVAL IS NEEDED
 
 Hello [[${guardianName}]],
 
-[[${studentName}]] has been invited to join [[${organisationName}]] on Elimika as a [[${roleName}]], and named you as their parent or guardian.
+[[${studentName}]] has been invited to join [[${organisationName}]] on Elimika as a [[${roleName}]], and you are listed as their parent or guardian.
 
 Because they are under the age at which we accept consent directly, nothing has been set up. They will not be enrolled and the organisation gains no access unless you approve it here.
 

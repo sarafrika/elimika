@@ -12,6 +12,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 import lombok.ToString;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.UUID;
 
@@ -114,6 +115,22 @@ public class OrganisationInvitation extends BaseEntity {
 
     @Column(name = "guardian_user_uuid")
     private UUID guardianUserUuid;
+
+    // A child named by the organisation when it invites the parent instead of the child. The child has no
+    // email, so recipientEmail is null, and is created as a learner with no login when the parent approves.
+    @Column(name = "child_first_name")
+    private String childFirstName;
+
+    @Column(name = "child_last_name")
+    private String childLastName;
+
+    @Column(name = "child_dob")
+    private LocalDate childDob;
+
+    /** Sent to a parent for a named child rather than to the invitee. */
+    public boolean isParentInvitation() {
+        return childDob != null;
+    }
 
     /**
      * Whether this offer can still be acted upon: live status and not past its expiry.
