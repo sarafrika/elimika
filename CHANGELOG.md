@@ -1,3 +1,10 @@
+## [2.200.1](https://github.com/sarafrika/elimika/compare/v2.200.0...v2.200.1) (2026-11-27)
+
+
+### Bug Fixes
+
+* **notifications:** send emails to addresses with no account, such as guardian invitations ([#272](https://github.com/sarafrika/elimika/issues/272)) ([1a280c7](https://github.com/sarafrika/elimika/commit/1a280c7d21208dd857be632e4dc4eabb02dafe9c))
+
 # [2.200.0](https://github.com/sarafrika/elimika/compare/v2.199.0...v2.200.0) (2026-11-27)
 
 
