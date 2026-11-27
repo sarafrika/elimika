@@ -565,7 +565,7 @@ public class OrganisationServiceImpl implements OrganisationService {
         }
         // null keeps the current set; an empty list clears it.
         if (dto.capabilities() != null) {
-            organisation.setCapabilities(OrganisationFactory.toStored(dto.capabilities()));
+            organisation.setCapabilities(new ArrayList<>(dto.capabilities().stream().distinct().toList()));
         }
     }
 

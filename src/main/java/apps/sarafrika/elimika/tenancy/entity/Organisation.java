@@ -2,17 +2,24 @@ package apps.sarafrika.elimika.tenancy.entity;
 
 import apps.sarafrika.elimika.shared.model.BaseEntity;
 import apps.sarafrika.elimika.shared.utils.Filterable;
+import apps.sarafrika.elimika.tenancy.util.enums.OrganisationCapability;
 import apps.sarafrika.elimika.tenancy.util.enums.OrganisationType;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.Table;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
+import org.hibernate.annotations.JdbcTypeCode;
+import org.hibernate.type.SqlTypes;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.List;
 
 @Entity
 @Table(name = "organisation")
@@ -73,7 +80,9 @@ public class Organisation extends BaseEntity {
     @Filterable
     private OrganisationType organisationType;
 
-    /** {@code OrganisationCapability} values; never null. */
+    /** Stored by enum name in a TEXT[]; never null. */
+    @Enumerated(EnumType.STRING)
+    @JdbcTypeCode(SqlTypes.ARRAY)
     @Column(name = "capabilities")
-    private String[] capabilities = new String[0];
+    private List<OrganisationCapability> capabilities = new ArrayList<>();
 }

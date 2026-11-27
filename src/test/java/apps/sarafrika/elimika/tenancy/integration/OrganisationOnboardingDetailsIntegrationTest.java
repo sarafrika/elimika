@@ -85,10 +85,13 @@ class OrganisationOnboardingDetailsIntegrationTest {
                 .andExpect(status().isCreated())
                 .andExpect(jsonPath("$.data.organisation_type").value("SCHOOL_OR_TRAINING_INSTITUTION"))
                 .andExpect(jsonPath("$.data.capabilities.length()").value(2))
-                .andExpect(jsonPath("$.data.capabilities[0]").value("TRAIN"))
-                .andExpect(jsonPath("$.data.capabilities[1]").value("HIRE"))
+                .andExpect(jsonPath("$.data.capabilities[0]").value("HIRE"))
+                .andExpect(jsonPath("$.data.capabilities[1]").value("TRAIN"))
                 .andReturn().getResponse().getContentAsString();
         String uuid = JsonPath.read(created, "$.data.uuid");
+        org.assertj.core.api.Assertions.assertThat(jdbc.queryForObject(
+                "SELECT array_to_string(capabilities, ',') FROM organisation WHERE uuid = ?::uuid", String.class, uuid))
+                .isEqualTo("HIRE,TRAIN");
 
         // An update that omits both keeps them (the onboarding form saves other fields separately).
         mockMvc.perform(put("/api/v1/organisations/" + uuid).with(owner())
@@ -135,17 +138,17 @@ class OrganisationOnboardingDetailsIntegrationTest {
     }
 
     @Test
-    @DisplayName("values no longer in the enums are skipped when read, not an error")
-    void retiredValuesAreSkippedOnRead() throws Exception {
+    @DisplayName("capabilities written directly to the TEXT[] column read back, and a retired type reads as null")
+    void storageAndRetiredType() throws Exception {
         UUID uuid = UUID.randomUUID();
         jdbc.update("INSERT INTO organisation (uuid, name, organisation_type, capabilities, created_by) "
-                + "VALUES (?, 'Retired Values', 'CHURCH', ARRAY['TRADE', 'HIRE'], 'test')", uuid);
+                + "VALUES (?, 'Retired Type', 'CHURCH', ARRAY['FUND', 'HIRE'], 'test')", uuid);
 
         mockMvc.perform(get("/api/v1/organisations/" + uuid).with(owner()))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.organisation_type").doesNotExist())
-                .andExpect(jsonPath("$.data.capabilities.length()").value(1))
-                .andExpect(jsonPath("$.data.capabilities[0]").value("HIRE"));
+                .andExpect(jsonPath("$.data.capabilities.length()").value(2))
+                .andExpect(jsonPath("$.data.capabilities[0]").value("FUND"));
     }
 
     private RequestPostProcessor owner() {

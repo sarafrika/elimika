@@ -2,13 +2,11 @@ package apps.sarafrika.elimika.tenancy.factory;
 
 import apps.sarafrika.elimika.tenancy.dto.OrganisationDTO;
 import apps.sarafrika.elimika.tenancy.entity.Organisation;
-import apps.sarafrika.elimika.tenancy.util.enums.OrganisationCapability;
 import lombok.AccessLevel;
 import lombok.NoArgsConstructor;
 
-import java.util.Arrays;
+import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 
 @NoArgsConstructor(access = AccessLevel.PRIVATE)
 public class OrganisationFactory {
@@ -29,31 +27,8 @@ public class OrganisationFactory {
                 organisation.getLastModifiedDate(),
                 organisation.getVerificationRequestedAt(),
                 organisation.getOrganisationType(),
-                capabilities(organisation.getCapabilities())
+                organisation.getCapabilities() == null ? List.of() : List.copyOf(organisation.getCapabilities())
         );
-    }
-
-
-    /** Stored values in declaration order; values no longer in the enum are dropped. */
-    public static List<OrganisationCapability> capabilities(String[] stored) {
-        if (stored == null) {
-            return List.of();
-        }
-        Set<String> values = Set.of(stored);
-        return Arrays.stream(OrganisationCapability.values())
-                .filter(capability -> values.contains(capability.getValue()))
-                .toList();
-    }
-
-    /** Deduplicated, in declaration order. */
-    public static String[] toStored(List<OrganisationCapability> capabilities) {
-        if (capabilities == null) {
-            return new String[0];
-        }
-        return Arrays.stream(OrganisationCapability.values())
-                .filter(capabilities::contains)
-                .map(OrganisationCapability::getValue)
-                .toArray(String[]::new);
     }
 
     public static Organisation toEntity(OrganisationDTO organisationDTO) {
@@ -69,7 +44,9 @@ public class OrganisationFactory {
         organisation.setLatitude(organisationDTO.latitude());
         organisation.setLongitude(organisationDTO.longitude());
         organisation.setOrganisationType(organisationDTO.organisationType());
-        organisation.setCapabilities(toStored(organisationDTO.capabilities()));
+        if (organisationDTO.capabilities() != null) {
+            organisation.setCapabilities(new ArrayList<>(organisationDTO.capabilities().stream().distinct().toList()));
+        }
         return organisation;
     }
 }
