@@ -34,7 +34,7 @@ public class OrganisationFactory {
     }
 
 
-    /** Stored values in declaration order; unknown values (none pass the DB CHECK) are dropped. */
+    /** Stored values in declaration order; values no longer in the enum are dropped. */
     public static List<OrganisationCapability> capabilities(String[] stored) {
         if (stored == null) {
             return List.of();

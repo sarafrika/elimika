@@ -8,7 +8,6 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.webmvc.test.autoconfigure.AutoConfigureMockMvc;
-import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.MediaType;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.oauth2.jwt.JwtDecoder;
@@ -21,7 +20,6 @@ import org.springframework.test.web.servlet.request.RequestPostProcessor;
 
 import java.util.UUID;
 
-import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.jwt;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -137,12 +135,17 @@ class OrganisationOnboardingDetailsIntegrationTest {
     }
 
     @Test
-    @DisplayName("the database refuses capabilities outside the known set")
-    void databaseGuardsCapabilities() {
-        assertThatThrownBy(() -> jdbc.update("INSERT INTO organisation (uuid, name, capabilities, created_by) "
-                + "VALUES (?, 'Raw Insert', ARRAY['TRADE'], 'test')", UUID.randomUUID()))
-                .isInstanceOf(DataIntegrityViolationException.class)
-                .hasMessageContaining("chk_organisation_capabilities");
+    @DisplayName("values no longer in the enums are skipped when read, not an error")
+    void retiredValuesAreSkippedOnRead() throws Exception {
+        UUID uuid = UUID.randomUUID();
+        jdbc.update("INSERT INTO organisation (uuid, name, organisation_type, capabilities, created_by) "
+                + "VALUES (?, 'Retired Values', 'CHURCH', ARRAY['TRADE', 'HIRE'], 'test')", uuid);
+
+        mockMvc.perform(get("/api/v1/organisations/" + uuid).with(owner()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.organisation_type").doesNotExist())
+                .andExpect(jsonPath("$.data.capabilities.length()").value(1))
+                .andExpect(jsonPath("$.data.capabilities[0]").value("HIRE"));
     }
 
     private RequestPostProcessor owner() {
